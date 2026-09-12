@@ -66,28 +66,59 @@ function findServiceAccountKey() {
 function init(onRemoteDataChange) {
     if (isInitialized) return true;
 
-    const keyPath = findServiceAccountKey();
     const config = getConfig();
+    let serviceAccount = null;
+    let keySource = null;
 
-    if (!keyPath) {
+    // 1. Check environment variable (ideal for Vercel / Cloud deployments)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+            const raw = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+            if (raw.startsWith('{')) {
+                serviceAccount = JSON.parse(raw);
+            } else {
+                // Try base64
+                const decoded = Buffer.from(raw, 'base64').toString('utf8');
+                serviceAccount = JSON.parse(decoded);
+            }
+            keySource = 'FIREBASE_SERVICE_ACCOUNT (env variable)';
+        } catch (e) {
+            console.error('[Firebase RTDB] Failed to parse FIREBASE_SERVICE_ACCOUNT env var:', e.message);
+        }
+    }
+
+    // 2. Check local file if not found in env
+    if (!serviceAccount) {
+        const keyPath = findServiceAccountKey();
+        if (keyPath) {
+            try {
+                serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+                keySource = path.basename(keyPath);
+            } catch (e) {
+                console.error('[Firebase RTDB] Failed to read key file:', e.message);
+            }
+        }
+    }
+
+    if (!serviceAccount) {
         console.log('----------------------------------------------------');
-        console.log('⚠️  [Firebase RTDB] serviceAccountKey.json not found yet.');
+        console.log('⚠️  [Firebase RTDB] serviceAccountKey not found yet.');
         console.log(`📌  Target Project: ${config.projectId}`);
         console.log(`📌  Database URL: ${config.databaseURL}`);
         console.log('📌  To connect:');
         console.log('    1. Open: https://console.firebase.google.com/u/0/project/' + config.projectId + '/settings/serviceaccounts/adminsdk');
         console.log('    2. Click "Generate new private key"');
         console.log('    3. Save file as "serviceAccountKey.json" in "server/" folder');
+        console.log('    (Or in Vercel: set Environment Variable FIREBASE_SERVICE_ACCOUNT)');
         console.log('🔄  Operating in Local Storage fallback mode.');
         console.log('----------------------------------------------------');
         return false;
     }
 
     try {
-        serviceAccountPathUsed = keyPath;
-        const serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+        serviceAccountPathUsed = keySource;
 
-        let dbUrl = config.databaseURL;
+        let dbUrl = process.env.FIREBASE_DATABASE_URL || config.databaseURL;
         if (!dbUrl || dbUrl.includes('example')) {
             dbUrl = `https://${serviceAccount.project_id || config.projectId}-default-rtdb.firebaseio.com`;
         }

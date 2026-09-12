@@ -789,5 +789,13 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const targetPort = process.env.PORT ? Number(process.env.PORT) : 3000;
-startServer(targetPort);
+if (!process.env.VERCEL) {
+    startServer(targetPort);
+} else {
+    // In Vercel serverless environment, initialize Firebase DB directly
+    db.initFirebase();
+}
+
+module.exports = app;
+
 

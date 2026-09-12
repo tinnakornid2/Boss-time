@@ -18,9 +18,14 @@ function load() {
 
 function save() {
     if (cache) {
-        const tempPath = `${dataFile}.tmp`;
-        fs.writeFileSync(tempPath, JSON.stringify(cache, null, 2), 'utf8');
-        fs.renameSync(tempPath, dataFile);
+        try {
+            const tempPath = `${dataFile}.tmp`;
+            fs.writeFileSync(tempPath, JSON.stringify(cache, null, 2), 'utf8');
+            fs.renameSync(tempPath, dataFile);
+        } catch (err) {
+            // In serverless environments like Vercel, the local filesystem is read-only.
+            // Data persistence is handled via Firebase Realtime Database.
+        }
     }
 }
 
@@ -86,6 +91,7 @@ async function initFirebase(onRemoteChange) {
 
 // Watch directory so if user drops serviceAccountKey.json later, it connects automatically
 function watchForServiceAccountKey(onRemoteChange) {
+    if (process.env.VERCEL) return; // Do not hold timer in serverless functions
     let checkInterval = setInterval(async () => {
         const key = firebase.findServiceAccountKey();
         if (key) {
