@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boss Tracker | Lineage 2</title>
+    <meta name="description" content="Lineage 2 Real-Time Boss & Event Spawn Tracker with Sound Alerts and Server Maintenance Manager">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-container">
+    <!-- Header Bar -->
+    <header class="header-bar">
+        <div class="brand-section">
+            <div class="brand-logo">⚔️</div>
+            <div>
+                <h1 class="brand-title">
+                    <span id="server-name-label">#Kain7</span> Boss Tracker
+                    <span class="brand-badge">Live</span>
+                    <span id="ws-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-emerald); display: inline-block; box-shadow: 0 0 6px var(--accent-emerald);" title="Live Sync Active"></span>
+                </h1>
+            </div>
+        </div>
+
+        <!-- Clocks -->
+        <div class="server-clock-box">
+            <div class="clock-item">
+                <span class="clock-label">Current Time</span>
+                <span class="clock-val" id="local-clock">--:--:--</span>
+            </div>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="header-actions">
+            <button class="btn btn-primary admin-only" id="add-boss-btn" style="display:none;">
+                ➕ Add Boss
+            </button>
+            <button class="btn btn-amber admin-only" id="maint-btn" style="display:none;">
+                ⚙️ Maintenance
+            </button>
+            <button class="btn" id="settings-btn" title="Settings & Sound Controls">
+                ⚙️ Settings
+            </button>
+            <button class="btn btn-primary" id="auth-btn">
+                🔒 Login / Unlock
+            </button>
+        </div>
+    </header>
+
+    <!-- Announcement Banner -->
+    <div id="announcement-banner" class="announcement-banner" title="Click to edit (Admin only)">
+        <span class="announcement-icon">📢</span>
+        <span id="announcement-text" class="announcement-text"></span>
+        <span class="admin-only" style="font-size: 0.75rem; opacity: 0.7; display:none;">(Click to edit)</span>
+    </div>
+
+    <!-- Controls Bar (Tabs & Search) -->
+    <div class="controls-bar">
+        <div class="tab-group">
+            <button class="tab-btn active" data-tab="all">
+                ⚔️ All Bosses <span class="tab-badge" id="badge-count-all">0</span>
+            </button>
+            <button class="tab-btn" data-tab="upcoming">
+                ⏳ Upcoming <span class="tab-badge" id="badge-count-upcoming">0</span>
+            </button>
+            <button class="tab-btn" data-tab="alive">
+                🔥 Alive / Spawned <span class="tab-badge" id="badge-count-alive">0</span>
+            </button>
+            <button class="tab-btn" data-tab="invasion">
+                ⚡ Invasion <span class="tab-badge" id="badge-count-invasion">0</span>
+            </button>
+            <button class="tab-btn" data-tab="events">
+                📅 Events <span class="tab-badge" id="badge-count-events">0</span>
+            </button>
+        </div>
+
+        <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" class="search-input" placeholder="Search boss name or location..." autocomplete="off">
+            <button id="search-clear" class="search-clear">✖</button>
+        </div>
+    </div>
+
+    <!-- Just Spawned / ALIVE Section -->
+    <section id="just-spawned-section" class="section-wrapper" style="display:none;">
+        <div class="section-header alive-header">
+            <span class="pulse-dot"></span>
+            <span>Active Bosses in Map (Just Spawned / Pinned Alive)</span>
+        </div>
+        <div id="alive-grid" class="alive-grid"></div>
+    </section>
+
+    <!-- Main Boss Table -->
+    <section class="table-container">
+        <table class="boss-table">
+            <thead>
+                <tr>
+                    <th>Boss Name</th>
+                    <th class="col-location">Location</th>
+                    <th class="col-interval">Interval</th>
+                    <th class="col-chance">Chance</th>
+                    <th>Next Spawn / Countdown</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="boss-tbody">
+                <!-- Populated dynamically via JS -->
+            </tbody>
+        </table>
+
+        <div id="empty-state" class="empty-state" style="display:none;">
+            <div class="empty-icon">⚔️</div>
+            <h3>No bosses found</h3>
+            <p>Try clearing your search query or selecting another category.</p>
+        </div>
+    </section>
+</div>
+
+<!-- ==========================================================
+     MODALS
+     ========================================================== -->
+
+<!-- 1. Record Kill / Spawn Modal -->
+<div id="record-modal" class="modal-overlay">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <span>🕒</span> <span id="record-boss-name">Record Boss Time</span>
+            </h3>
+            <button class="modal-close" onclick="AdminController.closeModal('record-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="record-boss-id">
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <button class="tab-btn active" id="record-tab-kill" onclick="AdminController.setRecordTab('kill')">
+                    ⚔️ Kill Time
+                </button>
+                <button class="tab-btn" id="record-tab-spawn" onclick="AdminController.setRecordTab('spawn')">
+                    ⏳ Next Spawn Time
+                </button>
+            </div>
+
+            <div id="record-group-kill" class="form-group">
+                <label class="form-label">When was the boss killed?</label>
+                <input type="datetime-local" id="record-kill-time" class="form-input">
+                <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">
+                    The system will add the boss interval to compute the next spawn time.
+                </p>
+            </div>
+
+            <div id="record-group-spawn" class="form-group" style="display:none;">
+                <label class="form-label">Expected Next Spawn Time</label>
+                <input type="datetime-local" id="record-spawn-time" class="form-input">
+                <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">
+                    Set spawn time directly (system will back-calculate the kill time).
+                </p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="AdminController.closeModal('record-modal')">Cancel</button>
+            <button class="btn btn-primary" id="record-submit-btn" onclick="AdminController.submitRecordTime()">
+                Save Time
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 2. Server Maintenance Modal -->
+<div id="maintenance-modal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <span>⚙️</span> Server Maintenance Manager
+            </h3>
+            <button class="modal-close" onclick="AdminController.closeModal('maintenance-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Server Maintenance End Time (Server Open)</label>
+                <input type="datetime-local" id="maintenance-end-time" class="form-input">
+                <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">
+                    Click "Apply Reset" to recalculate spawn times for all 73 configured bosses based on their reset offset.
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+                <button class="btn btn-emerald" onclick="AdminController.applyMaintenance()">
+                    ⚡ Apply Reset Boss Time
+                </button>
+                <button class="btn btn-rose" onclick="AdminController.cancelMaintenance()">
+                    Cancel Maintenance Mode
+                </button>
+            </div>
+
+            <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase;">
+                Boss Reset Time Offsets (Hours & Minutes after Open)
+            </h4>
+            <div style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                    <thead>
+                        <tr style="background: rgba(0,0,0,0.3); color: var(--text-dim);">
+                            <th style="padding: 6px 10px; text-align: left;">Boss Name</th>
+                            <th style="padding: 6px 10px; text-align: left;">Offset after Open</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reset-configs-tbody">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top: 8px; text-align: right;">
+                <button class="btn btn-sm" onclick="AdminController.saveEditedResetConfigs()">
+                    💾 Save Config Offsets
+                </button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="AdminController.closeModal('maintenance-modal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Add / Edit Boss Modal -->
+<div id="boss-modal" class="modal-overlay">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <span>⚔️</span> <span id="boss-modal-title">Add New Boss</span>
+            </h3>
+            <button class="modal-close" onclick="AdminController.closeModal('boss-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="edit-boss-id">
+            
+            <div class="form-group">
+                <label class="form-label">Boss Name *</label>
+                <input type="text" id="boss-name-input" class="form-input" placeholder="e.g. Queen Ant">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Location / Map</label>
+                <input type="text" id="boss-location-input" class="form-input" placeholder="e.g. Ant Nest">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Respawn Interval (Minutes) *</label>
+                    <input type="number" id="boss-interval-input" class="form-input" value="360" min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Chance of Appearing %</label>
+                    <input type="number" id="boss-chance-input" class="form-input" value="100" min="1" max="100">
+                </div>
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                <input type="checkbox" id="boss-invasion-input" style="width: 18px; height: 18px;">
+                <label for="boss-invasion-input" style="font-size: 0.85rem; font-weight: 600; cursor: pointer;">
+                    ⚡ Invasion Boss Variant
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+            <button class="btn btn-rose" id="boss-delete-btn" style="display:none;" onclick="AdminController.deleteBoss()">
+                🗑️ Delete
+            </button>
+            <div style="display: flex; gap: 8px; margin-left: auto;">
+                <button class="btn" onclick="AdminController.closeModal('boss-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="AdminController.saveBoss()">Save Boss</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 4. Settings Modal -->
+<div id="settings-modal" class="modal-overlay">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <span>⚙️</span> Settings & Audio Controls
+            </h3>
+            <button class="modal-close" onclick="AdminController.closeModal('settings-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <!-- Audio Settings -->
+            <div class="form-group">
+                <label class="form-label">Alert Volume: <span id="volume-val">80%</span></label>
+                <div class="slider-container">
+                    <input type="range" id="setting-volume" class="slider-input" min="0" max="1" step="0.05" value="0.8">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Upcoming Spawn Sound</label>
+                <div style="display: flex; gap: 6px;">
+                    <select id="setting-alert-sound" class="form-select">
+                        <option value="alert">Alert (Default)</option>
+                        <option value="bell">Bell</option>
+                        <option value="warHorn">War Horn</option>
+                        <option value="flute">Flute</option>
+                        <option value="guitar">Guitar</option>
+                        <option value="levelUp">Level Up (Game)</option>
+                        <option value="pop2">Pop</option>
+                        <option value="call">Call</option>
+                        <option value="notification">Notification</option>
+                        <option value="ultraman">Ultraman</option>
+                        <option value="shaq">Shaq</option>
+                        <option value="kuntilanak">Kuntilanak</option>
+                    </select>
+                    <button class="btn btn-sm" id="btn-preview-alert">▶️ Test</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Just Spawned Sound</label>
+                <div style="display: flex; gap: 6px;">
+                    <select id="setting-spawn-sound" class="form-select">
+                        <option value="justSpawned">Just Spawned Fanfare</option>
+                        <option value="warHorn">War Horn</option>
+                        <option value="levelUp">Level Up</option>
+                        <option value="alert">Alert</option>
+                        <option value="bell">Bell</option>
+                    </select>
+                    <button class="btn btn-sm" id="btn-preview-spawn">▶️ Test</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Trigger Alert Before (Minutes)</label>
+                <select id="setting-alert-mins" class="form-select">
+                    <option value="1">1 minute before spawn</option>
+                    <option value="3">3 minutes before spawn</option>
+                    <option value="5" selected>5 minutes before spawn</option>
+                    <option value="10">10 minutes before spawn</option>
+                </select>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid var(--border-subtle); margin: 16px 0;">
+
+            <!-- Display & Overlay -->
+            <div class="form-group">
+                <label class="form-label">Window Opacity (OBS / Streamer Overlay): <span id="opacity-val">100%</span></label>
+                <div class="slider-container">
+                    <input type="range" id="setting-opacity" class="slider-input" min="0.3" max="1" step="0.05" value="1">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer;">
+                    <input type="checkbox" id="setting-swap-countdown">
+                    <span>Swap Countdown & Time</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer;">
+                    <input type="checkbox" id="setting-show-location" checked>
+                    <span>Show Location</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer;">
+                    <input type="checkbox" id="setting-show-chance" checked>
+                    <span>Show Chance %</span>
+                </label>
+            </div>
+
+            <hr class="admin-only" style="border: none; border-top: 1px solid var(--border-subtle); margin: 16px 0; display:none;">
+
+            <!-- Admin Settings -->
+            <div class="admin-only" style="display:none;">
+                <h4 style="font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 10px; text-transform: uppercase;">
+                    🛡️ Administrator Settings
+                </h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Server Title</label>
+                        <input type="text" id="setting-server-name" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Invasion Tag</label>
+                        <input type="text" id="setting-invasion-label" class="form-input">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Invasion Emoji</label>
+                        <input type="text" id="setting-invasion-emoji" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Invasion Color</label>
+                        <input type="color" id="setting-invasion-color" class="form-input" style="height: 38px; padding: 2px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="AdminController.closeModal('settings-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="AdminController.saveSettings()">Save Preferences</button>
+        </div>
+    </div>
+</div>
+
+<!-- 5. Login / PIN Unlock Modal -->
+<div id="login-modal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <span>🛡️</span> Admin Authentication
+            </h3>
+            <button class="modal-close" onclick="AdminController.closeModal('login-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <button class="tab-btn active" id="auth-tab-pin" onclick="document.getElementById('auth-group-pin').style.display=''; document.getElementById('auth-group-pass').style.display='none'; this.classList.add('active'); document.getElementById('auth-tab-pass').classList.remove('active');">
+                    🔢 6-Digit PIN
+                </button>
+                <button class="tab-btn" id="auth-tab-pass" onclick="document.getElementById('auth-group-pin').style.display='none'; document.getElementById('auth-group-pass').style.display=''; this.classList.add('active'); document.getElementById('auth-tab-pin').classList.remove('active');">
+                    🔑 Password
+                </button>
+            </div>
+
+            <!-- PIN Unlock -->
+            <div id="auth-group-pin" class="form-group">
+                <label class="form-label">Enter 6-Digit PIN Code (Default: 123456)</label>
+                <input type="password" id="pin-input" maxlength="6" class="form-input" style="font-size: 1.5rem; text-align: center; letter-spacing: 0.3em;" placeholder="••••••">
+                <button class="btn btn-primary" style="width: 100%; margin-top: 12px;" onclick="AdminController.unlockWithPin(document.getElementById('pin-input').value)">
+                    Unlock
+                </button>
+            </div>
+
+            <!-- Password Login -->
+            <div id="auth-group-pass" class="form-group" style="display:none;">
+                <label class="form-label">Username</label>
+                <input type="text" id="login-username" class="form-input" value="admin" style="margin-bottom: 10px;">
+                <label class="form-label">Password</label>
+                <input type="password" id="login-password" class="form-input" placeholder="lindvior999">
+                <button class="btn btn-primary" style="width: 100%; margin-top: 14px;" onclick="AdminController.login(document.getElementById('login-username').value, document.getElementById('login-password').value)">
+                    Log In
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- Scripts -->
+<script src="js/audio.js"></script>
+<script src="js/timer.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

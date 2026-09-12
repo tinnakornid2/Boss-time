@@ -1,0 +1,5 @@
+{
+  "projectId": "boss-timel2m",
+  "databaseURL": "https://boss-timel2m-default-rtdb.firebaseio.com",
+  "rootPath": "tracker"
+}
