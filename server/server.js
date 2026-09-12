@@ -744,12 +744,21 @@ app.get('/api/v1/time-bosses', (req, res) => {
 
 // Gemini Status health check
 app.get('/api/gemini-status', (req, res) => {
-    res.json({ ok: true, status: 'online', time: new Date().toISOString() });
+    res.json({ ok: true, status: 'online', version: '1.1.0', time: new Date().toISOString() });
 });
 
 // Firebase Status health check
 app.get('/api/firebase-status', (req, res) => {
-    res.json(db.getFirebaseStatus());
+    res.json({ ...db.getFirebaseStatus(), version: '1.1.0' });
+});
+
+// Backup Download Endpoint (JSON file download)
+app.get('/api/v1/backup', (req, res) => {
+    const store = db.getStore();
+    const dateStr = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Disposition', `attachment; filename="boss-tracker-backup-v1.1.0-${dateStr}.json"`);
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(store, null, 2));
 });
 
 // Settings page redirects (for standard Inertia links)

@@ -1,4 +1,4 @@
-# ⚔️ Lineage 2 Boss Tracker (#Kain7 Edition)
+# ⚔️ Lineage 2 Boss Tracker (#Kain7 Edition) `v1.1.0`
 
 ระบบติดตามเวลาเกิดบอสและอีเวนต์แคลนแบบเรียลไทม์ (Real-Time Boss & Event Spawn Tracker) สำหรับเกม Lineage 2 ถอดแบบโครงสร้างลอจิกและฟีเจอร์ทั้งหมดจาก `boss.kain7.com`
 
@@ -30,7 +30,13 @@
    - แถบประกาศข้อความด้านบนสุดสำหรับหัวแคลนแจ้งเตือนสมาชิก
 7. **Overlay สำหรับสตรีมเมอร์ (Streamer OBS Overlay)**:
    - ปรับความโปร่งใส (Opacity Slider 30% - 100%) เพื่อนำไปใช้เป็น Browser Source ใน OBS ได้อย่างสวยงาม
-8. **API สำหรับ Discord Bot**:
+8. **ระบบคลาวด์ Firebase Realtime Database (RTDB)**:
+   - รองรับการเชื่อมต่อกับ Firebase (`boss-timel2m`) ซิงค์เวลาบอสขึ้นคลาวด์อัตโนมัติ
+   - รองรับการ Deploy บน Vercel Serverless อย่างสมบูรณ์แบบ
+9. **ระบบสำรองข้อมูล (Backup Engine)**:
+   - สำรองข้อมูลด้วยไฟล์ `backup.bat` หรือคำสั่ง `npm run backup`
+   - ดาวน์โหลด Backup JSON ผ่าน API: `GET /api/v1/backup`
+10. **API สำหรับ Discord Bot**:
    - `GET /api/v1/time-bosses`: ดึงข้อมูลบอสและเวลาเกิดทั้งหมดเป็น JSON สำหรับเขียนบอท Discord
 
 ---
