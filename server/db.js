@@ -5,6 +5,9 @@ const firebase = require('./firebase');
 const dataFile = path.join(__dirname, 'data', 'store.json');
 let cache = null;
 let isInitializedFirebase = false;
+let autoAdvancePromise = null;
+
+const BOSS_NOW_WINDOW_MS = 60 * 1000;
 
 function load() {
     if (!cache) {
@@ -30,6 +33,62 @@ function save() {
             // In serverless environments like Vercel, the local filesystem is read-only.
             // Data persistence is handled via Firebase Realtime Database.
         }
+    }
+}
+
+function getAutoAdvanceUpdates(boss, nowMs) {
+    if (!boss?.next_spawn || boss.pinned_alive) return null;
+
+    const spawnMs = new Date(boss.next_spawn).getTime();
+    const intervalMs = Number(boss.interval) * 60 * 1000;
+    if (!Number.isFinite(spawnMs) || !Number.isFinite(intervalMs) || intervalMs <= 0) return null;
+    if (nowMs < spawnMs + BOSS_NOW_WINDOW_MS) return null;
+
+    // Jump directly to the first future cycle, including after a browser was
+    // closed for several rounds. This always produces the same result for all clients.
+    const elapsedCycles = Math.floor((nowMs - spawnMs) / intervalMs) + 1;
+    return {
+        next_spawn: new Date(spawnMs + elapsedCycles * intervalMs).toISOString(),
+        auto_advanced: true,
+        pre_spawned: false,
+        updated_at: new Date(nowMs).toISOString()
+    };
+}
+
+async function autoAdvanceOverdueBosses(nowMs = Date.now()) {
+    if (autoAdvancePromise) return autoAdvancePromise;
+
+    autoAdvancePromise = (async () => {
+        const store = load();
+        const previousBosses = store.bosses;
+        let changed = false;
+        const nextBosses = (store.bosses || []).map(boss => {
+            const updates = getAutoAdvanceUpdates(boss, nowMs);
+            if (!updates) return boss;
+            changed = true;
+            return { ...boss, ...updates };
+        });
+
+        if (!changed) return false;
+
+        store.bosses = nextBosses;
+        save();
+        const synced = await Promise.race([
+            firebase.syncAllBosses(nextBosses),
+            new Promise(resolve => setTimeout(() => resolve(false), 4000))
+        ]);
+        if (!synced) {
+            store.bosses = previousBosses;
+            save();
+            return false;
+        }
+        return true;
+    })();
+
+    try {
+        return await autoAdvancePromise;
+    } finally {
+        autoAdvancePromise = null;
     }
 }
 
@@ -217,6 +276,8 @@ module.exports = {
     getBosses() {
         return load().bosses || [];
     },
+
+    autoAdvanceOverdueBosses,
 
     getBoss(id) {
         const numId = Number(id);
