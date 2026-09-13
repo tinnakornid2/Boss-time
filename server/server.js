@@ -1353,7 +1353,7 @@ app.put('/events/:id', (req, res) => {
     const event = db.getEvent(id);
     if (event) {
         if (body.mark_done || body.mark_skipped) {
-            const todayStr = new Date().toISOString().split('T')[0];
+            const todayStr = db.getThaiDateInfo().dateStr;
             db.updateEvent(id, { done_on: todayStr, pinned_alive: false });
         } else if (body.pin_alive) {
             db.updateEvent(id, { pinned_alive: !event.pinned_alive });

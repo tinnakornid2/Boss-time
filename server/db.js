@@ -109,7 +109,85 @@ function watchForServiceAccountKey(onRemoteChange) {
 
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
+// Get current date & time in Thai timezone (UTC+7)
+function getThaiDateInfo(d = new Date()) {
+    const thaiDate = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+    return {
+        year: thaiDate.getUTCFullYear(),
+        month: thaiDate.getUTCMonth(),
+        date: thaiDate.getUTCDate(),
+        day: thaiDate.getUTCDay(),
+        dayName: DAYS[thaiDate.getUTCDay()],
+        dateStr: `${thaiDate.getUTCFullYear()}-${String(thaiDate.getUTCMonth() + 1).padStart(2, '0')}-${String(thaiDate.getUTCDate()).padStart(2, '0')}`
+    };
+}
+
+// Convert Thai (year, month, day, hours, minutes) to UTC Date object
+function makeThaiDateTime(y, m, d, h, min) {
+    return new Date(Date.UTC(y, m, d, h - 7, min, 0, 0));
+}
+
+// Format date into ISO-8601 string with +07:00 timezone offset matching Kain7
+function formatThaiIso(y, m, d, h, min) {
+    const yStr = String(y);
+    const mStr = String(m + 1).padStart(2, '0');
+    const dStr = String(d).padStart(2, '0');
+    const hStr = String(h).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    return `${yStr}-${mStr}-${dStr}T${hStr}:${minStr}:00+07:00`;
+}
+
+// Calculate the next spawn ISO timestamp for an event based on its schedule
+function calculateNextEventSpawn(event, now = new Date()) {
+    if (!event || !event.occurs_on || event.occurs_on.length === 0 || !event.event_time) {
+        return null;
+    }
+
+    const [hours, minutes] = event.event_time.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return null;
+
+    const thai = getThaiDateInfo(now);
+    const targetDays = event.occurs_on.map(d => DAYS.indexOf(d.toLowerCase())).filter(d => d !== -1);
+    if (targetDays.length === 0) return null;
+
+    const autoDoneMs = (Number(event.auto_done_minutes) || 10) * 60 * 1000;
+
+    // Check if event is scheduled for today (offset = 0)
+    if (targetDays.includes(thai.day)) {
+        const todaySpawn = makeThaiDateTime(thai.year, thai.month, thai.date, hours, minutes);
+        const expiresAt = todaySpawn.getTime() + autoDoneMs;
+
+        // If pinned alive, today's event remains active
+        if (event.pinned_alive) {
+            return formatThaiIso(thai.year, thai.month, thai.date, hours, minutes);
+        }
+
+        // If not marked done today and hasn't expired yet, today is the spawn!
+        if (event.done_on !== thai.dateStr && now.getTime() <= expiresAt) {
+            return formatThaiIso(thai.year, thai.month, thai.date, hours, minutes);
+        }
+    }
+
+    // Otherwise find the next occurrence (offsets 1 through 14)
+    for (let offset = 1; offset <= 14; offset++) {
+        const futureThaiMs = now.getTime() + 7 * 3600000 + offset * 86400000;
+        const futureThaiDate = new Date(futureThaiMs);
+        const fYear = futureThaiDate.getUTCFullYear();
+        const fMonth = futureThaiDate.getUTCMonth();
+        const fDate = futureThaiDate.getUTCDate();
+        const fDay = futureThaiDate.getUTCDay();
+
+        if (targetDays.includes(fDay)) {
+            return formatThaiIso(fYear, fMonth, fDate, hours, minutes);
+        }
+    }
+
+    return null;
+}
+
 module.exports = {
+    getThaiDateInfo,
+    calculateNextEventSpawn,
     initFirebase,
 
     getFirebaseStatus() {
@@ -194,23 +272,59 @@ module.exports = {
 
     getAllEvents() {
         const store = load();
-        return store.allEvents || [];
+        const all = store.allEvents || [];
+        const now = new Date();
+        return all.map(e => ({
+            ...e,
+            next_spawn: calculateNextEventSpawn(e, now)
+        }));
     },
 
     getEvents() {
         const store = load();
         const all = store.allEvents || [];
-        const todayDay = DAYS[new Date().getDay()];
-        return all.filter(e => {
-            if (!e.occurs_on) return true;
-            return e.occurs_on.map(d => d.toLowerCase()).includes(todayDay);
-        });
+        const now = new Date();
+        const thai = getThaiDateInfo(now);
+
+        return all
+            .filter(e => {
+                if (!e.occurs_on) return true;
+                const occursToday = e.occurs_on.map(d => d.toLowerCase()).includes(thai.dayName);
+                if (!occursToday) return false;
+
+                // If pinned alive, always keep active
+                if (e.pinned_alive) return true;
+
+                // If marked done or skipped today, exclude from today's active table
+                if (e.done_on === thai.dateStr) return false;
+
+                // If auto_done_minutes has expired, exclude
+                const [hours, minutes] = (e.event_time || '21:00').split(':').map(Number);
+                if (!isNaN(hours) && !isNaN(minutes)) {
+                    const spawnDate = makeThaiDateTime(thai.year, thai.month, thai.date, hours, minutes);
+                    const autoDoneMs = (Number(e.auto_done_minutes) || 10) * 60 * 1000;
+                    if (now.getTime() > spawnDate.getTime() + autoDoneMs) {
+                        return false;
+                    }
+                }
+
+                return true;
+            })
+            .map(e => ({
+                ...e,
+                next_spawn: calculateNextEventSpawn(e, now)
+            }));
     },
 
     getEvent(id) {
         const numId = Number(id);
         const all = load().allEvents || [];
-        return all.find(e => e.id === numId);
+        const found = all.find(e => e.id === numId);
+        if (!found) return null;
+        return {
+            ...found,
+            next_spawn: calculateNextEventSpawn(found, new Date())
+        };
     },
 
     createEvent(eventData) {
@@ -238,6 +352,7 @@ module.exports = {
             done_on: null,
             auto_done_minutes: Number(eventData.auto_done_minutes) || 10
         };
+        newEvent.next_spawn = calculateNextEventSpawn(newEvent, new Date());
         store.allEvents.push(newEvent);
         save();
         firebase.syncAllEvents(store.allEvents);
@@ -251,11 +366,13 @@ module.exports = {
         const idx = store.allEvents.findIndex(e => e.id === numId);
         if (idx === -1) return null;
 
-        store.allEvents[idx] = {
+        const merged = {
             ...store.allEvents[idx],
             ...updates,
             updated_at: new Date().toISOString()
         };
+        merged.next_spawn = calculateNextEventSpawn(merged, new Date());
+        store.allEvents[idx] = merged;
         save();
         firebase.syncAllEvents(store.allEvents);
         return store.allEvents[idx];
