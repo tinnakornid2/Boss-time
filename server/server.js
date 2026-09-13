@@ -8,10 +8,73 @@ const app = express();
 const pkg = require('../package.json');
 const APP_VERSION = `v${pkg.version || '1.2.0'}`;
 const INERTIA_VERSION = '55c7f37e0516ec0f9ab5340e89e90c20';
+const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+const loginAttempts = new Map();
+
+function limitLogin(req, res, next) {
+    const key = req.ip || req.socket?.remoteAddress || 'unknown';
+    const now = Date.now();
+    const recent = (loginAttempts.get(key) || []).filter(time => now - time < 10 * 60 * 1000);
+    if (recent.length >= 10) {
+        return res.status(429).json({ success: false, message: 'Too many attempts — กรุณารอแล้วลองใหม่' });
+    }
+    recent.push(now);
+    loginAttempts.set(key, recent);
+    next();
+}
+
+function sessionSecret() {
+    const source = process.env.SESSION_SECRET || process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (source) return crypto.createHash('sha256').update(source).digest();
+    return crypto.createHash('sha256').update(`local:${__dirname}:${APP_VERSION}`).digest();
+}
+
+function createSession(role) {
+    const payload = Buffer.from(JSON.stringify({ role, exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000 })).toString('base64url');
+    const signature = crypto.createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
+    return `${payload}.${signature}`;
+}
+
+function readSession(value) {
+    if (!value || !value.includes('.')) return null;
+    const [payload, signature] = value.split('.');
+    const expected = crypto.createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
+    if (!signature || signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+    try {
+        const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+        if (!['admin', 'member'].includes(data.role) || Number(data.exp) <= Date.now()) return null;
+        return data;
+    } catch (_) {
+        return null;
+    }
+}
+
+function verifyPassword(password, plaintext, storedHash, fallback) {
+    if (plaintext && password === plaintext) return true;
+    if (!plaintext && !storedHash && fallback && password === fallback) return true;
+    if (!storedHash) return false;
+    if (storedHash.startsWith('scrypt$')) {
+        const [, salt, expectedHex] = storedHash.split('$');
+        if (!salt || !expectedHex) return false;
+        const actual = crypto.scryptSync(password, salt, 64);
+        const expected = Buffer.from(expectedHex, 'hex');
+        return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+    }
+    const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
+    return legacyHash === storedHash;
+}
 
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'same-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+});
 
 // Safe JSON parse error handler
 app.use((err, req, res, next) => {
@@ -23,7 +86,7 @@ app.use((err, req, res, next) => {
 
 // Request Logger
 app.use((req, res, next) => {
-    console.log(`[REQ] ${req.method} ${req.url} (Inertia: ${req.headers['x-inertia'] || 'no'}) Body: ${JSON.stringify(req.body)}`);
+    console.log(`[REQ] ${req.method} ${req.url} (Inertia: ${req.headers['x-inertia'] || 'no'})`);
     next();
 });
 
@@ -70,9 +133,9 @@ app.use(async (req, res, next) => {
 });
 
 // Mount REST API
-app.use('/api/v1', require('./routes/api'));
-app.use('/api/auth', require('./routes/auth').router);
-app.use('/api/settings', require('./routes/settings'));
+app.use('/api/v1', requireSession, requireSameOrigin, require('./routes/api'));
+app.use('/api/auth', limitLogin, require('./routes/auth').router);
+app.use('/api/settings', requireSession, requireSameOrigin, require('./routes/settings'));
 
 // Helper: Escape HTML for data-page attribute
 function escapeHtml(str) {
@@ -84,8 +147,24 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;');
 }
 
+function renderLoginHtml(pageData, title) {
+    const error = escapeHtml(String(pageData?.props?.errors?.password || ''));
+    return `<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Log in - ${escapeHtml(title)}</title><link rel="icon" href="/favicon.png" type="image/png">
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#070708;color:#fff;font-family:system-ui,sans-serif}.login{width:min(360px,calc(100vw - 32px));padding:26px;border:1px solid #3f3f46;border-radius:18px;background:#101012;box-shadow:0 24px 70px #000}.brand{text-align:center;color:#d97706;font-weight:800;margin-bottom:22px}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:18px}.tabs label{padding:9px;text-align:center;border-radius:8px;background:#18181b;cursor:pointer;font-size:12px;font-weight:700}.tabs input{position:absolute;opacity:0}.tabs label:has(input:checked){background:#78350f;color:#fcd34d}.field{display:block;margin-bottom:7px;color:#a1a1aa;font-size:11px;font-weight:700}.password{width:100%;padding:12px;border:1px solid #52525b;border-radius:9px;background:#09090b;color:#fff;font-size:16px}.submit{width:100%;margin-top:16px;padding:12px;border:0;border-radius:9px;background:#d97706;color:#fff;font-weight:800;cursor:pointer}.submit:disabled{opacity:.55}.error{margin:12px 0 0;color:#f87171;font-size:13px}.note{margin-top:14px;color:#71717a;text-align:center;font-size:11px}
+</style></head><body><main class="login"><div class="brand">#madebyelon</div>
+<form method="post" action="/login" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Signing in — กำลังเข้าสู่ระบบ'">
+<div class="tabs"><label><input type="radio" name="name" value="kain7" checked>MEMBER — สมาชิก</label><label><input type="radio" name="name" value="admin">ADMIN — ผู้ดูแล</label></div>
+<label class="field" for="password">PASSWORD — รหัสผ่าน</label><input class="password" id="password" name="password" type="password" required autocomplete="current-password" autofocus>
+${error ? `<p class="error">${error}</p>` : ''}<button class="submit" type="submit">SIGN IN — เข้าสู่ระบบ</button>
+</form><div class="note">Boss Tracker ${APP_VERSION}</div></main></body></html>`;
+}
+
 // Helper: HTML page wrapper matching boss.kain7.com exactly
 function renderHtml(pageData, title = '#Kain7') {
+    if (pageData?.component === 'auth/login') return renderLoginHtml(pageData, title);
     const jsonStr = escapeHtml(JSON.stringify(pageData));
     const isDashboard = Boolean(pageData && pageData.component === 'dashboard');
     const userRole = (pageData && pageData.props && pageData.props.auth && pageData.props.auth.user && pageData.props.auth.user.role) || 'guest';
@@ -414,10 +493,10 @@ function renderHtml(pageData, title = '#Kain7') {
                 <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
                     <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 700; color: #fbbf24;">🛡️ ยืนยันสิทธิ์ Admin</p>
                     <p style="margin: 0 0 12px 0; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.5;">
-                        ปัจจุบันคุณกำลังเปิดในสถานะ <b>Member</b> หากต้องการแก้ไขรหัสผ่าน กรุณากรอกรหัสผ่าน Admin ปัจจุบัน (<code>@777999</code>) เพื่อปลดล็อก:
+                        ปัจจุบันคุณกำลังเปิดในสถานะ <b>Member</b> กรุณากรอกรหัสผ่าน Admin ปัจจุบันเพื่อปลดล็อก:
                     </p>
                     <div style="display:flex; gap:8px;">
-                        <input type="password" id="modal-input-verify-admin" placeholder="กรอกรหัส Admin เช่น @777999" class="pwd-input" style="flex:1;">
+                        <input type="password" id="modal-input-verify-admin" placeholder="รหัสผ่าน Admin ปัจจุบัน" class="pwd-input" style="flex:1;">
                         <button type="button" class="pwd-btn-save" style="padding: 8px 16px; white-space: nowrap;" onclick="verifyAdminAndUnlock()">🔓 ยืนยัน</button>
                     </div>
                     <div id="pwd-verify-error" style="color: #f87171; font-size: 11px; margin-top: 8px; display: none;"></div>
@@ -432,7 +511,7 @@ function renderHtml(pageData, title = '#Kain7') {
                         <span class="pwd-badge">สิทธิ์จัดการระบบ</span>
                     </div>
                     <div class="pwd-input-wrap">
-                        <input type="password" id="modal-input-admin-pwd" class="pwd-input" placeholder="@777999" autocomplete="off">
+                        <input type="password" id="modal-input-admin-pwd" class="pwd-input" placeholder="รหัสผ่านใหม่" autocomplete="off">
                         <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-admin-pwd', this)">👁️</button>
                     </div>
                     <p class="pwd-subhint">สำหรับเข้าสู่โหมด Admin: บันทึกเวลาเกิดบอส, เพิ่ม/ลบบอส, จัดการอีเวนต์</p>
@@ -444,7 +523,7 @@ function renderHtml(pageData, title = '#Kain7') {
                         <span class="pwd-badge">สิทธิ์ดูตาราง</span>
                     </div>
                     <div class="pwd-input-wrap">
-                        <input type="password" id="modal-input-member-pwd" class="pwd-input" placeholder="password777999" autocomplete="off">
+                        <input type="password" id="modal-input-member-pwd" class="pwd-input" placeholder="รหัสผ่านใหม่" autocomplete="off">
                         <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-member-pwd', this)">👁️</button>
                     </div>
                     <p class="pwd-subhint">สำหรับแจกคนในแคลน: เปิดดูตารางเวลาบอส, เวลานับถอยหลัง และเสียงเตือน</p>
@@ -817,9 +896,9 @@ function renderHtml(pageData, title = '#Kain7') {
                             .then(r => r.json())
                             .then(st => {
                                 if (st.connected) {
-                                    alert('✅ [Firebase Realtime Database]\nStatus: Connected & Live Synced\n\nProject ID: ' + st.projectId + '\nRegion: Singapore (asia-southeast1)\nDatabase URL: ' + st.databaseURL + '\nTotal Bosses in Cloud: ' + st.totalBosses);
+                                    alert('✅ [Firebase Realtime Database]\\nStatus: Connected & Live Synced\\n\\nProject ID: ' + st.projectId + '\\nRegion: Singapore (asia-southeast1)\\nDatabase URL: ' + st.databaseURL + '\\nTotal Bosses in Cloud: ' + st.totalBosses);
                                 } else {
-                                    alert('⚠️ [Firebase Realtime Database]\nStatus: Offline (Local Mode)\nKey: serviceAccountKey.json not detected\n\nTo connect cloud database:\n1. Download serviceAccountKey.json from Firebase Console\n2. Place it into server/serviceAccountKey.json');
+                                    alert('⚠️ [Firebase Realtime Database]\\nStatus: Offline (Local Mode)\\nKey: serviceAccountKey.json not detected\\n\\nTo connect cloud database:\\n1. Download serviceAccountKey.json from Firebase Console\\n2. Place it into server/serviceAccountKey.json');
                                 }
                             }).catch(err => alert('Error: ' + err.message));
                     };
@@ -877,24 +956,46 @@ function respondInertiaOrRedirect(req, res, targetUrl = '/') {
 }
 
 function isAuthenticated(req) {
-    const sess = req.cookies['boss_session'] || req.cookies['remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d'] || '';
-    return sess.includes('authenticated_admin_session') || sess.includes('authenticated_member_session');
+    return Boolean(getSessionRole(req));
 }
 
 function getSessionRole(req) {
-    if (req.query && req.query.role === 'member') return 'member';
-    if (req.query && req.query.role === 'admin') return 'admin';
-
     const sess = req.cookies['boss_session'] || req.cookies['remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d'] || '';
-    if (sess.includes('admin')) return 'admin';
-    if (sess.includes('member')) return 'member';
-    return null;
+    return readSession(sess)?.role || null;
+}
+
+function requireSession(req, res, next) {
+    const role = getSessionRole(req);
+    if (role) {
+        req.user = { role };
+        return next();
+    }
+    const requestPath = req.originalUrl || req.url || req.path || '';
+    const json = requestPath.startsWith('/api/') || ['/poll', '/live-event'].includes(req.path) ||
+        req.headers['x-requested-with'] === 'XMLHttpRequest' || String(req.headers.accept || '').includes('application/json');
+    if (json) return res.status(401).json({ success: false, message: 'Authentication required', loginUrl: '/login' });
+    return res.redirect(303, '/login');
+}
+
+function requireAdmin(req, res, next) {
+    if (getSessionRole(req) === 'admin') return next();
+    return res.status(403).json({ success: false, message: 'Admin access required' });
+}
+
+function requireSameOrigin(req, res, next) {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+    const origin = req.headers.origin;
+    if (!origin) return next();
+    try {
+        if (new URL(origin).host === req.headers.host) return next();
+    } catch (_) {}
+    return res.status(403).json({ success: false, message: 'Invalid request origin' });
 }
 
 // Helper: Build Dashboard Props
 function getDashboardProps(req) {
     const settings = db.getSettings();
-    const role = getSessionRole(req) || 'member';
+    const role = getSessionRole(req);
     const isAdmin = role === 'admin';
 
     return {
@@ -930,15 +1031,15 @@ function getDashboardProps(req) {
 // INERTIA PAGE ROUTES
 // ==========================================================
 
-// GET / or /dashboard -> Dashboard (Directly available to all clan members as 'member', or 'admin' if logged in)
+// GET / or /dashboard -> Dashboard (login required)
 app.all(['/', '/dashboard'], async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
         return res.status(405).end();
     }
-    // If not yet authenticated, auto-assign member session so all clan visitors see the boss list immediately
     if (!isAuthenticated(req)) {
-        res.setHeader('Set-Cookie', 'boss_session=authenticated_member_session; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000');
+        return res.redirect(303, '/login');
     }
+    await db.expireBossAlerts();
     await db.autoAdvanceOverdueBosses();
     sendInertia(req, res, 'dashboard', getDashboardProps(req), '/');
 });
@@ -966,22 +1067,15 @@ app.get('/login', (req, res) => {
     }, '/login');
 });
 
-// POST /login -> Authenticate (Admin: @777999, Member: password777999)
-app.post('/login', (req, res) => {
+// POST /login -> Authenticate
+app.post('/login', limitLogin, (req, res) => {
     const { name, username, password } = req.body;
     const user = (name || username || '').trim().toLowerCase();
     const pass = (password || '').trim();
     const settings = db.getSettings();
 
-    const inputHash = crypto.createHash('sha256').update(pass).digest('hex');
-    const activeAdminPass = settings.adminPassword || '@777999';
-    const activeMemberPass = settings.memberPassword || 'password777999';
-
-    const isAdminPass = pass === activeAdminPass ||
-        (settings.adminPasswordHash && inputHash === settings.adminPasswordHash);
-
-    const isMemberPass = pass === activeMemberPass ||
-        (settings.memberPasswordHash && inputHash === settings.memberPasswordHash);
+    const isAdminPass = verifyPassword(pass, settings.adminPassword, settings.adminPasswordHash, '@777999');
+    const isMemberPass = verifyPassword(pass, settings.memberPassword, settings.memberPasswordHash, 'password777999');
 
     let sessionRole = null;
     let errorMessage = null;
@@ -999,7 +1093,7 @@ app.post('/login', (req, res) => {
             // Admin password also lets into admin mode even if on member tab
             sessionRole = 'admin';
         } else {
-            errorMessage = `รหัสผ่าน Member ไม่ถูกต้อง (รหัส: ${activeMemberPass})`;
+            errorMessage = 'รหัสผ่าน Member ไม่ถูกต้อง';
         }
     } else {
         if (isAdminPass) {
@@ -1027,13 +1121,17 @@ app.post('/login', (req, res) => {
                 version: INERTIA_VERSION
             });
         }
-        return res.redirect('/login');
+        return res.status(401).send(renderLoginHtml({
+            component: 'auth/login',
+            props: { errors: { password: errorMessage } }
+        }, settings.serverName || '#Kain7'));
     }
 
-    const sessionVal = `authenticated_${sessionRole}_session`;
+    const sessionVal = createSession(sessionRole);
+    const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader('Set-Cookie', [
-        `boss_session=${sessionVal}; Path=/; HttpOnly; SameSite=Lax`,
-        `remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`
+        `boss_session=${sessionVal}; Path=/; HttpOnly; SameSite=Lax${secure}`,
+        `remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SECONDS}${secure}`
     ]);
     return res.redirect(303, '/');
 });
@@ -1051,10 +1149,14 @@ app.post('/logout', (req, res) => {
     res.redirect(303, '/login');
 });
 
+app.use(requireSession);
+app.use(requireSameOrigin);
+
 let forceReloadAt = null;
 
 // GET /poll -> Real-time polling
 app.get('/poll', async (req, res) => {
+    await db.expireBossAlerts();
     await db.autoAdvanceOverdueBosses();
     const settings = db.getSettings();
     res.json({
@@ -1067,29 +1169,60 @@ app.get('/poll', async (req, res) => {
         resetTimeConfigs: db.getResetConfigs(),
         savedMaintenanceEndTime: db.getSavedMaintenanceEndTime() || null,
         forceReloadAt: forceReloadAt,
-        liveEvent: db.getLiveEvent()
+        liveEvent: db.getLiveEvent(),
+        recentLiveEvents: db.getRecentLiveEvents(),
+        serverTime: Date.now()
     });
 });
 
 // Tiny fallback for background tabs when Firebase rules disallow public streams.
 app.get('/live-event', (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.json({ liveEvent: db.getLiveEvent() });
+    res.json({
+        liveEvent: db.getLiveEvent(),
+        recentLiveEvents: db.getRecentLiveEvents(),
+        serverTime: Date.now()
+    });
 });
 
 // ==========================================================
 // BOSS ACTIONS
 // ==========================================================
 
+// Member/admin alert: explicit start with a short expiry (never toggle off by accident).
+app.post('/bosses/:id/notify', async (req, res) => {
+    const id = Number(req.params.id);
+    const boss = db.getBoss(id);
+    if (!boss) return res.status(404).json({ success: false, message: 'Boss not found' });
+    const now = Date.now();
+    const previousExpiry = new Date(boss.pre_spawn_expires_at || 0).getTime();
+    if (boss.pre_spawned && previousExpiry > now) {
+        return res.status(429).json({ success: false, message: 'Alert already sent', retryAfterMs: previousExpiry - now });
+    }
+    const updated = await db.updateBoss(id, {
+        pre_spawned: true,
+        pre_spawn_expires_at: new Date(now + 15000).toISOString(),
+        pinned_alive: false,
+        alerted_by: getSessionRole(req)
+    });
+    return res.json({ success: true, boss: updated });
+});
+
 // POST /bosses -> Create boss
-app.post('/bosses', async (req, res) => {
+app.post('/bosses', requireAdmin, async (req, res) => {
     const { name, location, interval, chance_of_appearing, chanceOfAppearing, is_invasion, isInvasion, last_kill_time } = req.body;
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 100) {
+        return res.status(400).json({ success: false, message: 'Invalid boss name' });
+    }
     let intervalMinutes = 60;
     if (typeof interval === 'string' && interval.includes(':')) {
         const [h, m] = interval.split(':').map(Number);
         intervalMinutes = (h || 0) * 60 + (m || 0);
     } else {
         intervalMinutes = Number(interval) || 60;
+    }
+    if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0 || intervalMinutes > 10080) {
+        return res.status(400).json({ success: false, message: 'Invalid boss interval' });
     }
 
     let spawnTime = null;
@@ -1121,6 +1254,10 @@ app.put('/bosses/:id', async (req, res) => {
     if (!boss) return respondInertiaOrRedirect(req, res, '/');
 
     const body = req.body || {};
+    const memberKeys = new Set(['last_kill_time', 'not_spawned', 'still_alive', 'toggle_pre_spawned']);
+    if (getSessionRole(req) !== 'admin' && Object.keys(body).some(key => !memberKeys.has(key))) {
+        return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
     const updates = {};
 
     if (body.last_kill_time !== undefined) {
@@ -1220,13 +1357,13 @@ app.put('/bosses/:id', async (req, res) => {
 });
 
 // DELETE /bosses/:id -> Delete boss
-app.delete('/bosses/:id', async (req, res) => {
+app.delete('/bosses/:id', requireAdmin, async (req, res) => {
     await db.deleteBoss(Number(req.params.id));
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // PUT /settings/invasion-visibility
-app.put('/settings/invasion-visibility', async (req, res) => {
+app.put('/settings/invasion-visibility', requireAdmin, async (req, res) => {
     const hide = req.body.hide_invasion_bosses !== undefined
         ? req.body.hide_invasion_bosses
         : req.body.hideInvasionBosses;
@@ -1235,14 +1372,14 @@ app.put('/settings/invasion-visibility', async (req, res) => {
 });
 
 // PUT /settings/invasion-label
-app.put('/settings/invasion-label', async (req, res) => {
+app.put('/settings/invasion-label', requireAdmin, async (req, res) => {
     const label = req.body.invasion_label !== undefined ? req.body.invasion_label : req.body.invasionLabel;
     await db.updateSettings({ invasionLabel: label || 'L3' });
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // POST /bosses/reset-invasion-kill-times
-app.post('/bosses/reset-invasion-kill-times', async (req, res) => {
+app.post('/bosses/reset-invasion-kill-times', requireAdmin, async (req, res) => {
     await db.batchUpdateBosses(b => {
         if (b.is_invasion) {
             return {
@@ -1260,7 +1397,7 @@ app.post('/bosses/reset-invasion-kill-times', async (req, res) => {
 });
 
 // POST /bosses/apply-reset-boss-time
-app.post('/bosses/apply-reset-boss-time', async (req, res) => {
+app.post('/bosses/apply-reset-boss-time', requireAdmin, async (req, res) => {
     const { maintenance_end_time, configs } = req.body;
     if (maintenance_end_time) {
         let baseDate = new Date();
@@ -1318,7 +1455,7 @@ app.post('/bosses/apply-reset-boss-time', async (req, res) => {
 });
 
 // POST /bosses/save-reset-boss-config
-app.post('/bosses/save-reset-boss-config', async (req, res) => {
+app.post('/bosses/save-reset-boss-config', requireAdmin, async (req, res) => {
     const { configs, resetTimeConfigs, maintenance_end_time } = req.body;
     let configsMap = {};
     if (Array.isArray(configs)) {
@@ -1348,7 +1485,7 @@ app.post('/bosses/save-reset-boss-config', async (req, res) => {
 });
 
 // POST /bosses/post-maintenance-mode
-app.post('/bosses/post-maintenance-mode', async (req, res) => {
+app.post('/bosses/post-maintenance-mode', requireAdmin, async (req, res) => {
     await db.batchUpdateBosses(b => {
         if (b.next_spawn) {
             return { post_maintenance: true };
@@ -1359,7 +1496,7 @@ app.post('/bosses/post-maintenance-mode', async (req, res) => {
 });
 
 // POST /bosses/cancel-maintenance-mode
-app.post('/bosses/cancel-maintenance-mode', async (req, res) => {
+app.post('/bosses/cancel-maintenance-mode', requireAdmin, async (req, res) => {
     await db.batchUpdateBosses(b => {
         if (b.post_maintenance) {
             return { post_maintenance: false };
@@ -1371,7 +1508,7 @@ app.post('/bosses/cancel-maintenance-mode', async (req, res) => {
 });
 
 // POST /bosses/reset-maintenance-kill-times
-app.post('/bosses/reset-maintenance-kill-times', async (req, res) => {
+app.post('/bosses/reset-maintenance-kill-times', requireAdmin, async (req, res) => {
     await db.batchUpdateBosses(b => {
         if (b.post_maintenance) {
             return {
@@ -1397,6 +1534,10 @@ app.post('/bosses/reset-maintenance-kill-times', async (req, res) => {
 app.put('/events/:id', async (req, res) => {
     const id = Number(req.params.id);
     const body = req.body || {};
+    const memberEventKeys = new Set(['mark_done', 'mark_skipped', 'pin_alive', 'undo_exception']);
+    if (getSessionRole(req) !== 'admin' && Object.keys(body).some(key => !memberEventKeys.has(key))) {
+        return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
     const event = db.getEvent(id);
     if (event) {
         if (body.mark_done || body.mark_skipped) {
@@ -1425,7 +1566,7 @@ app.put('/events/:id', async (req, res) => {
 });
 
 // POST /events
-app.post('/events', async (req, res) => {
+app.post('/events', requireAdmin, async (req, res) => {
     await db.createEvent({
         name: req.body.name,
         location: req.body.location || '',
@@ -1437,7 +1578,7 @@ app.post('/events', async (req, res) => {
 });
 
 // DELETE /events/:id
-app.delete('/events/:id', async (req, res) => {
+app.delete('/events/:id', requireAdmin, async (req, res) => {
     await db.deleteEvent(Number(req.params.id));
     return respondInertiaOrRedirect(req, res, '/');
 });
@@ -1445,7 +1586,7 @@ app.delete('/events/:id', async (req, res) => {
 // ==========================================================
 // ANNOUNCEMENTS
 // ==========================================================
-app.post('/announcement', (req, res) => {
+app.post('/announcement', requireAdmin, async (req, res) => {
     const { message, urgent, announcement } = req.body;
     const role = getSessionRole(req);
     const sent_by = role === 'admin' ? 'admin' : 'kain7';
@@ -1465,26 +1606,26 @@ app.post('/announcement', (req, res) => {
             resent_at: new Date().toISOString()
         };
     }
-    db.updateSettings({ announcement: announcementObj });
+    await db.updateSettings({ announcement: announcementObj });
     if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers['x-inertia']) {
         return res.json({ ok: true, announcement: announcementObj });
     }
     return respondInertiaOrRedirect(req, res, '/');
 });
 
-app.post('/announcement/clear', (req, res) => {
-    db.updateSettings({ announcement: null });
+app.post('/announcement/clear', requireAdmin, async (req, res) => {
+    await db.updateSettings({ announcement: null });
     if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers['x-inertia']) {
         return res.json({ ok: true });
     }
     return respondInertiaOrRedirect(req, res, '/');
 });
 
-app.post('/announcement/resend', (req, res) => {
+app.post('/announcement/resend', requireAdmin, async (req, res) => {
     const settings = db.getSettings();
     if (settings.announcement) {
         settings.announcement.resent_at = new Date().toISOString();
-        db.updateSettings({ announcement: settings.announcement });
+        await db.updateSettings({ announcement: settings.announcement });
     }
     if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers['x-inertia']) {
         return res.json({ ok: true });
@@ -1492,7 +1633,7 @@ app.post('/announcement/resend', (req, res) => {
     return respondInertiaOrRedirect(req, res, '/');
 });
 
-app.post('/force-reload', (req, res) => {
+app.post('/force-reload', requireAdmin, (req, res) => {
     forceReloadAt = new Date().toISOString();
     if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers['x-inertia']) {
         return res.json({ ok: true, forceReloadAt });
@@ -1555,7 +1696,7 @@ app.get('/api/firebase-status', (req, res) => {
 });
 
 // Backup Download Endpoint (JSON file download)
-app.get('/api/v1/backup', (req, res) => {
+app.get('/api/v1/backup', requireAdmin, (req, res) => {
     const store = db.getStore();
     const dateStr = new Date().toISOString().split('T')[0];
     res.setHeader('Content-Disposition', `attachment; filename="boss-tracker-backup-${APP_VERSION}-${dateStr}.json"`);
@@ -1578,8 +1719,7 @@ function startServer(port = 3000) {
         console.log(`================================================`);
         console.log(`⚔️  Lineage 2 Exact Clone Server (${APP_VERSION}) running on port ${port}`);
         console.log(`🌐 Local URL: http://localhost:${port}`);
-        console.log(`🛡️  Admin user:  admin / @777999`);
-        console.log(`👥 Member user: kain7 / password777999`);
+        console.log('🛡️  Admin and member login enabled');
         console.log(`☁️  Central DB:  Firebase Realtime Database (Single Source of Truth)`);
         console.log(`================================================`);
         

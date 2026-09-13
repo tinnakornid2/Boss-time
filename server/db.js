@@ -118,6 +118,8 @@ async function initFirebase(onRemoteChange) {
                 cache.savedMaintenanceEndTime = remoteData.savedMaintenanceEndTime;
             }
             if (remoteData.killHistory) cache.killHistory = toArray(remoteData.killHistory);
+            if (remoteData.liveEvent) cache.liveEvent = remoteData.liveEvent;
+            if (remoteData.recentLiveEvents) cache.recentLiveEvents = toArray(remoteData.recentLiveEvents);
             save();
 
             if (typeof onRemoteChange === 'function') {
@@ -145,6 +147,8 @@ async function initFirebase(onRemoteChange) {
                     cache.savedMaintenanceEndTime = remoteStore.savedMaintenanceEndTime;
                 }
                 if (remoteStore.killHistory) cache.killHistory = toArray(remoteStore.killHistory);
+                if (remoteStore.liveEvent) cache.liveEvent = remoteStore.liveEvent;
+                if (remoteStore.recentLiveEvents) cache.recentLiveEvents = toArray(remoteStore.recentLiveEvents);
                 save();
                 console.log(`✅ [Firebase RTDB] Synced ${cache.bosses.length} bosses from Firebase cloud.`);
             }
@@ -283,6 +287,15 @@ module.exports = {
 
     autoAdvanceOverdueBosses,
 
+    async expireBossAlerts(nowMs = Date.now()) {
+        return this.batchUpdateBosses(boss => {
+            if (!boss.pre_spawned || !boss.pre_spawn_expires_at) return null;
+            const expiry = new Date(boss.pre_spawn_expires_at).getTime();
+            if (!Number.isFinite(expiry) || expiry > nowMs) return null;
+            return { pre_spawned: false, pre_spawn_expires_at: null };
+        });
+    },
+
     getBoss(id) {
         const numId = Number(id);
         return (load().bosses || []).find(b => b.id === numId);
@@ -309,7 +322,7 @@ module.exports = {
         };
         store.bosses.push(newBoss);
         save();
-        await firebase.syncAllBosses(store.bosses);
+        await firebase.syncBoss(store.bosses.length - 1, newBoss);
         return newBoss;
     },
 
@@ -331,7 +344,7 @@ module.exports = {
             id: `${now}-${numId}-${Math.random().toString(36).slice(2, 8)}`,
             type: updates.next_spawn === null && updates.last_kill_time === null
                 ? 'boss_time_unset'
-                : updates.pre_spawned === true && !previous.pre_spawned
+                : updates.pre_spawned === true && (!previous.pre_spawned || updates.pre_spawn_expires_at !== previous.pre_spawn_expires_at)
                 ? 'boss_pre_spawn_started'
                 : updates.pre_spawned === false && previous.pre_spawned
                     ? 'boss_pre_spawn_cleared'
@@ -342,8 +355,9 @@ module.exports = {
             createdAt: now
         };
         store.liveEvent = liveEvent;
+        store.recentLiveEvents = [...(store.recentLiveEvents || []), liveEvent].slice(-20);
         save();
-        await firebase.syncBossAndLiveEvent(idx, store.bosses[idx], liveEvent);
+        await firebase.syncBossAndLiveEvent(idx, store.bosses[idx], liveEvent, store.recentLiveEvents);
         return store.bosses[idx];
     },
 
@@ -361,6 +375,7 @@ module.exports = {
     async batchUpdateBosses(updaterFn) {
         const store = load();
         let changed = false;
+        const firebaseChanges = {};
         for (let i = 0; i < store.bosses.length; i++) {
             const updates = updaterFn(store.bosses[i]);
             if (updates) {
@@ -369,12 +384,13 @@ module.exports = {
                     ...updates,
                     updated_at: new Date().toISOString()
                 };
+                firebaseChanges[i] = store.bosses[i];
                 changed = true;
             }
         }
         if (changed) {
             save();
-            await firebase.syncAllBosses(store.bosses);
+            await firebase.syncBossUpdates(firebaseChanges);
         }
         return store.bosses;
     },
@@ -519,6 +535,10 @@ module.exports = {
         return load().liveEvent || null;
     },
 
+    getRecentLiveEvents() {
+        return load().recentLiveEvents || [];
+    },
+
     async publishLiveEvent(eventData) {
         const store = load();
         const liveEvent = {
@@ -527,8 +547,9 @@ module.exports = {
             ...eventData
         };
         store.liveEvent = liveEvent;
+        store.recentLiveEvents = [...(store.recentLiveEvents || []), liveEvent].slice(-20);
         save();
-        await firebase.syncLiveEvent(liveEvent);
+        await firebase.syncLiveEvent(liveEvent, store.recentLiveEvents);
         return liveEvent;
     },
 
@@ -577,5 +598,7 @@ module.exports = {
             firebase.syncKillHistory(store.killHistory);
         }
         return entry;
-    }
+    },
+
+    _test: { calculateBossAutoAdvance }
 };

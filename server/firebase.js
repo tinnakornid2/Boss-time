@@ -274,13 +274,32 @@ async function syncBoss(bossIndex, bossData) {
     }
 }
 
+// Update only the changed array positions in one RTDB request.
+async function syncBossUpdates(changes) {
+    if (!isReady()) return false;
+    try {
+        const payload = {};
+        for (const [index, boss] of Object.entries(changes || {})) {
+            payload[`bosses/${index}`] = boss;
+        }
+        if (Object.keys(payload).length === 0) return true;
+        await dbRef.update(payload);
+        return true;
+    } catch (e) {
+        isConnected = false;
+        console.error('[Firebase RTDB] syncBossUpdates error:', e.message);
+        return false;
+    }
+}
+
 // One atomic RTDB write: update the changed boss and publish a tiny event.
-async function syncBossAndLiveEvent(bossIndex, bossData, liveEvent) {
+async function syncBossAndLiveEvent(bossIndex, bossData, liveEvent, recentLiveEvents) {
     if (!isReady()) return false;
     try {
         await dbRef.update({
             [`bosses/${bossIndex}`]: bossData,
-            liveEvent
+            liveEvent,
+            recentLiveEvents
         });
         return true;
     } catch (e) {
@@ -290,10 +309,10 @@ async function syncBossAndLiveEvent(bossIndex, bossData, liveEvent) {
     }
 }
 
-async function syncLiveEvent(liveEvent) {
+async function syncLiveEvent(liveEvent, recentLiveEvents) {
     if (!isReady()) return false;
     try {
-        await dbRef.child('liveEvent').set(liveEvent);
+        await dbRef.update({ liveEvent, recentLiveEvents });
         return true;
     } catch (e) {
         isConnected = false;
@@ -420,6 +439,7 @@ module.exports = {
     fetchOnce,
     syncFullStore,
     syncBoss,
+    syncBossUpdates,
     syncBossAndLiveEvent,
     syncLiveEvent,
     syncAllBosses,

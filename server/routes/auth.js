@@ -4,7 +4,21 @@ const crypto = require('crypto');
 const db = require('../db');
 
 function hashPassword(password) {
-    return crypto.createHash('sha256').update(password).digest('hex');
+    const salt = crypto.randomBytes(16).toString('hex');
+    return `scrypt$${salt}$${crypto.scryptSync(password, salt, 64).toString('hex')}`;
+}
+
+function verifyPassword(password, plaintext, storedHash, fallback) {
+    if (plaintext && password === plaintext) return true;
+    if (!plaintext && !storedHash && fallback && password === fallback) return true;
+    if (!storedHash) return false;
+    if (storedHash.startsWith('scrypt$')) {
+        const [, salt, expectedHex] = storedHash.split('$');
+        const actual = crypto.scryptSync(password, salt, 64);
+        const expected = Buffer.from(expectedHex || '', 'hex');
+        return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+    }
+    return crypto.createHash('sha256').update(password).digest('hex') === storedHash;
 }
 
 // Generate simple secure session tokens
@@ -25,11 +39,6 @@ function authMiddleware(req, res, next) {
         req.user = { role: 'admin' };
         return next();
     }
-    const cookies = req.headers.cookie || '';
-    if (cookies.includes('authenticated_admin_session')) {
-        req.user = { role: 'admin' };
-        return next();
-    }
     req.user = { role: 'guest' };
     next();
 }
@@ -42,15 +51,8 @@ router.post('/login', (req, res) => {
 
     const expectedAdmin = (settings.adminUsername || 'admin').toLowerCase();
     const expectedMember = (settings.memberUsername || 'kain7').toLowerCase();
-    const hashedInput = hashPassword(pass);
-
-    const isAdminPass = pass === '@777999' ||
-        (settings.adminPassword && pass === settings.adminPassword) ||
-        (settings.adminPasswordHash && hashedInput === settings.adminPasswordHash);
-
-    const isMemberPass = pass === 'password777999' ||
-        (settings.memberPassword && pass === settings.memberPassword) ||
-        (settings.memberPasswordHash && hashedInput === settings.memberPasswordHash);
+    const isAdminPass = verifyPassword(pass, settings.adminPassword, settings.adminPasswordHash, '@777999');
+    const isMemberPass = verifyPassword(pass, settings.memberPassword, settings.memberPasswordHash, 'password777999');
 
     if (user === expectedAdmin && isAdminPass) {
         const token = crypto.randomBytes(32).toString('hex');
@@ -117,7 +119,7 @@ router.post('/change-password', (req, res) => {
     const { newPassword } = req.body;
     const updates = {};
     if (newPassword && newPassword.length >= 4) {
-        updates.adminPassword = newPassword;
+        updates.adminPassword = null;
         updates.adminPasswordHash = hashPassword(newPassword);
     }
 

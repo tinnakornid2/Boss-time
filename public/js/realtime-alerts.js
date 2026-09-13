@@ -16,11 +16,17 @@
         bosses: new Map(),
         events: new Map(),
         lastEventId: sessionStorage.getItem('bossTracker.lastLiveEvent') || '',
+        seenEventIds: new Set(sessionStorage.getItem('bossTracker.lastLiveEvent') ? [sessionStorage.getItem('bossTracker.lastLiveEvent')] : []),
         audioUnlocked: false,
         streamConnected: false,
         streamFailed: false,
         alerted: new Set(),
-        lastPlayedAt: 0
+        lastPlayedAt: 0,
+        serverOffset: 0,
+        initialEventsLoaded: false,
+        role: 'guest',
+        audioQueue: [],
+        audioPlaying: false
     };
 
     function setting(key, fallback) {
@@ -66,7 +72,11 @@
         if (!button) return;
         if (message) button.textContent = message;
         else if (state.audioUnlocked) {
-            button.textContent = state.streamConnected ? '🔊 เสียงพร้อม • Realtime' : '🔊 เสียงพร้อม • กำลังเชื่อมต่อ';
+            button.textContent = state.streamConnected
+                ? '🔊 Realtime — เชื่อมต่อแล้ว'
+                : state.streamFailed
+                    ? '🔊 Polling — เชื่อมต่อสำรอง'
+                    : '🔊 Connecting — กำลังเชื่อมต่อ';
             button.style.borderColor = state.streamConnected ? '#22c55e' : '#f59e0b';
         }
     }
@@ -87,10 +97,9 @@
         }
     }
 
-    async function playSound(path) {
+    async function playSoundNow(path) {
         if (!path || Number(setting('alertVolume', 0.8)) <= 0) return false;
         const now = Date.now();
-        if (now - state.lastPlayedAt < 3500) return false;
         const audio = new Audio(path);
         audio.volume = Math.max(0, Math.min(1, Number(setting('alertVolume', 0.8))));
         try {
@@ -106,6 +115,20 @@
         }
     }
 
+    function playSound(path) {
+        if (!path) return;
+        state.audioQueue.push(path);
+        if (state.audioPlaying) return;
+        state.audioPlaying = true;
+        (async function drain() {
+            while (state.audioQueue.length) {
+                await playSoundNow(state.audioQueue.shift());
+                await new Promise(resolve => setTimeout(resolve, 400));
+            }
+            state.audioPlaying = false;
+        })();
+    }
+
     function showNotice(message, urgent) {
         const old = document.getElementById('realtime-alert-toast');
         if (old) old.remove();
@@ -117,13 +140,24 @@
         setTimeout(() => toast.remove(), 8000);
     }
 
-    function flashBoss(name, active) {
-        for (const cell of document.querySelectorAll('td')) {
-            if ((cell.textContent || '').trim().startsWith(name)) {
-                const row = cell.closest('tr');
-                if (!row) continue;
-                row.classList.toggle('realtime-pre-spawn-flash', active);
-            }
+    function bossRows(boss) {
+        if (!boss?.name) return [];
+        return Array.from(document.querySelectorAll('tr')).filter(row => {
+            const text = row.textContent || '';
+            return text.includes(boss.name) && (!boss.location || text.includes(boss.location));
+        });
+    }
+
+    function reconcileBossRows() {
+        const now = Date.now() + state.serverOffset;
+        for (const row of document.querySelectorAll('tr.realtime-pre-spawn-flash')) {
+            row.classList.remove('realtime-pre-spawn-flash');
+        }
+        for (const boss of state.bosses.values()) {
+            const expiry = new Date(boss.pre_spawn_expires_at || 0).getTime();
+            const active = boss.pre_spawned && (!Number.isFinite(expiry) || expiry === 0 || expiry > now);
+            for (const row of bossRows(boss)) row.classList.toggle('realtime-pre-spawn-flash', active);
+            if (!boss.next_spawn && !boss.pre_spawned && !boss.pinned_alive) showBossAsUnset(boss);
         }
     }
 
@@ -149,22 +183,26 @@
         if (!event || !event.id) return;
         if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
         if (event.event) state.events.set(Number(event.event.id), event.event);
-        if (event.id === state.lastEventId) return;
+        if (state.seenEventIds.has(event.id)) return;
         const fresh = Math.abs(Date.now() - Number(event.createdAt || 0)) < 45000;
         state.lastEventId = event.id;
+        state.seenEventIds.add(event.id);
+        if (state.seenEventIds.size > 100) state.seenEventIds.delete(state.seenEventIds.values().next().value);
         sessionStorage.setItem('bossTracker.lastLiveEvent', event.id);
         if (event.type === 'boss_pre_spawn_started') {
-            flashBoss(event.bossName, true);
+            if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
+            reconcileBossRows();
             if (!initial && fresh && !isMuted(event.bossId, 'boss')) {
                 const key = setting('preSpawnSound', 'pop2');
                 playSound(soundPath(key, '/pop2.mp3'));
                 showNotice(`⚠️ ${event.bossName} กำลังจะเกิด`, true);
             }
         } else if (event.type === 'boss_pre_spawn_cleared') {
-            flashBoss(event.bossName, false);
+            if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
+            reconcileBossRows();
         } else if (event.type === 'boss_time_unset') {
             showBossAsUnset(event.boss);
-            setTimeout(() => showBossAsUnset(event.boss), 350);
+            reconcileBossRows();
         }
     }
 
@@ -176,12 +214,17 @@
         const requestUrl = String(args[0]?.url || args[0] || '');
         if (requestUrl.endsWith('/poll') || requestUrl.includes('/poll?')) {
             response.clone().json().then(data => {
+                if (Number.isFinite(Number(data.serverTime))) state.serverOffset = Number(data.serverTime) - Date.now();
                 for (const boss of data.bosses || []) {
                     state.bosses.set(Number(boss.id), boss);
-                    if (!boss.next_spawn && !boss.pre_spawned && !boss.pinned_alive) showBossAsUnset(boss);
                 }
                 for (const event of data.events || []) state.events.set(Number(event.id), event);
-                consumeLiveEvent(data.liveEvent, false);
+                const initial = !state.initialEventsLoaded;
+                for (const event of data.recentLiveEvents || []) consumeLiveEvent(event, initial);
+                consumeLiveEvent(data.liveEvent, initial);
+                state.initialEventsLoaded = true;
+                reconcileBossRows();
+                updateStatus();
             }).catch(() => {});
         }
         return response;
@@ -221,7 +264,11 @@
             const response = await nativeFetch('/live-event', { cache: 'no-store' });
             if (!response.ok) return;
             const data = await response.json();
-            consumeLiveEvent(data.liveEvent, false);
+            if (Number.isFinite(Number(data.serverTime))) state.serverOffset = Number(data.serverTime) - Date.now();
+            const initial = !state.initialEventsLoaded;
+            for (const event of data.recentLiveEvents || []) consumeLiveEvent(event, initial);
+            consumeLiveEvent(data.liveEvent, initial);
+            state.initialEventsLoaded = true;
         } catch (_) {}
     }
 
@@ -230,13 +277,68 @@
         if (!root) return;
         try {
             const page = JSON.parse(root.getAttribute('data-page') || '{}');
+            state.role = page.props?.auth?.user?.role || 'guest';
             for (const boss of page.props?.bosses || []) state.bosses.set(Number(boss.id), boss);
             for (const event of page.props?.events || []) state.events.set(Number(event.id), event);
         } catch (_) {}
     }
 
+    const TOOLTIP_TRANSLATIONS = [
+        [/still alive/i, 'Still Alive — บอสยังไม่ตาย'],
+        [/unset/i, 'Unset Time — ล้างเวลาบอส'],
+        [/edit/i, 'Edit — แก้ไข'],
+        [/delete/i, 'Delete — ลบ'],
+        [/mute/i, 'Mute Alert — ปิดเสียงแจ้งเตือน'],
+        [/settings/i, 'Settings — ตั้งค่า'],
+        [/reset/i, 'Reset Time — รีเซ็ตเวลา'],
+        [/notify|pre-spawn/i, 'Notify Members — แจ้งเตือนสมาชิก']
+    ];
+
+    function enhanceUi() {
+        for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
+        for (const element of document.querySelectorAll('button, [role="button"], a')) {
+            const source = element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent || '';
+            const match = TOOLTIP_TRANSLATIONS.find(([pattern]) => pattern.test(source));
+            if (match) element.setAttribute('title', match[1]);
+        }
+    }
+
+    function findBossForRow(row) {
+        const text = row?.textContent || '';
+        const matches = Array.from(state.bosses.values()).filter(boss =>
+            text.includes(boss.name) && (!boss.location || text.includes(boss.location))
+        );
+        return matches.length === 1 ? matches[0] : null;
+    }
+
+    async function notifyMembersFromRow(event) {
+        if (state.role !== 'member' || event.target.closest('button, a, input, select, textarea')) return;
+        const cell = event.target.closest('td');
+        const row = cell?.closest('tr');
+        if (!cell || !row || cell !== row.querySelector('td')) return;
+        const boss = findBossForRow(row);
+        if (!boss || boss.is_event) return;
+        try {
+            const response = await nativeFetch(`/bosses/${boss.id}/notify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: '{}'
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                showNotice(data.message === 'Alert already sent' ? 'แจ้งเตือนบอสตัวนี้ไปแล้ว' : 'ส่งแจ้งเตือนไม่สำเร็จ', true);
+                return;
+            }
+            if (data.boss) state.bosses.set(Number(data.boss.id), data.boss);
+            reconcileBossRows();
+            showNotice(`⚡ ${boss.name} — แจ้งเตือนสมาชิกแล้ว`, false);
+        } catch (_) {
+            showNotice('Connection lost — การเชื่อมต่อขาดหาย', true);
+        }
+    }
+
     function checkScheduledAlerts() {
-        const now = Date.now();
+        const now = Date.now() + state.serverOffset;
         const threshold = Number(setting('alertBeforeMinutes', 1)) * 60000;
         const globallyMuted = setting('muted', false) === true;
         if (globallyMuted) return;
@@ -272,6 +374,8 @@
     document.addEventListener('DOMContentLoaded', () => {
         readInitialData();
         ensureStatusButton();
+        enhanceUi();
+        reconcileBossRows();
         state.audioUnlocked = localStorage.getItem('dashboard.audioUnlocked') === 'true';
         updateStatus();
         const unlockOnFirstInteraction = () => unlockAudio();
@@ -281,5 +385,19 @@
         checkScheduledAlerts();
         setInterval(checkScheduledAlerts, 1000);
         setInterval(pollLiveEventFallback, 5000);
+        setInterval(reconcileBossRows, 1000);
+        window.addEventListener('offline', () => updateStatus('⚠️ Offline — การเชื่อมต่อขาดหาย'));
+        window.addEventListener('online', () => updateStatus());
+        document.addEventListener('dblclick', notifyMembersFromRow);
+        let uiRefreshPending = false;
+        new MutationObserver(() => {
+            if (uiRefreshPending) return;
+            uiRefreshPending = true;
+            requestAnimationFrame(() => {
+                uiRefreshPending = false;
+                enhanceUi();
+                reconcileBossRows();
+            });
+        }).observe(document.body, { childList: true, subtree: true });
     });
 })();

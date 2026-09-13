@@ -3,65 +3,69 @@ const router = express.Router();
 const crypto = require('crypto');
 const db = require('../db');
 const broadcaster = require('../broadcaster');
-const { authMiddleware } = require('./auth');
 
+function hashPassword(password) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const digest = crypto.scryptSync(password, salt, 64).toString('hex');
+    return `scrypt$${salt}$${digest}`;
+}
 function requireAdmin(req, res, next) {
-    authMiddleware(req, res, () => {
-        if (req.user && req.user.role === 'admin') {
-            return next();
-        }
-        return res.status(403).json({ success: false, message: 'Admin access required' });
-    });
+    if (req.user && req.user.role === 'admin') return next();
+    return res.status(403).json({ success: false, message: 'Admin access required' });
 }
 
 // GET /api/settings/passwords (Admin only)
 router.get('/passwords', requireAdmin, (req, res) => {
-    const s = db.getSettings();
     res.json({
         success: true,
-        adminPassword: s.adminPassword || '@777999',
-        memberPassword: s.memberPassword || 'password777999'
+        adminPasswordConfigured: true,
+        memberPasswordConfigured: true
     });
 });
 
 // POST /api/settings/passwords (Admin only)
-router.post('/passwords', requireAdmin, (req, res) => {
+router.post('/passwords', requireAdmin, async (req, res) => {
     const { adminPassword, memberPassword } = req.body;
     const updates = {};
 
     if (adminPassword && typeof adminPassword === 'string' && adminPassword.trim().length >= 4) {
         const clean = adminPassword.trim();
-        updates.adminPassword = clean;
-        updates.adminPasswordHash = crypto.createHash('sha256').update(clean).digest('hex');
+        updates.adminPassword = null;
+        updates.adminPasswordHash = hashPassword(clean);
     }
 
     if (memberPassword && typeof memberPassword === 'string' && memberPassword.trim().length >= 4) {
         const clean = memberPassword.trim();
-        updates.memberPassword = clean;
-        updates.memberPasswordHash = crypto.createHash('sha256').update(clean).digest('hex');
+        updates.memberPassword = null;
+        updates.memberPasswordHash = hashPassword(clean);
     }
 
     if (Object.keys(updates).length === 0) {
         return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 4 ตัวอักษร' });
     }
 
-    const updated = db.updateSettings(updates);
+    await db.updateSettings(updates);
     res.json({
         success: true,
-        message: 'บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว',
-        adminPassword: updated.adminPassword,
-        memberPassword: updated.memberPassword
+        message: 'บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว'
     });
 });
 
 router.get('/', (req, res) => {
     const s = db.getSettings();
     // Do not return password hash
-    const { adminPasswordHash, ...publicSettings } = s;
+    const {
+        adminPasswordHash,
+        memberPasswordHash,
+        adminPassword,
+        memberPassword,
+        discordWebhook,
+        ...publicSettings
+    } = s;
     res.json(publicSettings);
 });
 
-router.put('/', authMiddleware, (req, res) => {
+router.put('/', requireAdmin, async (req, res) => {
     const {
         serverName,
         invasionLabel,
@@ -83,21 +87,28 @@ router.put('/', authMiddleware, (req, res) => {
     if (alertBeforeMinutes !== undefined) updates.alertBeforeMinutes = Number(alertBeforeMinutes) || 5;
     if (discordWebhook !== undefined) updates.discordWebhook = discordWebhook;
 
-    const updated = db.updateSettings(updates);
-    const { adminPasswordHash, ...cleanSettings } = updated;
+    const updated = await db.updateSettings(updates);
+    const {
+        adminPasswordHash,
+        memberPasswordHash,
+        adminPassword: storedAdminPassword,
+        memberPassword: storedMemberPassword,
+        discordWebhook: storedDiscordWebhook,
+        ...cleanSettings
+    } = updated;
     broadcaster.broadcast('settings:updated', cleanSettings);
     res.json({ success: true, settings: cleanSettings });
 });
 
-router.post('/announcement', authMiddleware, (req, res) => {
+router.post('/announcement', requireAdmin, async (req, res) => {
     const { announcement } = req.body;
-    db.updateSettings({ announcement: announcement || null });
+    await db.updateSettings({ announcement: announcement || null });
     broadcaster.broadcast('announcement:updated', { announcement: announcement || null });
     res.json({ success: true, announcement });
 });
 
-router.post('/announcement/clear', authMiddleware, (req, res) => {
-    db.updateSettings({ announcement: null });
+router.post('/announcement/clear', requireAdmin, async (req, res) => {
+    await db.updateSettings({ announcement: null });
     broadcaster.broadcast('announcement:updated', { announcement: null });
     res.json({ success: true });
 });
