@@ -30,7 +30,7 @@ const rl = readline.createInterface({
 
 const store = loadStore();
 const currentMember = store.settings.memberPassword || 'password777999';
-const currentAdmin = store.settings.adminPassword || '777999';
+const currentAdmin = store.settings.adminPassword || '@777999';
 
 console.clear();
 console.log('================================================================');

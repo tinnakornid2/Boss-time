@@ -3,7 +3,7 @@ title Lineage 2 Boss Tracker (#Kain7) - Online Server
 echo ====================================================================
 echo   Starting Lineage 2 Boss Tracker + Cloudflare Public Tunnel...
 echo ====================================================================
-echo   Admin:  admin / 777999
+echo   Admin:  admin / @777999
 echo   Member: kain7 / password777999
 echo ====================================================================
 echo.

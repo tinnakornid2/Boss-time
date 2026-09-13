@@ -250,7 +250,7 @@ app.get('/login', (req, res) => {
     }, '/login');
 });
 
-// POST /login -> Authenticate (Admin: 777999, Member: password777999)
+// POST /login -> Authenticate (Admin: @777999, Member: password777999)
 app.post('/login', (req, res) => {
     const { name, username, password } = req.body;
     const user = (name || username || '').trim().toLowerCase();
@@ -258,7 +258,7 @@ app.post('/login', (req, res) => {
     const settings = db.getSettings();
 
     const inputHash = crypto.createHash('sha256').update(pass).digest('hex');
-    const activeAdminPass = settings.adminPassword || '777999';
+    const activeAdminPass = settings.adminPassword || '@777999';
     const activeMemberPass = settings.memberPassword || 'password777999';
 
     const isAdminPass = pass === activeAdminPass ||
@@ -837,7 +837,7 @@ function startServer(port = 3000) {
         console.log(`================================================`);
         console.log(`⚔️  Lineage 2 Exact Clone Server running on port ${port}`);
         console.log(`🌐 Local URL: http://localhost:${port}`);
-        console.log(`🛡️  Admin user:  admin / 777999`);
+        console.log(`🛡️  Admin user:  admin / @777999`);
         console.log(`👥 Member user: kain7 / password777999`);
         console.log(`================================================`);
         

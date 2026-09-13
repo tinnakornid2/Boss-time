@@ -39,7 +39,7 @@ router.post('/login', (req, res) => {
     const expectedMember = (settings.memberUsername || 'kain7').toLowerCase();
     const hashedInput = hashPassword(pass);
 
-    const isAdminPass = pass === '777999' ||
+    const isAdminPass = pass === '@777999' ||
         (settings.adminPassword && pass === settings.adminPassword) ||
         (settings.adminPasswordHash && hashedInput === settings.adminPasswordHash);
 
