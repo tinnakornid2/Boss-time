@@ -52,6 +52,23 @@ app.use((req, res, next) => {
 const publicDir = path.join(__dirname, '..', 'public');
 app.use(express.static(publicDir, { index: false }));
 
+// Firebase initialization guard middleware: Ensure cloud DB is ready
+let firebaseInitPromise = null;
+app.use(async (req, res, next) => {
+    if (req.path.startsWith('/assets/') || req.path.startsWith('/sound/') || req.path.endsWith('.ico') || req.path.endsWith('.png') || req.path.endsWith('.jpg') || req.path.endsWith('.css') || req.path.endsWith('.js')) {
+        return next();
+    }
+    if (!firebaseInitPromise) {
+        firebaseInitPromise = db.initFirebase();
+    }
+    try {
+        await firebaseInitPromise;
+    } catch (e) {
+        console.error('[Firebase Init Middleware Error]:', e.message);
+    }
+    next();
+});
+
 // Mount REST API
 app.use('/api/v1', require('./routes/api'));
 app.use('/api/auth', require('./routes/auth').router);
@@ -1055,7 +1072,7 @@ app.get('/poll', (req, res) => {
 // ==========================================================
 
 // POST /bosses -> Create boss
-app.post('/bosses', (req, res) => {
+app.post('/bosses', async (req, res) => {
     const { name, location, interval, chance_of_appearing, chanceOfAppearing, is_invasion, isInvasion, last_kill_time } = req.body;
     let intervalMinutes = 60;
     if (typeof interval === 'string' && interval.includes(':')) {
@@ -1074,7 +1091,7 @@ app.post('/bosses', (req, res) => {
     const isInvasionVal = is_invasion !== undefined ? is_invasion : isInvasion;
     const chanceVal = chance_of_appearing !== undefined ? chance_of_appearing : (chanceOfAppearing || '100.00');
 
-    db.createBoss({
+    await db.createBoss({
         name,
         location: location || '',
         interval: intervalMinutes,
@@ -1088,7 +1105,7 @@ app.post('/bosses', (req, res) => {
 });
 
 // PUT /bosses/:id -> Update boss / kill / advance / pin / settings
-app.put('/bosses/:id', (req, res) => {
+app.put('/bosses/:id', async (req, res) => {
     const id = Number(req.params.id);
     const boss = db.getBoss(id);
     if (!boss) return respondInertiaOrRedirect(req, res, '/');
@@ -1188,52 +1205,52 @@ app.put('/bosses/:id', (req, res) => {
         if (isInvVal !== undefined) updates.is_invasion = Boolean(isInvVal);
     }
 
-    db.updateBoss(id, updates);
+    await db.updateBoss(id, updates);
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // DELETE /bosses/:id -> Delete boss
-app.delete('/bosses/:id', (req, res) => {
-    db.deleteBoss(Number(req.params.id));
+app.delete('/bosses/:id', async (req, res) => {
+    await db.deleteBoss(Number(req.params.id));
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // PUT /settings/invasion-visibility
-app.put('/settings/invasion-visibility', (req, res) => {
+app.put('/settings/invasion-visibility', async (req, res) => {
     const hide = req.body.hide_invasion_bosses !== undefined
         ? req.body.hide_invasion_bosses
         : req.body.hideInvasionBosses;
-    db.updateSettings({ hideInvasionBosses: Boolean(hide) });
+    await db.updateSettings({ hideInvasionBosses: Boolean(hide) });
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // PUT /settings/invasion-label
-app.put('/settings/invasion-label', (req, res) => {
+app.put('/settings/invasion-label', async (req, res) => {
     const label = req.body.invasion_label !== undefined ? req.body.invasion_label : req.body.invasionLabel;
-    db.updateSettings({ invasionLabel: label || 'L3' });
+    await db.updateSettings({ invasionLabel: label || 'L3' });
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // POST /bosses/reset-invasion-kill-times
-app.post('/bosses/reset-invasion-kill-times', (req, res) => {
-    const bosses = db.getBosses();
-    for (const b of bosses) {
+app.post('/bosses/reset-invasion-kill-times', async (req, res) => {
+    await db.batchUpdateBosses(b => {
         if (b.is_invasion) {
-            db.updateBoss(b.id, {
+            return {
                 last_kill_time: null,
                 next_spawn: null,
                 pinned_alive: false,
                 auto_advanced: false,
                 post_maintenance: false,
                 pre_spawned: false
-            });
+            };
         }
-    }
+        return null;
+    });
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // POST /bosses/apply-reset-boss-time
-app.post('/bosses/apply-reset-boss-time', (req, res) => {
+app.post('/bosses/apply-reset-boss-time', async (req, res) => {
     const { maintenance_end_time, configs } = req.body;
     if (maintenance_end_time) {
         let baseDate = new Date();
@@ -1267,31 +1284,31 @@ app.post('/bosses/apply-reset-boss-time', (req, res) => {
             configsMap = db.getResetConfigs();
         }
 
-        const bosses = db.getBosses();
-        for (const boss of bosses) {
+        await db.batchUpdateBosses(boss => {
             const conf = configsMap[boss.name] || db.getResetConfigs()[boss.name];
             if (conf) {
                 const offsetMinutes = (Number(conf.hours) || 0) * 60 + (Number(conf.minutes) || 0);
                 const nextSpawn = new Date(baseDate.getTime() + offsetMinutes * 60000);
                 const lastKill = new Date(nextSpawn.getTime() - (boss.interval || 60) * 60000);
 
-                db.updateBoss(boss.id, {
+                return {
                     next_spawn: nextSpawn.toISOString(),
                     last_kill_time: lastKill.toISOString(),
                     post_maintenance: true,
                     pinned_alive: false,
                     auto_advanced: false,
                     pre_spawned: false
-                });
+                };
             }
-        }
-        db.setSavedMaintenanceEndTime(savedTimeStr);
+            return null;
+        });
+        await db.setSavedMaintenanceEndTime(savedTimeStr);
     }
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // POST /bosses/save-reset-boss-config
-app.post('/bosses/save-reset-boss-config', (req, res) => {
+app.post('/bosses/save-reset-boss-config', async (req, res) => {
     const { configs, resetTimeConfigs, maintenance_end_time } = req.body;
     let configsMap = {};
     if (Array.isArray(configs)) {
@@ -1308,57 +1325,57 @@ app.post('/bosses/save-reset-boss-config', (req, res) => {
     }
 
     if (Object.keys(configsMap).length > 0) {
-        db.saveResetConfigs(configsMap);
+        await db.saveResetConfigs(configsMap);
     }
     if (maintenance_end_time) {
         let savedTime = maintenance_end_time;
         if (typeof savedTime === 'string' && savedTime.includes('T')) {
             savedTime = savedTime.split('T')[1].substring(0, 5);
         }
-        db.setSavedMaintenanceEndTime(savedTime);
+        await db.setSavedMaintenanceEndTime(savedTime);
     }
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // POST /bosses/post-maintenance-mode
-app.post('/bosses/post-maintenance-mode', (req, res) => {
-    const bosses = db.getBosses();
-    for (const b of bosses) {
+app.post('/bosses/post-maintenance-mode', async (req, res) => {
+    await db.batchUpdateBosses(b => {
         if (b.next_spawn) {
-            db.updateBoss(b.id, { post_maintenance: true });
+            return { post_maintenance: true };
         }
-    }
+        return null;
+    });
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // POST /bosses/cancel-maintenance-mode
-app.post('/bosses/cancel-maintenance-mode', (req, res) => {
-    const bosses = db.getBosses();
-    for (const b of bosses) {
+app.post('/bosses/cancel-maintenance-mode', async (req, res) => {
+    await db.batchUpdateBosses(b => {
         if (b.post_maintenance) {
-            db.updateBoss(b.id, { post_maintenance: false });
+            return { post_maintenance: false };
         }
-    }
-    db.setSavedMaintenanceEndTime(null);
+        return null;
+    });
+    await db.setSavedMaintenanceEndTime(null);
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // POST /bosses/reset-maintenance-kill-times
-app.post('/bosses/reset-maintenance-kill-times', (req, res) => {
-    const bosses = db.getBosses();
-    for (const b of bosses) {
+app.post('/bosses/reset-maintenance-kill-times', async (req, res) => {
+    await db.batchUpdateBosses(b => {
         if (b.post_maintenance) {
-            db.updateBoss(b.id, {
+            return {
                 last_kill_time: null,
                 next_spawn: null,
                 post_maintenance: false,
                 pinned_alive: false,
                 auto_advanced: false,
                 pre_spawned: false
-            });
+            };
         }
-    }
-    db.setSavedMaintenanceEndTime(null);
+        return null;
+    });
+    await db.setSavedMaintenanceEndTime(null);
     return respondInertiaOrRedirect(req, res, '/');
 });
 
@@ -1367,25 +1384,25 @@ app.post('/bosses/reset-maintenance-kill-times', (req, res) => {
 // ==========================================================
 
 // PUT /events/:id
-app.put('/events/:id', (req, res) => {
+app.put('/events/:id', async (req, res) => {
     const id = Number(req.params.id);
     const body = req.body || {};
     const event = db.getEvent(id);
     if (event) {
         if (body.mark_done || body.mark_skipped) {
             const todayStr = db.getThaiDateInfo().dateStr;
-            db.updateEvent(id, { done_on: todayStr, pinned_alive: false });
+            await db.updateEvent(id, { done_on: todayStr, pinned_alive: false });
         } else if (body.pin_alive) {
-            db.updateEvent(id, { pinned_alive: !event.pinned_alive });
+            await db.updateEvent(id, { pinned_alive: !event.pinned_alive });
         } else if (body.undo_exception) {
-            db.updateEvent(id, { done_on: null, pinned_alive: false });
+            await db.updateEvent(id, { done_on: null, pinned_alive: false });
         } else if (body.edit_occurrence) {
-            db.updateEvent(id, {
+            await db.updateEvent(id, {
                 event_time: body.occurrence_time || event.event_time,
                 name: body.occurrence_name || event.name
             });
         } else if (body.name) {
-            db.updateEvent(id, {
+            await db.updateEvent(id, {
                 name: body.name,
                 location: body.location || '',
                 event_time: body.event_time,
@@ -1398,8 +1415,8 @@ app.put('/events/:id', (req, res) => {
 });
 
 // POST /events
-app.post('/events', (req, res) => {
-    db.createEvent({
+app.post('/events', async (req, res) => {
+    await db.createEvent({
         name: req.body.name,
         location: req.body.location || '',
         event_time: req.body.event_time || '21:00',
@@ -1410,8 +1427,8 @@ app.post('/events', (req, res) => {
 });
 
 // DELETE /events/:id
-app.delete('/events/:id', (req, res) => {
-    db.deleteEvent(Number(req.params.id));
+app.delete('/events/:id', async (req, res) => {
+    await db.deleteEvent(Number(req.params.id));
     return respondInertiaOrRedirect(req, res, '/');
 });
 

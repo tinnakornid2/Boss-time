@@ -23,4 +23,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.sublime-project
+scratch/
+
 *.sublime-workspace

@@ -222,7 +222,7 @@ module.exports = {
         return (load().bosses || []).find(b => b.id === numId);
     },
 
-    createBoss(bossData) {
+    async createBoss(bossData) {
         const store = load();
         const maxId = store.bosses.reduce((max, b) => Math.max(max, b.id || 0), 0);
         const newBoss = {
@@ -243,11 +243,11 @@ module.exports = {
         };
         store.bosses.push(newBoss);
         save();
-        firebase.syncAllBosses(store.bosses);
+        await firebase.syncAllBosses(store.bosses);
         return newBoss;
     },
 
-    updateBoss(id, updates) {
+    async updateBoss(id, updates) {
         const store = load();
         const numId = Number(id);
         const idx = store.bosses.findIndex(b => b.id === numId);
@@ -259,19 +259,40 @@ module.exports = {
             updated_at: new Date().toISOString()
         };
         save();
-        firebase.syncBoss(idx, store.bosses[idx]);
+        await firebase.syncBoss(idx, store.bosses[idx]);
         return store.bosses[idx];
     },
 
-    deleteBoss(id) {
+    async deleteBoss(id) {
         const store = load();
         const numId = Number(id);
         const idx = store.bosses.findIndex(b => b.id === numId);
         if (idx === -1) return false;
         store.bosses.splice(idx, 1);
         save();
-        firebase.syncAllBosses(store.bosses);
+        await firebase.syncAllBosses(store.bosses);
         return true;
+    },
+
+    async batchUpdateBosses(updaterFn) {
+        const store = load();
+        let changed = false;
+        for (let i = 0; i < store.bosses.length; i++) {
+            const updates = updaterFn(store.bosses[i]);
+            if (updates) {
+                store.bosses[i] = {
+                    ...store.bosses[i],
+                    ...updates,
+                    updated_at: new Date().toISOString()
+                };
+                changed = true;
+            }
+        }
+        if (changed) {
+            save();
+            await firebase.syncAllBosses(store.bosses);
+        }
+        return store.bosses;
     },
 
     getAllEvents() {
@@ -331,7 +352,7 @@ module.exports = {
         };
     },
 
-    createEvent(eventData) {
+    async createEvent(eventData) {
         const store = load();
         if (!store.allEvents) store.allEvents = [];
         const maxId = store.allEvents.reduce((max, e) => Math.max(max, e.id || 0), 0);
@@ -359,11 +380,11 @@ module.exports = {
         newEvent.next_spawn = calculateNextEventSpawn(newEvent, new Date());
         store.allEvents.push(newEvent);
         save();
-        firebase.syncAllEvents(store.allEvents);
+        await firebase.syncAllEvents(store.allEvents);
         return newEvent;
     },
 
-    updateEvent(id, updates) {
+    async updateEvent(id, updates) {
         const store = load();
         const numId = Number(id);
         if (!store.allEvents) store.allEvents = [];
@@ -378,11 +399,11 @@ module.exports = {
         merged.next_spawn = calculateNextEventSpawn(merged, new Date());
         store.allEvents[idx] = merged;
         save();
-        firebase.syncAllEvents(store.allEvents);
+        await firebase.syncAllEvents(store.allEvents);
         return store.allEvents[idx];
     },
 
-    deleteEvent(id) {
+    async deleteEvent(id) {
         const store = load();
         const numId = Number(id);
         if (!store.allEvents) return false;
@@ -390,7 +411,7 @@ module.exports = {
         if (idx === -1) return false;
         store.allEvents.splice(idx, 1);
         save();
-        firebase.syncAllEvents(store.allEvents);
+        await firebase.syncAllEvents(store.allEvents);
         return true;
     },
 
@@ -398,11 +419,11 @@ module.exports = {
         return load().resetTimeConfigs || {};
     },
 
-    saveResetConfigs(configs) {
+    async saveResetConfigs(configs) {
         const store = load();
         store.resetTimeConfigs = { ...store.resetTimeConfigs, ...configs };
         save();
-        firebase.syncResetConfigs(store.resetTimeConfigs);
+        await firebase.syncResetConfigs(store.resetTimeConfigs);
         return store.resetTimeConfigs;
     },
 
@@ -410,14 +431,14 @@ module.exports = {
         return load().settings || {};
     },
 
-    updateSettings(updates) {
+    async updateSettings(updates) {
         const store = load();
         store.settings = {
             ...store.settings,
             ...updates
         };
         save();
-        firebase.syncSettings(store.settings);
+        await firebase.syncSettings(store.settings);
         return store.settings;
     },
 
@@ -425,11 +446,11 @@ module.exports = {
         return load().savedMaintenanceEndTime;
     },
 
-    setSavedMaintenanceEndTime(time) {
+    async setSavedMaintenanceEndTime(time) {
         const store = load();
         store.savedMaintenanceEndTime = time;
         save();
-        firebase.syncSavedMaintenanceEndTime(time);
+        await firebase.syncSavedMaintenanceEndTime(time);
         return time;
     },
 
