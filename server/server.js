@@ -1062,9 +1062,11 @@ app.all(['/', '/dashboard'], async (req, res) => {
     if (!isAuthenticated(req)) {
         return res.redirect(303, '/login');
     }
-    if (process.env.VERCEL && !db.isCloudDataReady()) {
+    const cloudReady = !process.env.VERCEL || await db.ensureCloudDataReady();
+    if (!cloudReady) {
         res.set('Retry-After', '2');
-        return res.status(503).send('Cloud data is still loading — กำลังโหลดข้อมูลล่าสุด กรุณารีเฟรชอีกครั้ง');
+        res.set('Content-Type', 'text/html; charset=utf-8');
+        return res.status(503).send(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="2"><title>Loading Boss Tracker</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#09090b;color:#fff;font-family:system-ui}.box{text-align:center}.spin{margin:0 auto 16px;width:32px;height:32px;border:3px solid #3f3f46;border-top-color:#f59e0b;border-radius:50%;animation:s 1s linear infinite}@keyframes s{to{transform:rotate(360deg)}}p{color:#a1a1aa}</style></head><body><main class="box"><div class="spin"></div><strong>Loading latest boss data</strong><p>กำลังโหลดข้อมูลบอสล่าสุด ระบบจะลองใหม่อัตโนมัติ</p></main></body></html>`);
     }
     await db.expireBossAlerts();
     await db.autoAdvanceOverdueBosses();

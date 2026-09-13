@@ -7,6 +7,7 @@ let cache = null;
 let isInitializedFirebase = false;
 let hasCloudSnapshot = false;
 let lastCloudSyncAt = 0;
+let cloudRefreshPromise = null;
 let autoAdvancePromise = null;
 
 const BOSS_NOW_WINDOW_MS = 60 * 1000;
@@ -294,6 +295,30 @@ module.exports = {
 
     isCloudDataReady() {
         return hasCloudSnapshot;
+    },
+
+    async ensureCloudDataReady() {
+        if (hasCloudSnapshot) return true;
+        if (!firebase.isReady()) return false;
+        if (cloudRefreshPromise) return cloudRefreshPromise;
+
+        cloudRefreshPromise = (async () => {
+            // A freshly started Vercel instance can receive the redirected page
+            // before its RTDB value listener has delivered the first snapshot.
+            // Retry only during this cold-start path, never on the polling timer.
+            for (let attempt = 0; attempt < 2 && !hasCloudSnapshot; attempt++) {
+                const remoteStore = await firebase.fetchOnce();
+                if (remoteStore?.bosses && applyRemoteStore(remoteStore)) return true;
+                if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 150));
+            }
+            return hasCloudSnapshot;
+        })();
+
+        try {
+            return await cloudRefreshPromise;
+        } finally {
+            cloudRefreshPromise = null;
+        }
     },
 
     getDataRevision() {
