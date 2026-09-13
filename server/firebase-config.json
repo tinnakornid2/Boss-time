@@ -1,6 +1,7 @@
 {
+  "strictCloudMode": true,
   "offlineMode": false,
   "projectId": "boss-timel2m",
-  "databaseURL": "https://boss-timel2m-default-rtdb.firebaseio.com",
+  "databaseURL": "https://boss-timel2m-default-rtdb.asia-southeast1.firebasedatabase.app",
   "rootPath": "tracker"
 }

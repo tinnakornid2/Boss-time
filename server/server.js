@@ -727,10 +727,47 @@ function renderHtml(pageData, title = '#Kain7') {
                             const vBadge = document.createElement('span');
                             vBadge.id = 'app-version-header';
                             vBadge.className = 'app-version-badge';
-                            vBadge.style.margin = '0 6px';
+                            vBadge.style.margin = '0 4px';
                             vBadge.title = 'Lineage 2 Boss Tracker ${APP_VERSION}';
                             vBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span> ${APP_VERSION}';
                             flexGroup.appendChild(vBadge);
+
+                            const fbBadge = document.createElement('span');
+                            fbBadge.id = 'header-firebase-status-badge';
+                            fbBadge.className = 'app-version-badge';
+                            fbBadge.style.margin = '0 4px';
+                            fbBadge.style.cursor = 'pointer';
+                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;"></span> <span>☁️ Firebase</span>';
+                            fbBadge.title = 'สถานะฐานข้อมูลกลาง Firebase (คลิกเพื่อดูรายละเอียด)';
+                            fbBadge.onclick = function() {
+                                fetch('/api/firebase-status')
+                                    .then(r => r.json())
+                                    .then(st => {
+                                        if (st.connected) {
+                                            alert('✅ [Firebase Realtime Database]\\nสถานะ: เชื่อมต่อฐานข้อมูลกลางออนไลน์เรียบร้อยแล้ว\\n\\nProject ID: ' + st.projectId + '\\nDatabase URL: ' + st.databaseURL + '\\nบอสทั้งหมดบนคลาวด์: ' + st.totalBosses + ' ตัว');
+                                        } else {
+                                            alert('⚠️ [Firebase Realtime Database]\\nสถานะ: ฐานข้อมูลกลางยังไม่เชื่อมต่อ (กำลังรอไฟล์คีย์)\\n\\n📌 สิ่งที่ต้องทำ:\\n1. เข้า Firebase Console ดาวน์โหลด serviceAccountKey.json\\n2. บันทึกไฟล์ไว้ในโฟลเดอร์ server/serviceAccountKey.json\\nระบบจะเชื่อมต่อและซิงค์ข้อมูลขึ้นคลาวด์อัตโนมัติทันที');
+                                        }
+                                    }).catch(err => alert('เกิดข้อผิดพลาด: ' + err.message));
+                            };
+                            flexGroup.appendChild(fbBadge);
+
+                            function updateFbBadge() {
+                                fetch('/api/firebase-status')
+                                    .then(r => r.json())
+                                    .then(st => {
+                                        if (st.connected) {
+                                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span> <span>☁️ Firebase คลาวด์</span>';
+                                            fbBadge.title = 'Firebase RTDB: ฐานข้อมูลกลางออนไลน์ (คลิกเพื่อดูรายละเอียด)';
+                                        } else {
+                                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;box-shadow:0 0 5px #f59e0b;"></span> <span>☁️ Firebase (รอคีย์)</span>';
+                                            fbBadge.title = 'Firebase RTDB: ยังไม่พบ serviceAccountKey.json (คลิกเพื่อดูวิธีเชื่อมต่อ)';
+                                        }
+                                    }).catch(() => {});
+                            }
+                            updateFbBadge();
+                            setInterval(updateFbBadge, 10000);
+
                             const pwdBtn = document.createElement('button');
                             pwdBtn.id = 'header-admin-pwd-btn';
                             pwdBtn.className = 'header-pwd-btn';
@@ -1474,6 +1511,7 @@ function startServer(port = 3000) {
         console.log(`🌐 Local URL: http://localhost:${port}`);
         console.log(`🛡️  Admin user:  admin / @777999`);
         console.log(`👥 Member user: kain7 / password777999`);
+        console.log(`☁️  Central DB:  Firebase Realtime Database (Single Source of Truth)`);
         console.log(`================================================`);
         
         // Initialize Firebase Realtime Database

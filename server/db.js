@@ -51,6 +51,7 @@ async function initFirebase(onRemoteChange) {
             if (remoteData.savedMaintenanceEndTime !== undefined) {
                 cache.savedMaintenanceEndTime = remoteData.savedMaintenanceEndTime;
             }
+            if (remoteData.killHistory) cache.killHistory = toArray(remoteData.killHistory);
             save();
 
             if (typeof onRemoteChange === 'function') {
@@ -65,11 +66,11 @@ async function initFirebase(onRemoteChange) {
         try {
             const remoteStore = await firebase.fetchOnce();
             if (!remoteStore || !remoteStore.bosses || (Array.isArray(remoteStore.bosses) && remoteStore.bosses.length === 0)) {
-                console.log('🌱 [Firebase RTDB] Initial seeding local store to Firebase Realtime Database...');
+                console.log('🌱 [Firebase RTDB] Initial seeding local store to Firebase Realtime Database (Single Source of Truth)...');
                 await firebase.syncFullStore(cache);
-                console.log(`✅ [Firebase RTDB] Seeded ${cache.bosses?.length || 0} bosses and ${cache.allEvents?.length || 0} events to cloud!`);
+                console.log(`✅ [Firebase RTDB] Seeded ${cache.bosses?.length || 0} bosses, ${cache.allEvents?.length || 0} events, and configs to Firebase!`);
             } else {
-                console.log('📥 [Firebase RTDB] Cloud database found! Syncing cloud data to local cache...');
+                console.log('📥 [Firebase RTDB] Cloud database found! Syncing cloud master data to local cache...');
                 if (remoteStore.bosses) cache.bosses = toArray(remoteStore.bosses);
                 if (remoteStore.allEvents) cache.allEvents = toArray(remoteStore.allEvents);
                 if (remoteStore.resetTimeConfigs) cache.resetTimeConfigs = remoteStore.resetTimeConfigs;
@@ -77,6 +78,7 @@ async function initFirebase(onRemoteChange) {
                 if (remoteStore.savedMaintenanceEndTime !== undefined) {
                     cache.savedMaintenanceEndTime = remoteStore.savedMaintenanceEndTime;
                 }
+                if (remoteStore.killHistory) cache.killHistory = toArray(remoteStore.killHistory);
                 save();
                 console.log(`✅ [Firebase RTDB] Synced ${cache.bosses.length} bosses from Firebase cloud.`);
             }
@@ -111,15 +113,17 @@ module.exports = {
     initFirebase,
 
     getFirebaseStatus() {
+        const store = load();
         const config = firebase.getConfig();
         const keyPath = firebase.findServiceAccountKey();
         return {
             connected: firebase.isReady(),
+            strictCloudMode: Boolean(config.strictCloudMode),
             projectId: config.projectId,
             databaseURL: config.databaseURL,
             serviceAccountKeyFound: Boolean(keyPath),
             keyPath: keyPath ? path.basename(keyPath) : null,
-            totalBosses: (cache && cache.bosses) ? cache.bosses.length : 0
+            totalBosses: (store && store.bosses) ? store.bosses.length : 0
         };
     },
 
@@ -306,5 +310,29 @@ module.exports = {
         save();
         firebase.syncSavedMaintenanceEndTime(time);
         return time;
+    },
+
+    getKillHistory(limit = 100) {
+        const store = load();
+        const list = store.killHistory || [];
+        return list.slice(-limit).reverse();
+    },
+
+    addKillHistory(record) {
+        const store = load();
+        if (!store.killHistory) store.killHistory = [];
+        const entry = {
+            ...record,
+            timestamp: record.timestamp || new Date().toISOString()
+        };
+        store.killHistory.push(entry);
+        if (store.killHistory.length > 500) {
+            store.killHistory = store.killHistory.slice(-500);
+        }
+        save();
+        if (typeof firebase.syncKillHistory === 'function') {
+            firebase.syncKillHistory(store.killHistory);
+        }
+        return entry;
     }
 };

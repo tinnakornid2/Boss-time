@@ -1,10 +1,42 @@
 const fs = require('fs');
 const path = require('path');
-const admin = require('firebase-admin');
+const { initializeApp, getApps, cert } = require('firebase-admin/app');
+const { getDatabase } = require('firebase-admin/database');
 
 let dbRef = null;
 let isInitialized = false;
 let serviceAccountPathUsed = null;
+
+// Helper: Escape invalid Firebase characters in keys (., #, $, /, [, ])
+function encodeFirebaseKeys(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+    const result = {};
+    for (const [k, v] of Object.entries(obj)) {
+        const safeKey = k
+            .replace(/%/g, '%25')
+            .replace(/\./g, '%2E')
+            .replace(/#/g, '%23')
+            .replace(/\$/g, '%24')
+            .replace(/\//g, '%2F')
+            .replace(/\[/g, '%5B')
+            .replace(/\]/g, '%5D');
+        result[safeKey] = v;
+    }
+    return result;
+}
+
+function decodeFirebaseKeys(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+    const result = {};
+    for (const [k, v] of Object.entries(obj)) {
+        let cleanKey = k;
+        try {
+            cleanKey = decodeURIComponent(k);
+        } catch (e) {}
+        result[cleanKey] = v;
+    }
+    return result;
+}
 
 // Load config
 function getConfig() {
@@ -18,7 +50,7 @@ function getConfig() {
     }
     return {
         projectId: 'boss-timel2m',
-        databaseURL: 'https://boss-timel2m-default-rtdb.firebaseio.com',
+        databaseURL: 'https://boss-timel2m-default-rtdb.asia-southeast1.firebasedatabase.app',
         rootPath: 'tracker'
     };
 }
@@ -131,18 +163,21 @@ function init(onRemoteDataChange) {
 
         let dbUrl = process.env.FIREBASE_DATABASE_URL || config.databaseURL;
         if (!dbUrl || dbUrl.includes('example')) {
-            dbUrl = `https://${serviceAccount.project_id || config.projectId}-default-rtdb.firebaseio.com`;
+            dbUrl = `https://${serviceAccount.project_id || config.projectId}-default-rtdb.asia-southeast1.firebasedatabase.app`;
         }
 
-        if (admin.apps.length === 0) {
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
+        let app;
+        if (getApps().length === 0) {
+            app = initializeApp({
+                credential: cert(serviceAccount),
                 databaseURL: dbUrl
             });
+        } else {
+            app = getApps()[0];
         }
 
         const rootNode = config.rootPath || 'tracker';
-        dbRef = admin.database().ref(rootNode);
+        dbRef = getDatabase(app).ref(rootNode);
         isInitialized = true;
 
         console.log('====================================================');
@@ -156,6 +191,9 @@ function init(onRemoteDataChange) {
             dbRef.on('value', (snapshot) => {
                 const val = snapshot.val();
                 if (val) {
+                    if (val.resetTimeConfigs) {
+                        val.resetTimeConfigs = decodeFirebaseKeys(val.resetTimeConfigs);
+                    }
                     onRemoteDataChange(val);
                 }
             }, (err) => {
@@ -185,7 +223,11 @@ function getRef() {
 async function syncFullStore(store) {
     if (!isReady()) return false;
     try {
-        await dbRef.set(store);
+        const payload = {
+            ...store,
+            resetTimeConfigs: encodeFirebaseKeys(store.resetTimeConfigs)
+        };
+        await dbRef.set(payload);
         return true;
     } catch (e) {
         console.error('[Firebase RTDB] syncFullStore error:', e.message);
@@ -233,7 +275,7 @@ async function syncAllEvents(allEvents) {
 async function syncResetConfigs(configs) {
     if (!isReady()) return false;
     try {
-        await dbRef.child('resetTimeConfigs').set(configs);
+        await dbRef.child('resetTimeConfigs').set(encodeFirebaseKeys(configs));
         return true;
     } catch (e) {
         console.error('[Firebase RTDB] syncResetConfigs error:', e.message);
@@ -265,12 +307,28 @@ async function syncSavedMaintenanceEndTime(time) {
     }
 }
 
+// Sync kill history
+async function syncKillHistory(killHistory) {
+    if (!isReady()) return false;
+    try {
+        await dbRef.child('killHistory').set(killHistory);
+        return true;
+    } catch (e) {
+        console.error('[Firebase RTDB] syncKillHistory error:', e.message);
+        return false;
+    }
+}
+
 // Fetch initial data once from Firebase
 async function fetchOnce() {
     if (!isReady()) return null;
     try {
         const snap = await dbRef.once('value');
-        return snap.val();
+        const val = snap.val();
+        if (val && val.resetTimeConfigs) {
+            val.resetTimeConfigs = decodeFirebaseKeys(val.resetTimeConfigs);
+        }
+        return val;
     } catch (e) {
         console.error('[Firebase RTDB] fetchOnce error:', e.message);
         return null;
@@ -290,5 +348,6 @@ module.exports = {
     syncAllEvents,
     syncResetConfigs,
     syncSettings,
-    syncSavedMaintenanceEndTime
+    syncSavedMaintenanceEndTime,
+    syncKillHistory
 };

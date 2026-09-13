@@ -70,6 +70,9 @@ function printDashboard() {
     console.log(`     👥 \x1b[1mสมาชิกทั่วไป (Member):\x1b[0m  แท็บ Member | รหัส: \x1b[32m${memberPass}\x1b[0m`);
     console.log(`     🛡️  \x1b[1mแอดมิน (Admin):\x1b[0m         แท็บ Admin  | รหัส: \x1b[33m${adminPass}\x1b[0m`);
     console.log('');
+    console.log('  ☁️ ฐานข้อมูลกลาง (Central Database):');
+    console.log('     🔥 Firebase Realtime Database (boss-timel2m) [Single Source of Truth]');
+    console.log('');
     console.log('  💾 ระบบสำรองข้อมูล (Auto-Backup):');
     console.log('     ✅ สำรองข้อมูลฐานข้อมูลบอสลงโฟลเดอร์ backups/ อัตโนมัติทุก 3 ชั่วโมง');
     console.log('');

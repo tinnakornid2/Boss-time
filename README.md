@@ -1,4 +1,4 @@
-# ⚔️ Lineage 2 Boss Tracker (#Kain7 Edition) `v1.2.2`
+# ⚔️ Lineage 2 Boss Tracker (#Kain7 Edition) `v1.2.3`
 
 ระบบติดตามเวลาเกิดบอสและอีเวนต์แคลนแบบเรียลไทม์ (Real-Time Boss & Event Spawn Tracker) สำหรับเกม Lineage 2 ถอดแบบโครงสร้างลอจิกและฟีเจอร์ทั้งหมดจาก `boss.kain7.com`
 
