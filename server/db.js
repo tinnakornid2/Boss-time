@@ -33,25 +33,6 @@ function save() {
     }
 }
 
-const BOSS_NOW_WINDOW_MS = 60 * 1000;
-
-// Calculate the next visible cycle without writing to Firebase on every timer tick.
-function projectBossForDisplay(boss, nowMs = Date.now()) {
-    if (!boss || !boss.next_spawn || boss.pinned_alive) return boss;
-    const spawnMs = new Date(boss.next_spawn).getTime();
-    const intervalMs = Number(boss.interval) * 60 * 1000;
-    if (!Number.isFinite(spawnMs) || !Number.isFinite(intervalMs) || intervalMs <= 0) return boss;
-    if (nowMs < spawnMs + BOSS_NOW_WINDOW_MS) return boss;
-
-    const cycles = Math.floor((nowMs - spawnMs) / intervalMs) + 1;
-    return {
-        ...boss,
-        next_spawn: new Date(spawnMs + cycles * intervalMs).toISOString(),
-        auto_advanced: true,
-        pre_spawned: false
-    };
-}
-
 // Convert RTDB object-or-array to standard JS array
 function toArray(val) {
     if (!val) return [];
@@ -234,8 +215,7 @@ module.exports = {
     },
 
     getBosses() {
-        const nowMs = Date.now();
-        return (load().bosses || []).map(boss => projectBossForDisplay(boss, nowMs));
+        return load().bosses || [];
     },
 
     getBoss(id) {
