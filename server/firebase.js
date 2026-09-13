@@ -143,6 +143,19 @@ function init(onRemoteDataChange) {
         }
     }
 
+    // 3. Check cloud runtime credentials (for Vercel / Serverless deployments)
+    if (!serviceAccount) {
+        try {
+            const cloudCred = require('./cloud-credentials');
+            if (typeof cloudCred.getCredentials === 'function') {
+                serviceAccount = cloudCred.getCredentials();
+                if (serviceAccount) {
+                    keySource = 'Cloud Runtime Credentials (Vercel Production)';
+                }
+            }
+        } catch (e) {}
+    }
+
     if (!serviceAccount) {
         console.log('----------------------------------------------------');
         console.log('⚠️  [Firebase RTDB] serviceAccountKey not found yet.');
