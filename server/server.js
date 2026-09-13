@@ -45,6 +45,7 @@ app.use(express.static(publicDir, { index: false }));
 // Mount REST API
 app.use('/api/v1', require('./routes/api'));
 app.use('/api/auth', require('./routes/auth').router);
+app.use('/api/settings', require('./routes/settings'));
 
 // Helper: Escape HTML for data-page attribute
 function escapeHtml(str) {
@@ -59,6 +60,457 @@ function escapeHtml(str) {
 // Helper: HTML page wrapper matching boss.kain7.com exactly
 function renderHtml(pageData, title = '#Kain7') {
     const jsonStr = escapeHtml(JSON.stringify(pageData));
+    const isAdmin = Boolean(pageData && pageData.props && pageData.props.auth && pageData.props.auth.user && pageData.props.auth.user.role === 'admin');
+
+    const adminPasswordSnippet = !isAdmin ? '' : `
+    <!-- Admin Password Management Modal & Button Script -->
+    <style>
+        #admin-pwd-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            font-family: inherit;
+        }
+        #admin-pwd-modal.active {
+            display: flex !important;
+        }
+        .pwd-card {
+            position: relative;
+            width: 100%;
+            max-width: 440px;
+            background: linear-gradient(145deg, #18181b, #09090b);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.9), 0 0 25px rgba(245,158,11,0.15);
+            color: #fff;
+            box-sizing: border-box;
+            animation: pwdModalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes pwdModalPop {
+            0% { opacity: 0; transform: scale(0.95) translateY(10px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .pwd-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+        }
+        .pwd-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .pwd-title-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            font-size: 18px;
+        }
+        .pwd-title-text h3 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.01em;
+        }
+        .pwd-title-text p {
+            margin: 2px 0 0 0;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .pwd-close-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+        .pwd-close-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .pwd-group {
+            margin-bottom: 16px;
+        }
+        .pwd-label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .pwd-label {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .pwd-badge {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .pwd-input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .pwd-input {
+            width: 100%;
+            padding: 10px 42px 10px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-family: monospace;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .pwd-input:focus {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 1px #f59e0b;
+        }
+        .pwd-toggle-eye {
+            position: absolute;
+            right: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            color: rgba(255, 255, 255, 0.5);
+            transition: color 0.15s;
+        }
+        .pwd-toggle-eye:hover {
+            color: #fff;
+        }
+        .pwd-subhint {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            margin: 4px 0 0 0;
+            line-height: 1.4;
+        }
+        .pwd-alert {
+            display: none;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 14px;
+            line-height: 1.4;
+        }
+        .pwd-alert.success {
+            display: block;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #6ee7b7;
+        }
+        .pwd-alert.error {
+            display: block;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+        .pwd-cloud-notice {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 11px;
+            color: #34d399;
+            margin-top: 18px;
+        }
+        .pwd-footer {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 16px;
+            margin-top: 20px;
+        }
+        .pwd-btn-cancel {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .pwd-btn-cancel:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .pwd-btn-save {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #09090b;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.35);
+            transition: all 0.15s;
+        }
+        .pwd-btn-save:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        #btn-admin-pwd-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.45);
+            border-radius: 6px;
+            color: #fbbf24;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            margin-right: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        }
+        #btn-admin-pwd-trigger:hover {
+            background: rgba(245, 158, 11, 0.3);
+            border-color: rgba(245, 158, 11, 0.8);
+            color: #fef08a;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+        }
+    </style>
+
+    <div id="admin-pwd-modal">
+        <div class="pwd-card" onclick="event.stopPropagation()">
+            <div class="pwd-header">
+                <div class="pwd-title">
+                    <div class="pwd-title-icon">🔑</div>
+                    <div class="pwd-title-text">
+                        <h3>จัดการรหัสผ่านระบบ</h3>
+                        <p>ตั้งค่ารหัสผ่าน Admin & Member</p>
+                    </div>
+                </div>
+                <button type="button" class="pwd-close-btn" onclick="closeAdminPwdModal()">✕</button>
+            </div>
+
+            <div id="pwd-alert-box" class="pwd-alert"></div>
+
+            <div class="pwd-group">
+                <div class="pwd-label-row">
+                    <span class="pwd-label" style="color: #fbbf24;">🛡️ รหัสผ่าน Admin (ผู้ดูแล)</span>
+                    <span class="pwd-badge">สิทธิ์จัดการระบบ</span>
+                </div>
+                <div class="pwd-input-wrap">
+                    <input type="password" id="modal-input-admin-pwd" class="pwd-input" placeholder="@777999" autocomplete="off">
+                    <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-admin-pwd', this)">👁️</button>
+                </div>
+                <p class="pwd-subhint">สำหรับเข้าสู่โหมด Admin: บันทึกเวลาเกิดบอส, เพิ่ม/ลบบอส, จัดการอีเวนต์</p>
+            </div>
+
+            <div class="pwd-group" style="margin-top: 14px;">
+                <div class="pwd-label-row">
+                    <span class="pwd-label" style="color: #38bdf8;">👥 รหัสผ่าน Member (สมาชิกแคลน)</span>
+                    <span class="pwd-badge">สิทธิ์ดูตาราง</span>
+                </div>
+                <div class="pwd-input-wrap">
+                    <input type="password" id="modal-input-member-pwd" class="pwd-input" placeholder="password777999" autocomplete="off">
+                    <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-member-pwd', this)">👁️</button>
+                </div>
+                <p class="pwd-subhint">สำหรับแจกคนในแคลน: เปิดดูตารางเวลาบอส, เวลานับถอยหลัง และเสียงเตือน</p>
+            </div>
+
+            <div class="pwd-cloud-notice">
+                <span>☁️</span>
+                <span>เมื่อบันทึกแล้ว ข้อมูลจะซิงค์ไปยัง Firebase Cloud อัตโนมัติ</span>
+            </div>
+
+            <div class="pwd-footer">
+                <button type="button" class="pwd-btn-cancel" onclick="closeAdminPwdModal()">ยกเลิก</button>
+                <button type="button" id="btn-modal-save-pwd" class="pwd-btn-save" onclick="submitAdminPasswords()">
+                    <span>💾 บันทึกรหัสผ่านใหม่</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openAdminPwdModal() {
+            const modal = document.getElementById('admin-pwd-modal');
+            if (!modal) return;
+            modal.classList.add('active');
+            const alertBox = document.getElementById('pwd-alert-box');
+            if (alertBox) {
+                alertBox.className = 'pwd-alert';
+                alertBox.textContent = '';
+            }
+
+            // Fetch current passwords from server
+            fetch('/api/settings/passwords')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.adminPassword) document.getElementById('modal-input-admin-pwd').value = data.adminPassword;
+                        if (data.memberPassword) document.getElementById('modal-input-member-pwd').value = data.memberPassword;
+                    }
+                })
+                .catch(e => console.error('Fetch passwords error:', e));
+        }
+
+        function closeAdminPwdModal() {
+            const modal = document.getElementById('admin-pwd-modal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function togglePwdVisibility(inputId, btn) {
+            const el = document.getElementById(inputId);
+            if (!el) return;
+            if (el.type === 'password') {
+                el.type = 'text';
+                btn.textContent = '🔒';
+            } else {
+                el.type = 'password';
+                btn.textContent = '👁️';
+            }
+        }
+
+        function submitAdminPasswords() {
+            const adminVal = document.getElementById('modal-input-admin-pwd').value.trim();
+            const memberVal = document.getElementById('modal-input-member-pwd').value.trim();
+            const alertBox = document.getElementById('pwd-alert-box');
+            const saveBtn = document.getElementById('btn-modal-save-pwd');
+
+            if (adminVal.length < 4 || memberVal.length < 4) {
+                alertBox.className = 'pwd-alert error';
+                alertBox.textContent = '❌ รหัสผ่านทั้งสองต้องมีความยาวอย่างน้อย 4 ตัวอักษร';
+                return;
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span>⏳ กำลังบันทึก...</span>';
+
+            fetch('/api/settings/passwords', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    adminPassword: adminVal,
+                    memberPassword: memberVal
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alertBox.className = 'pwd-alert success';
+                    alertBox.textContent = '✅ ' + (data.message || 'บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว!');
+                    setTimeout(() => {
+                        closeAdminPwdModal();
+                    }, 1200);
+                } else {
+                    alertBox.className = 'pwd-alert error';
+                    alertBox.textContent = '❌ ' + (data.message || 'เกิดข้อผิดพลาดในการบันทึก');
+                }
+            })
+            .catch(err => {
+                alertBox.className = 'pwd-alert error';
+                alertBox.textContent = '❌ การเชื่อมต่อล้มเหลว: ' + err.message;
+            })
+            .finally(() => {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<span>💾 บันทึกรหัสผ่านใหม่</span>';
+            });
+        }
+
+        // Close on clicking backdrop
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('admin-pwd-modal');
+            if (modal && e.target === modal) closeAdminPwdModal();
+        });
+
+        // Close on Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeAdminPwdModal();
+        });
+
+        // Auto-inject button into top bar
+        (function setupButtonInjection() {
+            function inject() {
+                if (document.getElementById('btn-admin-pwd-trigger')) return;
+
+                // Look for action toolbar or header
+                const allButtons = document.querySelectorAll('button');
+                let targetContainer = null;
+
+                for (const b of allButtons) {
+                    const rect = b.getBoundingClientRect();
+                    if (rect.top >= 0 && rect.top < 60) {
+                        const parent = b.parentElement;
+                        if (parent && parent.children.length >= 2) {
+                            targetContainer = parent;
+                            break;
+                        }
+                    }
+                }
+
+                const triggerBtn = document.createElement('button');
+                triggerBtn.id = 'btn-admin-pwd-trigger';
+                triggerBtn.type = 'button';
+                triggerBtn.title = 'แก้ไขรหัสผ่าน Admin และ Member';
+                triggerBtn.onclick = openAdminPwdModal;
+                triggerBtn.innerHTML = '<span>🔑</span><span>รหัสผ่าน</span>';
+
+                if (targetContainer) {
+                    targetContainer.prepend(triggerBtn);
+                } else {
+                    // Fallback to top-right floating position
+                    triggerBtn.style.position = 'fixed';
+                    triggerBtn.style.top = '10px';
+                    triggerBtn.style.right = '50px';
+                    triggerBtn.style.zIndex = '9999';
+                    document.body.appendChild(triggerBtn);
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', inject);
+            } else {
+                inject();
+            }
+            setInterval(inject, 1500);
+        })();
+    </script>
+    `;
+
     return `<!DOCTYPE html>
 <html lang="en" class="">
     <head>
@@ -73,9 +525,9 @@ function renderHtml(pageData, title = '#Kain7') {
                         document.documentElement.classList.add('dark');
                     }
                 }
-                const isMaxDesktop = window.maxDesktop?.runtime === 'max';
-                if ('__TAURI_INTERNALS__' in window) {
-                    document.documentElement.classList.add('tauri');
+                const isMaxDesktop = window.matchMedia('(min-width: 1400px)').matches;
+                const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+                if (isDesktop) {
                     document.documentElement.classList.add('desktop');
                 }
                 if (isMaxDesktop) {
@@ -118,6 +570,7 @@ function renderHtml(pageData, title = '#Kain7') {
         <div class="browser-shell">
             <div id="app" data-page="${jsonStr}"></div>
         </div>
+        ${adminPasswordSnippet}
     </body>
 </html>`;
 }

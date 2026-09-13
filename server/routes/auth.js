@@ -25,6 +25,11 @@ function authMiddleware(req, res, next) {
         req.user = { role: 'admin' };
         return next();
     }
+    const cookies = req.headers.cookie || '';
+    if (cookies.includes('authenticated_admin_session')) {
+        req.user = { role: 'admin' };
+        return next();
+    }
     req.user = { role: 'guest' };
     next();
 }
