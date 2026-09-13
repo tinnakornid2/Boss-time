@@ -18,6 +18,7 @@
         lastEventId: sessionStorage.getItem('bossTracker.lastLiveEvent') || '',
         audioUnlocked: false,
         streamConnected: false,
+        streamFailed: false,
         alerted: new Set(),
         lastPlayedAt: 0
     };
@@ -182,7 +183,22 @@
             } catch (_) {}
         });
         source.onopen = () => { state.streamConnected = true; updateStatus(); };
-        source.onerror = () => { state.streamConnected = false; updateStatus(); };
+        source.onerror = () => {
+            state.streamConnected = false;
+            state.streamFailed = true;
+            source.close();
+            updateStatus();
+        };
+    }
+
+    async function pollLiveEventFallback() {
+        if (!state.streamFailed || document.visibilityState === 'visible') return;
+        try {
+            const response = await nativeFetch('/live-event', { cache: 'no-store' });
+            if (!response.ok) return;
+            const data = await response.json();
+            consumeLiveEvent(data.liveEvent, false);
+        } catch (_) {}
     }
 
     function readInitialData() {
@@ -240,5 +256,6 @@
         connectStream();
         checkScheduledAlerts();
         setInterval(checkScheduledAlerts, 1000);
+        setInterval(pollLiveEventFallback, 5000);
     });
 })();

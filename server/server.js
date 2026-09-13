@@ -1069,6 +1069,12 @@ app.get('/poll', (req, res) => {
     });
 });
 
+// Tiny fallback for background tabs when Firebase rules disallow public streams.
+app.get('/live-event', (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.json({ liveEvent: db.getLiveEvent() });
+});
+
 // ==========================================================
 // BOSS ACTIONS
 // ==========================================================
