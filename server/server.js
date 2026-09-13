@@ -744,85 +744,67 @@ function renderHtml(pageData, title = '#Kain7') {
                 border-color: rgba(16, 185, 129, 0.5);
                 background: rgba(16, 185, 129, 0.12);
             }
-            #app-version-watermark {
+        <style>
+            #bottom-floating-status-bar {
                 position: fixed;
                 bottom: 8px;
                 right: 12px;
                 z-index: 88888;
+                display: flex;
+                align-items: center;
+                gap: 6px;
                 pointer-events: auto;
-                opacity: 0.75;
+                opacity: 0.85;
                 transition: opacity 0.2s ease, transform 0.2s ease;
             }
-            #app-version-watermark:hover {
+            #bottom-floating-status-bar:hover {
                 opacity: 1;
                 transform: translateY(-1px);
             }
         </style>
-        <div id="app-version-watermark">
-            <span class="app-version-badge" title="Lineage 2 Boss Tracker ${APP_VERSION} (Firebase Cloud Active)">
+        <div id="bottom-floating-status-bar">
+            <span id="header-firebase-status-badge" class="firebase-mini-badge" title="Firebase Cloud: Connecting...">
+                <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;box-shadow:0 0 4px #f59e0b;"></span>
+                <span>☁️ Firebase</span>
+            </span>
+            <span class="app-version-badge" title="Lineage 2 Boss Tracker ${APP_VERSION}">
                 <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981;margin-right:2px;box-shadow:0 0 6px #10b981;"></span>
                 ${APP_VERSION}
             </span>
         </div>
         <script>
-            (function setupVersionHeader() {
-                function attachToHeader() {
-                    if (document.getElementById('app-version-header')) return;
-                    const headerBar = document.querySelector('.drag-region, header, nav');
-                    if (headerBar) {
-                        const flexGroup = headerBar.querySelector('.flex.items-center') || headerBar.firstElementChild;
-                        if (flexGroup) {
-                            const vBadge = document.createElement('span');
-                            vBadge.id = 'app-version-header';
-                            vBadge.className = 'app-version-badge';
-                            vBadge.style.margin = '0 4px';
-                            vBadge.title = 'Lineage 2 Boss Tracker ${APP_VERSION}';
-                            vBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span> ${APP_VERSION}';
-                            flexGroup.appendChild(vBadge);
-
-                            const fbBadge = document.createElement('span');
-                            fbBadge.id = 'header-firebase-status-badge';
-                            fbBadge.className = 'firebase-mini-badge';
-                            fbBadge.style.margin = '0 4px';
-                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;box-shadow:0 0 4px #f59e0b;"></span> <span>☁️ Firebase</span>';
-                            fbBadge.title = 'Firebase Cloud: Connecting... (Click for info)';
-                            fbBadge.onclick = function() {
-                                fetch('/api/firebase-status')
-                                    .then(r => r.json())
-                                    .then(st => {
-                                        if (st.connected) {
-                                            alert('✅ [Firebase Realtime Database]\nStatus: Connected & Live Synced\n\nProject ID: ' + st.projectId + '\nRegion: Singapore (asia-southeast1)\nDatabase URL: ' + st.databaseURL + '\nTotal Bosses in Cloud: ' + st.totalBosses);
-                                        } else {
-                                            alert('⚠️ [Firebase Realtime Database]\nStatus: Offline (Local Mode)\nKey: serviceAccountKey.json not detected\n\nTo connect cloud database:\n1. Download serviceAccountKey.json from Firebase Console\n2. Place it into server/serviceAccountKey.json');
-                                        }
-                                    }).catch(err => alert('Error: ' + err.message));
-                            };
-                            flexGroup.appendChild(fbBadge);
-
-                            function updateFbBadge() {
-                                fetch('/api/firebase-status')
-                                    .then(r => r.json())
-                                    .then(st => {
-                                        if (st.connected) {
-                                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span> <span>☁️ Firebase</span>';
-                                            fbBadge.title = 'Firebase Cloud: Connected & Synced (Click for info)';
-                                        } else {
-                                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;box-shadow:0 0 5px #f59e0b;"></span> <span>☁️ Offline</span>';
-                                            fbBadge.title = 'Firebase Cloud: Offline (Local Mode) - Click for info';
-                                        }
-                                    }).catch(() => {});
+            (function setupFirebaseBadge() {
+                function updateFbBadge() {
+                    const fbBadge = document.getElementById('header-firebase-status-badge');
+                    if (!fbBadge) return;
+                    fetch('/api/firebase-status')
+                        .then(r => r.json())
+                        .then(st => {
+                            if (st.connected) {
+                                fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span> <span>☁️ Firebase</span>';
+                                fbBadge.title = 'Firebase Cloud: Connected & Synced (Click for info)';
+                            } else {
+                                fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;box-shadow:0 0 5px #f59e0b;"></span> <span>☁️ Offline</span>';
+                                fbBadge.title = 'Firebase Cloud: Offline (Local Mode) - Click for info';
                             }
-                            updateFbBadge();
-                            setInterval(updateFbBadge, 10000);
-                        }
-                    }
+                        }).catch(() => {});
                 }
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', attachToHeader);
-                } else {
-                    attachToHeader();
+                const fbBadge = document.getElementById('header-firebase-status-badge');
+                if (fbBadge) {
+                    fbBadge.onclick = function() {
+                        fetch('/api/firebase-status')
+                            .then(r => r.json())
+                            .then(st => {
+                                if (st.connected) {
+                                    alert('✅ [Firebase Realtime Database]\nStatus: Connected & Live Synced\n\nProject ID: ' + st.projectId + '\nRegion: Singapore (asia-southeast1)\nDatabase URL: ' + st.databaseURL + '\nTotal Bosses in Cloud: ' + st.totalBosses);
+                                } else {
+                                    alert('⚠️ [Firebase Realtime Database]\nStatus: Offline (Local Mode)\nKey: serviceAccountKey.json not detected\n\nTo connect cloud database:\n1. Download serviceAccountKey.json from Firebase Console\n2. Place it into server/serviceAccountKey.json');
+                                }
+                            }).catch(err => alert('Error: ' + err.message));
+                    };
                 }
-                setInterval(attachToHeader, 2000);
+                updateFbBadge();
+                setInterval(updateFbBadge, 10000);
             })();
         </script>
     </body>
