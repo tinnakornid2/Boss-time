@@ -14,7 +14,7 @@ router.get('/time-bosses', (req, res) => {
         if (b.next_spawn) {
             const spawnMs = new Date(b.next_spawn).getTime();
             remainingSeconds = Math.round((spawnMs - now) / 1000);
-            if (remainingSeconds <= 0 && remainingSeconds > -300) {
+            if (remainingSeconds <= 0 && remainingSeconds > -60) {
                 isAlive = true;
             }
         }
