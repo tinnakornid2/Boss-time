@@ -127,6 +127,24 @@
         }
     }
 
+    function showBossAsUnset(boss) {
+        if (!boss?.name) return;
+        for (const row of document.querySelectorAll('tr')) {
+            const rowText = row.textContent || '';
+            if (!rowText.includes(boss.name)) continue;
+            if (boss.location && !rowText.includes(boss.location)) continue;
+            for (const node of row.querySelectorAll('span, td')) {
+                const label = (node.textContent || '').trim();
+                if (label === 'NOW' || label === 'Spawned') {
+                    node.textContent = 'Unset';
+                    node.className = String(node.className || '')
+                        .replace(/text-red-\d+/g, '')
+                        .replace(/font-bold/g, '');
+                }
+            }
+        }
+    }
+
     function consumeLiveEvent(event, initial) {
         if (!event || !event.id) return;
         if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
@@ -144,6 +162,9 @@
             }
         } else if (event.type === 'boss_pre_spawn_cleared') {
             flashBoss(event.bossName, false);
+        } else if (event.type === 'boss_time_unset') {
+            showBossAsUnset(event.boss);
+            setTimeout(() => showBossAsUnset(event.boss), 350);
         }
     }
 
@@ -155,7 +176,10 @@
         const requestUrl = String(args[0]?.url || args[0] || '');
         if (requestUrl.endsWith('/poll') || requestUrl.includes('/poll?')) {
             response.clone().json().then(data => {
-                for (const boss of data.bosses || []) state.bosses.set(Number(boss.id), boss);
+                for (const boss of data.bosses || []) {
+                    state.bosses.set(Number(boss.id), boss);
+                    if (!boss.next_spawn && !boss.pre_spawned && !boss.pinned_alive) showBossAsUnset(boss);
+                }
                 for (const event of data.events || []) state.events.set(Number(event.id), event);
                 consumeLiveEvent(data.liveEvent, false);
             }).catch(() => {});

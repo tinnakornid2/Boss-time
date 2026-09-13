@@ -264,7 +264,9 @@ module.exports = {
         const now = Date.now();
         const liveEvent = {
             id: `${now}-${numId}-${Math.random().toString(36).slice(2, 8)}`,
-            type: updates.pre_spawned === true && !previous.pre_spawned
+            type: updates.next_spawn === null && updates.last_kill_time === null
+                ? 'boss_time_unset'
+                : updates.pre_spawned === true && !previous.pre_spawned
                 ? 'boss_pre_spawn_started'
                 : updates.pre_spawned === false && previous.pre_spawned
                     ? 'boss_pre_spawn_cleared'
