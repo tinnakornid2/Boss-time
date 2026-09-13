@@ -723,6 +723,27 @@ function renderHtml(pageData, title = '#Kain7') {
                 border-color: rgba(56, 189, 248, 0.4);
                 background: rgba(56, 189, 248, 0.1);
             }
+            .firebase-mini-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                padding: 1.5px 7px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                border-radius: 9999px;
+                font-family: inherit;
+                font-size: 10px;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.7);
+                cursor: pointer;
+                user-select: none;
+                transition: all 0.2s ease;
+            }
+            .firebase-mini-badge:hover {
+                color: #fff;
+                border-color: rgba(16, 185, 129, 0.5);
+                background: rgba(16, 185, 129, 0.12);
+            }
             #app-version-watermark {
                 position: fixed;
                 bottom: 8px;
@@ -761,21 +782,20 @@ function renderHtml(pageData, title = '#Kain7') {
 
                             const fbBadge = document.createElement('span');
                             fbBadge.id = 'header-firebase-status-badge';
-                            fbBadge.className = 'app-version-badge';
+                            fbBadge.className = 'firebase-mini-badge';
                             fbBadge.style.margin = '0 4px';
-                            fbBadge.style.cursor = 'pointer';
-                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;"></span> <span>☁️ Firebase</span>';
-                            fbBadge.title = 'สถานะฐานข้อมูลกลาง Firebase (คลิกเพื่อดูรายละเอียด)';
+                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;box-shadow:0 0 4px #f59e0b;"></span> <span>☁️ Firebase</span>';
+                            fbBadge.title = 'Firebase Cloud: Connecting... (Click for info)';
                             fbBadge.onclick = function() {
                                 fetch('/api/firebase-status')
                                     .then(r => r.json())
                                     .then(st => {
                                         if (st.connected) {
-                                            alert('✅ [Firebase Realtime Database]\\nสถานะ: เชื่อมต่อฐานข้อมูลกลางออนไลน์เรียบร้อยแล้ว\\n\\nProject ID: ' + st.projectId + '\\nDatabase URL: ' + st.databaseURL + '\\nบอสทั้งหมดบนคลาวด์: ' + st.totalBosses + ' ตัว');
+                                            alert('✅ [Firebase Realtime Database]\nStatus: Connected & Live Synced\n\nProject ID: ' + st.projectId + '\nRegion: Singapore (asia-southeast1)\nDatabase URL: ' + st.databaseURL + '\nTotal Bosses in Cloud: ' + st.totalBosses);
                                         } else {
-                                            alert('⚠️ [Firebase Realtime Database]\\nสถานะ: ฐานข้อมูลกลางยังไม่เชื่อมต่อ (กำลังรอไฟล์คีย์)\\n\\n📌 สิ่งที่ต้องทำ:\\n1. เข้า Firebase Console ดาวน์โหลด serviceAccountKey.json\\n2. บันทึกไฟล์ไว้ในโฟลเดอร์ server/serviceAccountKey.json\\nระบบจะเชื่อมต่อและซิงค์ข้อมูลขึ้นคลาวด์อัตโนมัติทันที');
+                                            alert('⚠️ [Firebase Realtime Database]\nStatus: Offline (Local Mode)\nKey: serviceAccountKey.json not detected\n\nTo connect cloud database:\n1. Download serviceAccountKey.json from Firebase Console\n2. Place it into server/serviceAccountKey.json');
                                         }
-                                    }).catch(err => alert('เกิดข้อผิดพลาด: ' + err.message));
+                                    }).catch(err => alert('Error: ' + err.message));
                             };
                             flexGroup.appendChild(fbBadge);
 
@@ -784,25 +804,16 @@ function renderHtml(pageData, title = '#Kain7') {
                                     .then(r => r.json())
                                     .then(st => {
                                         if (st.connected) {
-                                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span> <span>☁️ Firebase คลาวด์</span>';
-                                            fbBadge.title = 'Firebase RTDB: ฐานข้อมูลกลางออนไลน์ (คลิกเพื่อดูรายละเอียด)';
+                                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span> <span>☁️ Firebase</span>';
+                                            fbBadge.title = 'Firebase Cloud: Connected & Synced (Click for info)';
                                         } else {
-                                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;box-shadow:0 0 5px #f59e0b;"></span> <span>☁️ Firebase (รอคีย์)</span>';
-                                            fbBadge.title = 'Firebase RTDB: ยังไม่พบ serviceAccountKey.json (คลิกเพื่อดูวิธีเชื่อมต่อ)';
+                                            fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;box-shadow:0 0 5px #f59e0b;"></span> <span>☁️ Offline</span>';
+                                            fbBadge.title = 'Firebase Cloud: Offline (Local Mode) - Click for info';
                                         }
                                     }).catch(() => {});
                             }
                             updateFbBadge();
                             setInterval(updateFbBadge, 10000);
-
-                            const pwdBtn = document.createElement('button');
-                            pwdBtn.id = 'header-admin-pwd-btn';
-                            pwdBtn.className = 'header-pwd-btn';
-                            pwdBtn.type = 'button';
-                            pwdBtn.title = 'จัดการรหัสผ่านระบบ (Admin & Member)';
-                            pwdBtn.onclick = function() { if (typeof openAdminPwdModal === 'function') openAdminPwdModal(); };
-                            pwdBtn.innerHTML = '<span>🔑</span> <span>รหัสผ่าน</span>';
-                            flexGroup.appendChild(pwdBtn);
                         }
                     }
                 }
