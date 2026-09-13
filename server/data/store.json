@@ -6,15 +6,15 @@
       "location": "F. o. Massacre",
       "is_invasion": false,
       "interval": 720,
-      "last_kill_time": "2026-09-12T05:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:45:04.000000Z",
-      "updated_at": "2026-09-12T16:09:08.162Z",
-      "next_spawn": "2026-09-12T17:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T07:20:00+07:00"
     },
     {
       "id": 48,
@@ -22,15 +22,15 @@
       "location": "F.o.Massacre",
       "is_invasion": true,
       "interval": 720,
-      "last_kill_time": "2026-09-12T05:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:51:22.000000Z",
-      "updated_at": "2026-09-12T16:09:08.163Z",
-      "next_spawn": "2026-09-12T17:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T07:20:00+07:00"
     },
     {
       "id": 8,
@@ -38,15 +38,15 @@
       "location": "Brigand Stronghold",
       "is_invasion": false,
       "interval": 480,
-      "last_kill_time": "2026-09-12T08:09:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T13:42:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:45:23.000000Z",
-      "updated_at": "2026-09-12T16:09:08.164Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T04:42:00+07:00"
     },
     {
       "id": 49,
@@ -54,15 +54,15 @@
       "location": "Brigand Stronghold",
       "is_invasion": true,
       "interval": 480,
-      "last_kill_time": "2026-09-12T08:09:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T13:42:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:51:31.000000Z",
-      "updated_at": "2026-09-12T16:09:08.165Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T04:42:00+07:00"
     },
     {
       "id": 9,
@@ -70,15 +70,15 @@
       "location": "Southern Wasteland",
       "is_invasion": false,
       "interval": 150,
-      "last_kill_time": "2026-09-12T13:39:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:30:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:45:33.000000Z",
-      "updated_at": "2026-09-12T16:09:08.166Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:36:01.000000Z",
+      "next_spawn": "2026-09-12T23:00:00+07:00"
     },
     {
       "id": 131,
@@ -86,15 +86,15 @@
       "location": "Southern Westland",
       "is_invasion": true,
       "interval": 150,
-      "last_kill_time": "2026-09-12T13:39:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:30:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-04-03T07:20:36.000000Z",
-      "updated_at": "2026-09-12T16:09:08.167Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:36:01.000000Z",
+      "next_spawn": "2026-09-12T23:00:00+07:00"
     },
     {
       "id": 10,
@@ -102,15 +102,15 @@
       "location": "Dragon V. North",
       "is_invasion": false,
       "interval": 360,
-      "last_kill_time": "2026-09-12T10:09:07.874Z",
+      "last_kill_time": "2026-09-12T11:39:15.000000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:45:43.000000Z",
-      "updated_at": "2026-09-12T16:09:08.169Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:41:11.000000Z",
+      "next_spawn": "2026-09-13T00:39:15+07:00"
     },
     {
       "id": 50,
@@ -118,15 +118,15 @@
       "location": "Dragon V. [North]",
       "is_invasion": true,
       "interval": 360,
-      "last_kill_time": "2026-09-12T10:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:51:44.000000Z",
-      "updated_at": "2026-09-12T16:09:08.170Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T02:00:00+07:00"
     },
     {
       "id": 51,
@@ -134,15 +134,15 @@
       "location": "Death Pass",
       "is_invasion": true,
       "interval": 720,
-      "last_kill_time": "2026-09-12T09:34:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T06:25:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:51:53.000000Z",
-      "updated_at": "2026-09-12T16:09:08.172Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T01:25:00+07:00"
     },
     {
       "id": 11,
@@ -150,15 +150,15 @@
       "location": "Death Pass",
       "is_invasion": false,
       "interval": 720,
-      "last_kill_time": "2026-09-12T19:24:38.000Z",
+      "last_kill_time": "2026-09-12T09:36:39.000000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:45:54.000000Z",
-      "updated_at": "2026-09-12T19:24:38.056Z",
-      "next_spawn": "2026-09-13T07:24:38.000Z"
+      "updated_at": "2026-09-12T13:35:50.000000Z",
+      "next_spawn": "2026-09-13T04:36:39+07:00"
     },
     {
       "id": 133,
@@ -166,15 +166,15 @@
       "location": "Breka's Stronghold",
       "is_invasion": true,
       "interval": 240,
-      "last_kill_time": "2026-09-12T12:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-04-03T12:53:32.000000Z",
-      "updated_at": "2026-09-12T16:09:08.174Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T00:00:00+07:00"
     },
     {
       "id": 12,
@@ -182,15 +182,15 @@
       "location": "Breka's Stronghold",
       "is_invasion": false,
       "interval": 240,
-      "last_kill_time": "2026-09-12T12:09:07.874Z",
+      "last_kill_time": "2026-09-12T13:10:12.000000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:46:05.000000Z",
-      "updated_at": "2026-09-12T16:09:08.175Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:52:23.000000Z",
+      "next_spawn": "2026-09-13T00:10:12+07:00"
     },
     {
       "id": 13,
@@ -198,15 +198,15 @@
       "location": "National Cemetery",
       "is_invasion": false,
       "interval": 720,
-      "last_kill_time": "2026-09-12T15:29:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:46:12.000000Z",
-      "updated_at": "2026-09-12T16:09:08.176Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T07:20:00+07:00"
     },
     {
       "id": 52,
@@ -214,15 +214,15 @@
       "location": "National Cemetery",
       "is_invasion": true,
       "interval": 720,
-      "last_kill_time": "2026-09-12T15:29:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:52:08.000000Z",
-      "updated_at": "2026-09-12T16:09:08.177Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T07:20:00+07:00"
     },
     {
       "id": 14,
@@ -230,15 +230,15 @@
       "location": "Chertuba's Barrack",
       "is_invasion": false,
       "interval": 180,
-      "last_kill_time": "2026-09-12T13:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:46:36.000000Z",
-      "updated_at": "2026-09-12T16:09:08.178Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T23:00:00+07:00"
     },
     {
       "id": 128,
@@ -246,15 +246,15 @@
       "location": "Chertuba's Barrack",
       "is_invasion": true,
       "interval": 180,
-      "last_kill_time": "2026-09-12T13:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-04-03T06:21:34.000000Z",
-      "updated_at": "2026-09-12T16:09:08.179Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T23:00:00+07:00"
     },
     {
       "id": 15,
@@ -262,15 +262,15 @@
       "location": "Cruma [4F] not 3F !!!",
       "is_invasion": false,
       "interval": 480,
-      "last_kill_time": "2026-09-12T08:09:07.874Z",
+      "last_kill_time": "2026-09-12T21:52:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:46:45.000000Z",
-      "updated_at": "2026-09-12T16:09:08.180Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T12:52:00+07:00"
     },
     {
       "id": 124,
@@ -278,15 +278,15 @@
       "location": "Cruma [3F]",
       "is_invasion": true,
       "interval": 480,
-      "last_kill_time": "2026-09-12T08:09:07.874Z",
+      "last_kill_time": "2026-09-12T21:52:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-04-03T01:16:52.000000Z",
-      "updated_at": "2026-09-12T16:09:08.181Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T12:52:00+07:00"
     },
     {
       "id": 54,
@@ -294,15 +294,15 @@
       "location": "Cruma [7F]",
       "is_invasion": true,
       "interval": 720,
-      "last_kill_time": "2026-09-12T09:34:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T06:25:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:52:32.000000Z",
-      "updated_at": "2026-09-12T16:09:08.182Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T01:25:00+07:00"
     },
     {
       "id": 16,
@@ -310,15 +310,15 @@
       "location": "Cruma [7F]",
       "is_invasion": false,
       "interval": 720,
-      "last_kill_time": "2026-09-12T04:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:46:54.000000Z",
-      "updated_at": "2026-09-12T16:09:08.183Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T08:00:00+07:00"
     },
     {
       "id": 17,
@@ -326,15 +326,15 @@
       "location": "Ivory [2F]",
       "is_invasion": false,
       "interval": 600,
-      "last_kill_time": "2026-09-12T19:24:38.000Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T13:40:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:47:05.000000Z",
-      "updated_at": "2026-09-12T19:24:38.199Z",
-      "next_spawn": "2026-09-13T05:24:38.000Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T06:40:00+07:00"
     },
     {
       "id": 55,
@@ -342,15 +342,15 @@
       "location": "Ivory [2F]",
       "is_invasion": true,
       "interval": 600,
-      "last_kill_time": "2026-09-12T11:34:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T13:40:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:52:45.000000Z",
-      "updated_at": "2026-09-12T16:09:08.189Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T06:40:00+07:00"
     },
     {
       "id": 18,
@@ -358,15 +358,15 @@
       "location": "Antharas [B6]",
       "is_invasion": false,
       "interval": 720,
-      "last_kill_time": "2026-09-12T15:29:07.874Z",
+      "last_kill_time": "2026-09-12T13:44:16.000000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:47:13.000000Z",
-      "updated_at": "2026-09-12T16:09:08.190Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:44:59.000000Z",
+      "next_spawn": "2026-09-13T08:44:16+07:00"
     },
     {
       "id": 56,
@@ -374,15 +374,15 @@
       "location": "Antharas [B6]",
       "is_invasion": true,
       "interval": 720,
-      "last_kill_time": "2026-09-12T04:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:52:52.000000Z",
-      "updated_at": "2026-09-12T16:09:08.192Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T08:00:00+07:00"
     },
     {
       "id": 199,
@@ -390,15 +390,15 @@
       "location": "Dion Plains",
       "is_invasion": false,
       "interval": 210,
-      "last_kill_time": "2026-09-12T12:39:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T16:49:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-05-16T22:26:11.000000Z",
-      "updated_at": "2026-09-12T16:09:08.194Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T03:19:00+07:00"
     },
     {
       "id": 123,
@@ -406,15 +406,15 @@
       "location": "Dion Plains",
       "is_invasion": true,
       "interval": 210,
-      "last_kill_time": "2026-09-12T12:39:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T16:49:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-04-01T10:26:51.000000Z",
-      "updated_at": "2026-09-12T16:09:08.195Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T03:19:00+07:00"
     },
     {
       "id": 198,
@@ -422,15 +422,15 @@
       "location": "Bee Hive",
       "is_invasion": false,
       "interval": 120,
-      "last_kill_time": "2026-09-12T14:09:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T19:21:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-05-16T22:24:48.000000Z",
-      "updated_at": "2026-09-12T16:09:08.197Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T04:21:00+07:00"
     },
     {
       "id": 127,
@@ -438,15 +438,15 @@
       "location": "Dion Plains",
       "is_invasion": true,
       "interval": 120,
-      "last_kill_time": "2026-09-12T14:09:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T19:21:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-04-03T04:16:01.000000Z",
-      "updated_at": "2026-09-12T16:09:08.198Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T04:21:00+07:00"
     },
     {
       "id": 57,
@@ -454,15 +454,15 @@
       "location": "National Cemetery",
       "is_invasion": true,
       "interval": 480,
-      "last_kill_time": "2026-09-12T19:29:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:53:02.000000Z",
-      "updated_at": "2026-09-12T16:09:08.200Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T03:20:00+07:00"
     },
     {
       "id": 19,
@@ -470,15 +470,15 @@
       "location": "National Cemetery",
       "is_invasion": false,
       "interval": 480,
-      "last_kill_time": "2026-09-12T19:29:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:47:24.000000Z",
-      "updated_at": "2026-09-12T16:09:08.201Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T03:20:00+07:00"
     },
     {
       "id": 58,
@@ -486,15 +486,15 @@
       "location": "Tanor Canyon",
       "is_invasion": true,
       "interval": 360,
-      "last_kill_time": "2026-09-12T10:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:53:11.000000Z",
-      "updated_at": "2026-09-12T16:09:08.202Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T02:00:00+07:00"
     },
     {
       "id": 20,
@@ -502,15 +502,15 @@
       "location": "Tanor Canyon",
       "is_invasion": false,
       "interval": 360,
-      "last_kill_time": "2026-09-12T10:09:07.874Z",
+      "last_kill_time": "2026-09-12T11:35:09.000000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:47:32.000000Z",
-      "updated_at": "2026-09-12T16:09:08.203Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:41:21.000000Z",
+      "next_spawn": "2026-09-13T00:35:09+07:00"
     },
     {
       "id": 59,
@@ -518,15 +518,15 @@
       "location": "Silent Valley",
       "is_invasion": true,
       "interval": 480,
-      "last_kill_time": "2026-09-12T19:29:07.874Z",
+      "last_kill_time": "2026-09-12T21:49:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:53:18.000000Z",
-      "updated_at": "2026-09-12T16:09:08.205Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T12:49:00+07:00"
     },
     {
       "id": 21,
@@ -534,15 +534,15 @@
       "location": "Silent Valley",
       "is_invasion": false,
       "interval": 480,
-      "last_kill_time": "2026-09-12T19:29:07.874Z",
+      "last_kill_time": "2026-09-12T21:49:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:47:41.000000Z",
-      "updated_at": "2026-09-12T16:09:08.207Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T12:49:00+07:00"
     },
     {
       "id": 60,
@@ -550,15 +550,15 @@
       "location": "Seal of Shilen",
       "is_invasion": true,
       "interval": 1200,
-      "last_kill_time": "2026-09-12T07:29:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:53:27.000000Z",
-      "updated_at": "2026-09-12T16:09:08.209Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T15:20:00+07:00"
     },
     {
       "id": 22,
@@ -566,15 +566,15 @@
       "location": "Seal of Shilen",
       "is_invasion": false,
       "interval": 1440,
-      "last_kill_time": "2026-09-12T03:29:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:47:49.000000Z",
-      "updated_at": "2026-09-12T16:09:08.211Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T19:20:00+07:00"
     },
     {
       "id": 61,
@@ -582,15 +582,15 @@
       "location": "War-Torn Plains",
       "is_invasion": true,
       "interval": 360,
-      "last_kill_time": "2026-09-12T15:34:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:25:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:53:38.000000Z",
-      "updated_at": "2026-09-12T16:09:08.213Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T01:25:00+07:00"
     },
     {
       "id": 23,
@@ -598,15 +598,15 @@
       "location": "War-Torn Plains",
       "is_invasion": false,
       "interval": 360,
-      "last_kill_time": "2026-09-12T15:34:07.874Z",
+      "last_kill_time": "2026-09-12T11:32:20.000000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:47:56.000000Z",
-      "updated_at": "2026-09-12T16:09:08.214Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-12T13:41:32.000000Z",
+      "next_spawn": "2026-09-13T00:32:20+07:00"
     },
     {
       "id": 62,
@@ -614,15 +614,15 @@
       "location": "Cruma [6F]",
       "is_invasion": true,
       "interval": 480,
-      "last_kill_time": "2026-09-12T08:09:07.874Z",
+      "last_kill_time": "2026-09-12T21:59:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:53:48.000000Z",
-      "updated_at": "2026-09-12T16:09:08.215Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T12:59:00+07:00"
     },
     {
       "id": 24,
@@ -630,15 +630,15 @@
       "location": "Cruma [6F]",
       "is_invasion": false,
       "interval": 480,
-      "last_kill_time": "2026-09-12T08:09:07.874Z",
+      "last_kill_time": "2026-09-12T21:59:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:48:09.000000Z",
-      "updated_at": "2026-09-12T16:09:08.216Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T12:59:00+07:00"
     },
     {
       "id": 63,
@@ -646,15 +646,15 @@
       "location": "Ruins of Despair",
       "is_invasion": true,
       "interval": 360,
-      "last_kill_time": "2026-09-12T10:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:54:04.000000Z",
-      "updated_at": "2026-09-12T16:09:08.217Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T02:00:00+07:00"
     },
     {
       "id": 25,
@@ -662,15 +662,15 @@
       "location": "Ruins of Despair",
       "is_invasion": false,
       "interval": 360,
-      "last_kill_time": "2026-09-12T10:09:07.874Z",
+      "last_kill_time": "2026-09-12T11:31:14.000000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:48:17.000000Z",
-      "updated_at": "2026-09-12T16:09:08.218Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:53:25.000000Z",
+      "next_spawn": "2026-09-13T00:31:14+07:00"
     },
     {
       "id": 64,
@@ -678,15 +678,15 @@
       "location": "Forsaken Plains",
       "is_invasion": true,
       "interval": 480,
-      "last_kill_time": "2026-09-12T13:34:07.874Z",
+      "last_kill_time": "2026-09-12T17:40:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:54:11.000000Z",
-      "updated_at": "2026-09-12T16:09:08.219Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T08:40:00+07:00"
     },
     {
       "id": 6,
@@ -694,15 +694,15 @@
       "location": "Forsaken Plains",
       "is_invasion": false,
       "interval": 480,
-      "last_kill_time": "2026-09-12T13:34:07.874Z",
+      "last_kill_time": "2026-09-12T17:40:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-11T23:26:59.000000Z",
-      "updated_at": "2026-09-12T16:09:08.220Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T08:40:00+07:00"
     },
     {
       "id": 27,
@@ -710,15 +710,15 @@
       "location": "Pillager's Campsite",
       "is_invasion": false,
       "interval": 240,
-      "last_kill_time": "2026-09-12T12:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:48:31.000000Z",
-      "updated_at": "2026-09-12T16:09:08.221Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T00:00:00+07:00"
     },
     {
       "id": 130,
@@ -726,15 +726,15 @@
       "location": "Pillager's Campsite",
       "is_invasion": true,
       "interval": 240,
-      "last_kill_time": "2026-09-12T12:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-04-03T06:26:05.000000Z",
-      "updated_at": "2026-09-12T16:09:08.222Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T00:00:00+07:00"
     },
     {
       "id": 28,
@@ -742,15 +742,15 @@
       "location": "Medusa's Garden",
       "is_invasion": false,
       "interval": 420,
-      "last_kill_time": "2026-09-12T09:09:07.874Z",
+      "last_kill_time": "2026-09-12T20:09:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:48:44.000000Z",
-      "updated_at": "2026-09-12T16:09:08.224Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T10:09:00+07:00"
     },
     {
       "id": 65,
@@ -758,15 +758,15 @@
       "location": "Medusa's Garden",
       "is_invasion": true,
       "interval": 420,
-      "last_kill_time": "2026-09-12T09:09:07.874Z",
+      "last_kill_time": "2026-09-12T20:09:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:54:19.000000Z",
-      "updated_at": "2026-09-12T16:09:08.225Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T10:09:00+07:00"
     },
     {
       "id": 29,
@@ -774,15 +774,15 @@
       "location": "Forest of Mirror",
       "is_invasion": false,
       "interval": 720,
-      "last_kill_time": "2026-09-12T09:34:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T06:25:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:48:52.000000Z",
-      "updated_at": "2026-09-12T16:09:08.226Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T01:25:00+07:00"
     },
     {
       "id": 66,
@@ -790,15 +790,15 @@
       "location": "Forest of Mirror",
       "is_invasion": true,
       "interval": 720,
-      "last_kill_time": "2026-09-12T09:34:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T06:25:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:54:28.000000Z",
-      "updated_at": "2026-09-12T16:09:08.227Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T01:25:00+07:00"
     },
     {
       "id": 30,
@@ -806,15 +806,15 @@
       "location": "Cruma Marshland",
       "is_invasion": false,
       "interval": 480,
-      "last_kill_time": "2026-09-12T13:34:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T13:42:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:49:00.000000Z",
-      "updated_at": "2026-09-12T16:09:08.227Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T04:42:00+07:00"
     },
     {
       "id": 67,
@@ -822,15 +822,15 @@
       "location": "Cruma Marshland",
       "is_invasion": true,
       "interval": 480,
-      "last_kill_time": "2026-09-12T13:34:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T13:42:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:54:39.000000Z",
-      "updated_at": "2026-09-12T16:09:08.228Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T04:42:00+07:00"
     },
     {
       "id": 31,
@@ -838,15 +838,15 @@
       "location": "Silent Valley",
       "is_invasion": false,
       "interval": 1440,
-      "last_kill_time": "2026-09-12T03:29:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:49:11.000000Z",
-      "updated_at": "2026-09-12T16:09:08.229Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T19:20:00+07:00"
     },
     {
       "id": 68,
@@ -854,15 +854,15 @@
       "location": "Silent Valley",
       "is_invasion": true,
       "interval": 1440,
-      "last_kill_time": "2026-09-12T03:29:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:54:50.000000Z",
-      "updated_at": "2026-09-12T16:09:08.232Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T19:20:00+07:00"
     },
     {
       "id": 32,
@@ -870,15 +870,15 @@
       "location": "Spore Wasteland",
       "is_invasion": false,
       "interval": 1440,
-      "last_kill_time": "2026-09-12T03:29:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:49:17.000000Z",
-      "updated_at": "2026-09-12T16:09:08.233Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T19:20:00+07:00"
     },
     {
       "id": 103,
@@ -886,15 +886,15 @@
       "location": "Orfen's Lair",
       "is_invasion": true,
       "interval": 1440,
-      "last_kill_time": "2026-09-12T03:29:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:20:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-25T12:20:18.000000Z",
-      "updated_at": "2026-09-12T16:09:08.234Z",
-      "next_spawn": "2026-09-13T03:29:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T19:20:00+07:00"
     },
     {
       "id": 33,
@@ -902,15 +902,15 @@
       "location": "Dion Hills",
       "is_invasion": false,
       "interval": 480,
-      "last_kill_time": "2026-09-12T08:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T09:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:49:25.000000Z",
-      "updated_at": "2026-09-12T16:09:08.236Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T00:00:00+07:00"
     },
     {
       "id": 69,
@@ -918,15 +918,15 @@
       "location": "Dion Plains",
       "is_invasion": true,
       "interval": 480,
-      "last_kill_time": "2026-09-12T08:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T09:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:55:11.000000Z",
-      "updated_at": "2026-09-12T16:09:08.237Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T00:00:00+07:00"
     },
     {
       "id": 34,
@@ -934,15 +934,15 @@
       "location": "Gorgon Flower Garden",
       "is_invasion": false,
       "interval": 180,
-      "last_kill_time": "2026-09-12T13:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:49:33.000000Z",
-      "updated_at": "2026-09-12T16:09:08.238Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T23:00:00+07:00"
     },
     {
       "id": 132,
@@ -950,15 +950,15 @@
       "location": "Gorgon Flower Garden",
       "is_invasion": true,
       "interval": 180,
-      "last_kill_time": "2026-09-12T13:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-04-03T08:03:12.000000Z",
-      "updated_at": "2026-09-12T16:09:08.239Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T23:00:00+07:00"
     },
     {
       "id": 35,
@@ -966,15 +966,15 @@
       "location": "Ant [B3]",
       "is_invasion": false,
       "interval": 360,
-      "last_kill_time": "2026-09-12T15:34:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:25:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:49:39.000000Z",
-      "updated_at": "2026-09-12T16:09:08.240Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T01:25:00+07:00"
     },
     {
       "id": 70,
@@ -982,15 +982,15 @@
       "location": "Ant [B3]",
       "is_invasion": true,
       "interval": 360,
-      "last_kill_time": "2026-09-12T15:34:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T12:25:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:55:22.000000Z",
-      "updated_at": "2026-09-12T16:09:08.241Z",
-      "next_spawn": "2026-09-12T21:34:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T01:25:00+07:00"
     },
     {
       "id": 204,
@@ -998,15 +998,15 @@
       "location": "Aden oarder",
       "is_invasion": false,
       "interval": 1980,
-      "last_kill_time": "2026-09-11T07:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T01:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-06-17T02:36:40.000000Z",
-      "updated_at": "2026-09-12T16:09:08.242Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T17:00:00+07:00"
     },
     {
       "id": 71,
@@ -1014,15 +1014,15 @@
       "location": "Spore Wastelands",
       "is_invasion": true,
       "interval": 300,
-      "last_kill_time": "2026-09-12T11:09:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T19:15:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:55:29.000000Z",
-      "updated_at": "2026-09-12T16:09:08.243Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T07:15:00+07:00"
     },
     {
       "id": 36,
@@ -1030,15 +1030,15 @@
       "location": "Spore Wastelands",
       "is_invasion": false,
       "interval": 300,
-      "last_kill_time": "2026-09-12T11:09:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T19:15:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:49:46.000000Z",
-      "updated_at": "2026-09-12T16:09:08.244Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T07:15:00+07:00"
     },
     {
       "id": 72,
@@ -1046,15 +1046,15 @@
       "location": "Ivory [3F]",
       "is_invasion": true,
       "interval": 720,
-      "last_kill_time": "2026-09-12T11:34:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T08:25:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:55:38.000000Z",
-      "updated_at": "2026-09-12T16:09:08.245Z",
-      "next_spawn": "2026-09-12T23:34:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T03:25:00+07:00"
     },
     {
       "id": 37,
@@ -1062,15 +1062,15 @@
       "location": "Ivory [3F]",
       "is_invasion": false,
       "interval": 720,
-      "last_kill_time": "2026-09-12T11:34:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T08:25:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:49:53.000000Z",
-      "updated_at": "2026-09-12T16:09:08.246Z",
-      "next_spawn": "2026-09-12T23:34:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T03:25:00+07:00"
     },
     {
       "id": 38,
@@ -1078,15 +1078,15 @@
       "location": "Delu Lizardman Dwellings",
       "is_invasion": false,
       "interval": 420,
-      "last_kill_time": "2026-09-12T09:09:07.874Z",
+      "last_kill_time": "2026-09-12T13:11:03.000000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:49:59.000000Z",
-      "updated_at": "2026-09-12T16:09:08.247Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:52:14.000000Z",
+      "next_spawn": "2026-09-13T03:11:03+07:00"
     },
     {
       "id": 83,
@@ -1094,15 +1094,15 @@
       "location": "Delu Lizardman Dwellings",
       "is_invasion": true,
       "interval": 420,
-      "last_kill_time": "2026-09-12T09:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T08:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-16T09:17:02.000000Z",
-      "updated_at": "2026-09-12T16:09:08.252Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T22:00:00+07:00"
     },
     {
       "id": 73,
@@ -1110,15 +1110,15 @@
       "location": "Ant [B2]",
       "is_invasion": true,
       "interval": 720,
-      "last_kill_time": "2026-09-12T04:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:55:48.000000Z",
-      "updated_at": "2026-09-12T16:09:08.253Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T08:00:00+07:00"
     },
     {
       "id": 39,
@@ -1126,15 +1126,15 @@
       "location": "Ant [B2]",
       "is_invasion": false,
       "interval": 720,
-      "last_kill_time": "2026-09-12T04:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:50:05.000000Z",
-      "updated_at": "2026-09-12T16:09:08.255Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-13T08:00:00+07:00"
     },
     {
       "id": 74,
@@ -1142,15 +1142,15 @@
       "location": "Timak Orc",
       "is_invasion": true,
       "interval": 450,
-      "last_kill_time": "2026-09-12T08:39:07.874Z",
+      "last_kill_time": "2026-09-12T17:58:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:55:57.000000Z",
-      "updated_at": "2026-09-12T16:09:08.255Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T08:28:00+07:00"
     },
     {
       "id": 40,
@@ -1158,15 +1158,15 @@
       "location": "Timak Orc Borderland",
       "is_invasion": false,
       "interval": 450,
-      "last_kill_time": "2026-09-12T08:39:07.874Z",
+      "last_kill_time": "2026-09-12T17:58:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-03-13T12:50:14.000000Z",
-      "updated_at": "2026-09-12T16:09:08.256Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T08:28:00+07:00"
     },
     {
       "id": 75,
@@ -1174,15 +1174,15 @@
       "location": "Giant's Vestige",
       "is_invasion": true,
       "interval": 240,
-      "last_kill_time": "2026-09-12T12:09:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T17:33:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:56:05.000000Z",
-      "updated_at": "2026-09-12T16:09:08.258Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T04:33:00+07:00"
     },
     {
       "id": 5,
@@ -1190,15 +1190,15 @@
       "location": "Giant's Vestige",
       "is_invasion": false,
       "interval": 240,
-      "last_kill_time": "2026-09-12T12:09:07.874Z",
-      "auto_advanced": false,
+      "last_kill_time": "2026-09-12T17:33:00.000Z",
+      "auto_advanced": true,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-11T23:10:53.000000Z",
-      "updated_at": "2026-09-12T16:09:08.259Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T04:33:00+07:00"
     },
     {
       "id": 76,
@@ -1206,15 +1206,15 @@
       "location": "Rebel Teritory",
       "is_invasion": true,
       "interval": 420,
-      "last_kill_time": "2026-09-12T09:09:07.874Z",
+      "last_kill_time": "2026-09-12T20:07:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:56:13.000000Z",
-      "updated_at": "2026-09-12T16:09:08.260Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T10:07:00+07:00"
     },
     {
       "id": 42,
@@ -1222,15 +1222,15 @@
       "location": "Rebel Teritorry",
       "is_invasion": false,
       "interval": 420,
-      "last_kill_time": "2026-09-12T09:09:07.874Z",
+      "last_kill_time": "2026-09-12T20:07:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:50:29.000000Z",
-      "updated_at": "2026-09-12T16:09:08.261Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T10:07:00+07:00"
     },
     {
       "id": 159,
@@ -1238,15 +1238,15 @@
       "location": "Leto Lizardman",
       "is_invasion": true,
       "interval": 300,
-      "last_kill_time": "2026-09-12T11:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T11:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-04-17T01:54:54.000000Z",
-      "updated_at": "2026-09-12T16:09:08.262Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T23:00:00+07:00"
     },
     {
       "id": 196,
@@ -1254,15 +1254,15 @@
       "location": "Unmapped",
       "is_invasion": false,
       "interval": 300,
-      "last_kill_time": "2026-09-12T11:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T11:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-05-16T08:34:07.000000Z",
-      "updated_at": "2026-09-12T16:09:08.264Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T23:00:00+07:00"
     },
     {
       "id": 203,
@@ -1270,15 +1270,15 @@
       "location": "Ancient Battleground",
       "is_invasion": false,
       "interval": 1440,
-      "last_kill_time": "2026-09-11T16:09:07.874Z",
+      "last_kill_time": "2026-09-12T13:30:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "33.00",
       "created_at": "2026-06-17T02:36:05.000000Z",
-      "updated_at": "2026-09-12T16:09:08.272Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T20:30:00+07:00"
     },
     {
       "id": 265,
@@ -1286,15 +1286,15 @@
       "location": "Unmapped",
       "is_invasion": true,
       "interval": 1440,
-      "last_kill_time": "2026-09-11T16:09:07.874Z",
+      "last_kill_time": "2026-09-12T13:30:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-08-25T22:34:04.000000Z",
-      "updated_at": "2026-09-12T16:09:08.273Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.804Z",
+      "next_spawn": "2026-09-13T20:30:00+07:00"
     },
     {
       "id": 77,
@@ -1302,15 +1302,15 @@
       "location": "Enchanted V. [East]",
       "is_invasion": true,
       "interval": 480,
-      "last_kill_time": "2026-09-12T08:09:07.874Z",
+      "last_kill_time": "2026-09-12T21:49:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:56:21.000000Z",
-      "updated_at": "2026-09-12T16:09:08.274Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T12:49:00+07:00"
     },
     {
       "id": 44,
@@ -1318,15 +1318,15 @@
       "location": "Enchanted V. [East]",
       "is_invasion": false,
       "interval": 480,
-      "last_kill_time": "2026-09-12T08:09:07.874Z",
+      "last_kill_time": "2026-09-12T21:49:00.000Z",
       "auto_advanced": false,
       "post_maintenance": false,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:50:43.000000Z",
-      "updated_at": "2026-09-12T16:09:08.275Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-13T02:05:37.803Z",
+      "next_spawn": "2026-09-13T12:49:00+07:00"
     },
     {
       "id": 87,
@@ -1334,15 +1334,15 @@
       "location": "Floran Fields",
       "is_invasion": true,
       "interval": 300,
-      "last_kill_time": "2026-09-12T11:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T11:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-16T11:10:15.000000Z",
-      "updated_at": "2026-09-12T16:09:08.276Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T23:00:00+07:00"
     },
     {
       "id": 45,
@@ -1350,15 +1350,15 @@
       "location": "Floran Fields",
       "is_invasion": false,
       "interval": 300,
-      "last_kill_time": "2026-09-12T11:09:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T11:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "100.00",
       "created_at": "2026-03-13T12:50:52.000000Z",
-      "updated_at": "2026-09-12T16:09:08.277Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T23:00:00+07:00"
     },
     {
       "id": 96,
@@ -1366,15 +1366,15 @@
       "location": "Bloodstained Swampland",
       "is_invasion": true,
       "interval": 270,
-      "last_kill_time": "2026-09-12T11:39:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T10:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-23T01:49:35.000000Z",
-      "updated_at": "2026-09-12T16:09:08.277Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T21:30:00+07:00"
     },
     {
       "id": 46,
@@ -1382,15 +1382,15 @@
       "location": "Bloodstained Swampland",
       "is_invasion": false,
       "interval": 270,
-      "last_kill_time": "2026-09-12T11:39:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T10:00:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:50:59.000000Z",
-      "updated_at": "2026-09-12T16:09:08.278Z",
-      "next_spawn": "2026-09-12T16:09:07.874Z"
+      "updated_at": "2026-09-12T13:13:01.000000Z",
+      "next_spawn": "2026-09-12T21:30:00+07:00"
     },
     {
       "id": 78,
@@ -1398,15 +1398,15 @@
       "location": "Morgue",
       "is_invasion": true,
       "interval": 210,
-      "last_kill_time": "2026-09-12T22:04:07.874Z",
-      "auto_advanced": false,
-      "post_maintenance": false,
+      "last_kill_time": "2026-09-12T13:55:00.000000Z",
+      "auto_advanced": true,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:56:30.000000Z",
-      "updated_at": "2026-09-12T16:09:08.283Z",
-      "next_spawn": "2026-09-13T01:34:07.874Z"
+      "updated_at": "2026-09-12T14:01:01.000000Z",
+      "next_spawn": "2026-09-13T00:25:00+07:00"
     },
     {
       "id": 47,
@@ -1414,15 +1414,15 @@
       "location": "Morgue",
       "is_invasion": false,
       "interval": 210,
-      "last_kill_time": "2026-09-12T22:04:07.874Z",
+      "last_kill_time": "2026-09-12T13:55:00.000000Z",
       "auto_advanced": false,
-      "post_maintenance": false,
+      "post_maintenance": true,
       "pinned_alive": false,
       "pre_spawned": false,
       "chance_of_appearing": "50.00",
       "created_at": "2026-03-13T12:51:06.000000Z",
-      "updated_at": "2026-09-12T16:09:08.285Z",
-      "next_spawn": "2026-09-13T01:34:07.874Z"
+      "updated_at": "2026-09-12T13:55:45.000000Z",
+      "next_spawn": "2026-09-13T00:25:00+07:00"
     }
   ],
   "events": [
@@ -1500,8 +1500,8 @@
   ],
   "resetTimeConfigs": {
     "Andras": {
-      "hours": 10,
-      "minutes": 15
+      "hours": 11,
+      "minutes": 20
     },
     "Balbo": {
       "hours": 0,
@@ -1800,15 +1800,18 @@
     "invasionPosition": "prefix",
     "hideInvasionBosses": true,
     "announcement": null,
-    "pinCode": "123456",
     "adminUsername": "admin",
-    "adminPasswordHash": "93069587284aba5110095c1eacb77435dbeab1ca9610b6d377772d471415a7a4",
+    "adminPassword": "777999",
+    "adminPasswordHash": "445a29eaf24e237dac897be0cafc3396d1cc472d95b1ccffb38b89f55ea27a9e",
     "discordWebhook": "",
     "alertBeforeMinutes": 5,
     "defaultAlertSound": "alert",
-    "defaultSpawnSound": "just-spawned"
+    "defaultSpawnSound": "just-spawned",
+    "memberUsername": "kain7",
+    "memberPassword": "password777999",
+    "memberPasswordHash": "83fbb3d147c3ae94bef879bdb7e08d77fb6ab1b5df6c9e344be05d1e739a080d"
   },
-  "savedMaintenanceEndTime": null,
+  "savedMaintenanceEndTime": "08:00",
   "killHistory": [
     {
       "boss_id": 7,
@@ -1895,8 +1898,8 @@
     },
     {
       "id": 1,
-      "name": "Ant Queen Siege",
-      "location": "Hive",
+      "name": "Inv. Dragon Beast",
+      "location": "Gallows",
       "is_invasion": false,
       "interval": 0,
       "last_kill_time": null,
@@ -1907,9 +1910,14 @@
       "chance_of_appearing": "100.00",
       "next_spawn": null,
       "created_at": "2026-05-16T08:44:19.000000Z",
-      "updated_at": "2026-09-12T16:09:08.308Z",
+      "updated_at": "2026-05-16T14:43:41.000000Z",
       "is_event": true,
-      "event_time": "20:00",
+      "event_time": "12:30",
+      "occurs_on": [
+        "monday",
+        "wednesday",
+        "friday"
+      ],
       "done_on": null,
       "auto_done_minutes": 5
     },

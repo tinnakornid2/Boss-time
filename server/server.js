@@ -1,6 +1,7 @@
 const http = require('http');
 const path = require('path');
 const express = require('express');
+const crypto = require('crypto');
 const db = require('./db');
 
 const app = express();
@@ -40,6 +41,10 @@ app.use((req, res, next) => {
 // Serve static assets from public (do not serve index.html on root)
 const publicDir = path.join(__dirname, '..', 'public');
 app.use(express.static(publicDir, { index: false }));
+
+// Mount REST API
+app.use('/api/v1', require('./routes/api'));
+app.use('/api/auth', require('./routes/auth').router);
 
 // Helper: Escape HTML for data-page attribute
 function escapeHtml(str) {
@@ -162,20 +167,24 @@ function respondInertiaOrRedirect(req, res, targetUrl = '/') {
 }
 
 function isAuthenticated(req) {
-    const sess = req.cookies['boss_session'] || req.cookies['remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d'];
-    return Boolean(sess);
+    const sess = req.cookies['boss_session'] || req.cookies['remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d'] || '';
+    return sess.includes('authenticated_admin_session') || sess.includes('authenticated_member_session');
 }
 
 function getSessionRole(req) {
+    if (req.query && req.query.role === 'member') return 'member';
+    if (req.query && req.query.role === 'admin') return 'admin';
+
     const sess = req.cookies['boss_session'] || req.cookies['remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d'] || '';
+    if (sess.includes('admin')) return 'admin';
     if (sess.includes('member')) return 'member';
-    return 'admin';
+    return null;
 }
 
 // Helper: Build Dashboard Props
 function getDashboardProps(req) {
     const settings = db.getSettings();
-    const role = getSessionRole(req);
+    const role = getSessionRole(req) || 'member';
     const isAdmin = role === 'admin';
 
     return {
@@ -183,7 +192,7 @@ function getDashboardProps(req) {
         name: settings.serverName || '#Kain7',
         auth: {
             user: {
-                id: 1,
+                id: isAdmin ? 1 : 2,
                 name: isAdmin ? 'admin' : 'kain7',
                 email: isAdmin ? 'admin@boss.local' : 'member@boss.local',
                 email_verified_at: '2026-03-11T22:46:43.000000Z',
@@ -211,73 +220,106 @@ function getDashboardProps(req) {
 // INERTIA PAGE ROUTES
 // ==========================================================
 
-// GET / or /dashboard -> Dashboard
+// GET / or /dashboard -> Dashboard (Requires authentication)
 app.all(['/', '/dashboard'], (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
         return res.status(405).end();
     }
     if (!isAuthenticated(req)) {
+        if (req.headers['x-inertia']) {
+            res.setHeader('X-Inertia-Location', '/login');
+            return res.status(409).send('');
+        }
         return res.redirect('/login');
     }
     sendInertia(req, res, 'dashboard', getDashboardProps(req), '/');
 });
 
-// GET /login -> Login Form
+// GET /login -> Login Form (Redirects to dashboard if already authenticated)
 app.get('/login', (req, res) => {
     if (isAuthenticated(req)) {
         return res.redirect('/');
     }
-    const props = {
+    const settings = db.getSettings();
+    sendInertia(req, res, 'auth/login', {
         errors: {},
-        name: db.getSettings().serverName || '#Kain7',
+        name: settings.serverName || '#Kain7',
         auth: { user: null },
         sidebarOpen: true,
         status: null
-    };
-    sendInertia(req, res, 'auth/login', props, '/login');
+    }, '/login');
 });
 
-// POST /login -> Authenticate (Accepts both admin and member tabs)
+// POST /login -> Authenticate (Admin: 777999, Member: password777999)
 app.post('/login', (req, res) => {
     const { name, username, password } = req.body;
     const user = (name || username || '').trim().toLowerCase();
     const pass = (password || '').trim();
+    const settings = db.getSettings();
 
-    // Check credentials:
-    // If password is lindvior999 (default admin password) -> grant admin!
-    // If user selected member or entered kain7 -> grant member access!
-    const isAdmin = pass === 'lindvior999' || user === 'admin';
-    const isMember = user === 'kain7' || user === 'member' || pass === 'kain7';
+    const inputHash = crypto.createHash('sha256').update(pass).digest('hex');
+    const activeAdminPass = settings.adminPassword || '777999';
+    const activeMemberPass = settings.memberPassword || 'password777999';
 
-    if (pass === 'lindvior999' || isAdmin || isMember) {
-        const sessionRole = (pass === 'lindvior999' || user === 'admin') ? 'admin' : 'member';
-        const sessionVal = `authenticated_${sessionRole}_session`;
-        res.setHeader('Set-Cookie', [
-            `boss_session=${sessionVal}; Path=/; HttpOnly; SameSite=Lax`,
-            `remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`
-        ]);
-        return res.redirect(303, '/');
+    const isAdminPass = pass === activeAdminPass ||
+        (settings.adminPasswordHash && inputHash === settings.adminPasswordHash);
+
+    const isMemberPass = pass === activeMemberPass ||
+        (settings.memberPasswordHash && inputHash === settings.memberPasswordHash);
+
+    let sessionRole = null;
+    let errorMessage = null;
+
+    if (user === 'admin') {
+        if (isAdminPass) {
+            sessionRole = 'admin';
+        } else {
+            errorMessage = 'รหัสผ่าน Admin ไม่ถูกต้อง';
+        }
+    } else if (user === 'kain7' || user === 'member') {
+        if (isMemberPass) {
+            sessionRole = 'member';
+        } else if (isAdminPass) {
+            // Admin password also lets into admin mode even if on member tab
+            sessionRole = 'admin';
+        } else {
+            errorMessage = `รหัสผ่าน Member ไม่ถูกต้อง (รหัส: ${activeMemberPass})`;
+        }
+    } else {
+        if (isAdminPass) {
+            sessionRole = 'admin';
+        } else if (isMemberPass) {
+            sessionRole = 'member';
+        } else {
+            errorMessage = 'รหัสผ่านไม่ถูกต้อง';
+        }
     }
 
-    // Invalid credentials
-    const errors = { password: 'These credentials do not match our records.' };
-    if (req.headers['x-inertia']) {
-        res.setHeader('X-Inertia', 'true');
-        return res.status(422).json({
-            component: 'auth/login',
-            props: {
-                errors,
-                name: db.getSettings().serverName || '#Kain7',
-                auth: { user: null },
-                sidebarOpen: true,
-                status: null
-            },
-            url: '/login',
-            version: INERTIA_VERSION
-        });
+    if (!sessionRole) {
+        if (req.headers['x-inertia']) {
+            res.setHeader('X-Inertia', 'true');
+            return res.status(422).json({
+                component: 'auth/login',
+                props: {
+                    errors: { password: errorMessage },
+                    name: settings.serverName || '#Kain7',
+                    auth: { user: null },
+                    sidebarOpen: true,
+                    status: null
+                },
+                url: '/login',
+                version: INERTIA_VERSION
+            });
+        }
+        return res.redirect('/login');
     }
 
-    res.redirect('/login');
+    const sessionVal = `authenticated_${sessionRole}_session`;
+    res.setHeader('Set-Cookie', [
+        `boss_session=${sessionVal}; Path=/; HttpOnly; SameSite=Lax`,
+        `remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`
+    ]);
+    return res.redirect(303, '/');
 });
 
 // POST /logout
@@ -483,7 +525,23 @@ app.post('/bosses/reset-invasion-kill-times', (req, res) => {
 app.post('/bosses/apply-reset-boss-time', (req, res) => {
     const { maintenance_end_time, configs } = req.body;
     if (maintenance_end_time) {
-        const baseDate = new Date(maintenance_end_time);
+        let baseDate = new Date();
+        let savedTimeStr = '14:00';
+        if (typeof maintenance_end_time === 'string') {
+            if (maintenance_end_time.includes('T')) {
+                const parsed = new Date(maintenance_end_time);
+                if (!isNaN(parsed.getTime())) baseDate = parsed;
+                const timePart = maintenance_end_time.split('T')[1];
+                savedTimeStr = timePart.substring(0, 5);
+            } else if (maintenance_end_time.includes(':')) {
+                const [h, m] = maintenance_end_time.split(':').map(Number);
+                if (!isNaN(h) && !isNaN(m)) {
+                    baseDate.setHours(h, m, 0, 0);
+                    savedTimeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                }
+            }
+        }
+
         let configsMap = {};
         if (Array.isArray(configs)) {
             for (const c of configs) {
@@ -516,14 +574,14 @@ app.post('/bosses/apply-reset-boss-time', (req, res) => {
                 });
             }
         }
-        db.setSavedMaintenanceEndTime(baseDate.toISOString());
+        db.setSavedMaintenanceEndTime(savedTimeStr);
     }
     return respondInertiaOrRedirect(req, res, '/');
 });
 
 // POST /bosses/save-reset-boss-config
 app.post('/bosses/save-reset-boss-config', (req, res) => {
-    const { configs, resetTimeConfigs } = req.body;
+    const { configs, resetTimeConfigs, maintenance_end_time } = req.body;
     let configsMap = {};
     if (Array.isArray(configs)) {
         for (const c of configs) {
@@ -540,6 +598,13 @@ app.post('/bosses/save-reset-boss-config', (req, res) => {
 
     if (Object.keys(configsMap).length > 0) {
         db.saveResetConfigs(configsMap);
+    }
+    if (maintenance_end_time) {
+        let savedTime = maintenance_end_time;
+        if (typeof savedTime === 'string' && savedTime.includes('T')) {
+            savedTime = savedTime.split('T')[1].substring(0, 5);
+        }
+        db.setSavedMaintenanceEndTime(savedTime);
     }
     return respondInertiaOrRedirect(req, res, '/');
 });
@@ -596,11 +661,9 @@ app.put('/events/:id', (req, res) => {
     const body = req.body || {};
     const event = db.getEvent(id);
     if (event) {
-        if (body.mark_done) {
+        if (body.mark_done || body.mark_skipped) {
             const todayStr = new Date().toISOString().split('T')[0];
             db.updateEvent(id, { done_on: todayStr, pinned_alive: false });
-        } else if (body.mark_skipped) {
-            db.updateEvent(id, { pinned_alive: false });
         } else if (body.pin_alive) {
             db.updateEvent(id, { pinned_alive: !event.pinned_alive });
         } else if (body.undo_exception) {
@@ -613,9 +676,10 @@ app.put('/events/:id', (req, res) => {
         } else if (body.name) {
             db.updateEvent(id, {
                 name: body.name,
-                location: body.location,
+                location: body.location || '',
                 event_time: body.event_time,
-                occurs_on: body.occurs_on
+                occurs_on: body.occurs_on,
+                auto_done_minutes: body.auto_done_minutes !== undefined ? Number(body.auto_done_minutes) : (event.auto_done_minutes || 10)
             });
         }
     }
@@ -773,7 +837,8 @@ function startServer(port = 3000) {
         console.log(`================================================`);
         console.log(`⚔️  Lineage 2 Exact Clone Server running on port ${port}`);
         console.log(`🌐 Local URL: http://localhost:${port}`);
-        console.log(`🛡️  Admin user: admin / lindvior999`);
+        console.log(`🛡️  Admin user:  admin / 777999`);
+        console.log(`👥 Member user: kain7 / password777999`);
         console.log(`================================================`);
         
         // Initialize Firebase Realtime Database

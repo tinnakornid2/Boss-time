@@ -80,31 +80,6 @@ const AdminController = {
         }
     },
 
-    async unlockWithPin(pin) {
-        try {
-            const res = await fetch('/api/auth/pin', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin })
-            });
-            const data = await res.json();
-            if (data.success && data.token) {
-                this.token = data.token;
-                this.isAdmin = true;
-                localStorage.setItem('adminToken', this.token);
-                this.updateAdminUI();
-                App.showToast('Unlocked Admin Mode!', 'emerald');
-                this.closeModal('login-modal');
-                return true;
-            } else {
-                App.showToast(data.message || 'Invalid PIN code', 'rose');
-                return false;
-            }
-        } catch (e) {
-            App.showToast('Network error during PIN unlock', 'rose');
-            return false;
-        }
-    },
 
     logout() {
         this.token = '';

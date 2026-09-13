@@ -15,6 +15,7 @@ yarn-error.log*
 *.log
 *.tmp
 *.zip
+cloudflared.exe
 .DS_Store
 Thumbs.db
 

@@ -92,6 +92,9 @@ async function initFirebase(onRemoteChange) {
 // Watch directory so if user drops serviceAccountKey.json later, it connects automatically
 function watchForServiceAccountKey(onRemoteChange) {
     if (process.env.VERCEL) return; // Do not hold timer in serverless functions
+    const config = firebase.getConfig();
+    if (config.offlineMode || config.enabled === false) return;
+
     let checkInterval = setInterval(async () => {
         const key = firebase.findServiceAccountKey();
         if (key) {

@@ -5,7 +5,8 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "backup": "node server/backup.js"
+    "backup": "node server/backup.js",
+    "sync-live": "node sync_live_kain7.js"
   },
   "dependencies": {
     "express": "^4.22.2",

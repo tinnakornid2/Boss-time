@@ -26,6 +26,8 @@ function getConfig() {
 // Find serviceAccountKey.json in several likely locations
 function findServiceAccountKey() {
     const config = getConfig();
+    if (config.offlineMode || config.enabled === false) return null;
+
     const candidateDirs = [
         __dirname,
         path.join(__dirname, '..'),
@@ -67,6 +69,15 @@ function init(onRemoteDataChange) {
     if (isInitialized) return true;
 
     const config = getConfig();
+    if (config.offlineMode || config.enabled === false) {
+        console.log('----------------------------------------------------');
+        console.log('💾 [Offline Mode] System is running in 100% Local Offline Mode.');
+        console.log('📦 Data persistence: server/data/store.json');
+        console.log('☁️  Cloud sync (Firebase) is disabled.');
+        console.log('----------------------------------------------------');
+        return false;
+    }
+
     let serviceAccount = null;
     let keySource = null;
 
@@ -137,7 +148,7 @@ function init(onRemoteDataChange) {
         console.log('====================================================');
         console.log(`🔥 [Firebase RTDB] Connected successfully to "${serviceAccount.project_id || config.projectId}"!`);
         console.log(`🌐 Database URL: ${dbUrl}`);
-        console.log(`🔑 Key used: ${path.basename(keyPath)}`);
+        console.log(`🔑 Key used: ${keySource}`);
         console.log('====================================================');
 
         // Set up real-time listener

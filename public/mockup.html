@@ -403,40 +403,22 @@
     </div>
 </div>
 
-<!-- 5. Login / PIN Unlock Modal -->
+<!-- 5. Login Modal -->
 <div id="login-modal" class="modal-overlay">
     <div class="modal-dialog" style="max-width: 400px;">
         <div class="modal-header">
             <h3 class="modal-title">
-                <span>🛡️</span> Admin Authentication
+                <span>🛡️</span> Admin Login
             </h3>
             <button class="modal-close" onclick="AdminController.closeModal('login-modal')">✕</button>
         </div>
         <div class="modal-body">
-            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                <button class="tab-btn active" id="auth-tab-pin" onclick="document.getElementById('auth-group-pin').style.display=''; document.getElementById('auth-group-pass').style.display='none'; this.classList.add('active'); document.getElementById('auth-tab-pass').classList.remove('active');">
-                    🔢 6-Digit PIN
-                </button>
-                <button class="tab-btn" id="auth-tab-pass" onclick="document.getElementById('auth-group-pin').style.display='none'; document.getElementById('auth-group-pass').style.display=''; this.classList.add('active'); document.getElementById('auth-tab-pin').classList.remove('active');">
-                    🔑 Password
-                </button>
-            </div>
-
-            <!-- PIN Unlock -->
-            <div id="auth-group-pin" class="form-group">
-                <label class="form-label">Enter 6-Digit PIN Code (Default: 123456)</label>
-                <input type="password" id="pin-input" maxlength="6" class="form-input" style="font-size: 1.5rem; text-align: center; letter-spacing: 0.3em;" placeholder="••••••">
-                <button class="btn btn-primary" style="width: 100%; margin-top: 12px;" onclick="AdminController.unlockWithPin(document.getElementById('pin-input').value)">
-                    Unlock
-                </button>
-            </div>
-
             <!-- Password Login -->
-            <div id="auth-group-pass" class="form-group" style="display:none;">
+            <div id="auth-group-pass" class="form-group">
                 <label class="form-label">Username</label>
                 <input type="text" id="login-username" class="form-input" value="admin" style="margin-bottom: 10px;">
                 <label class="form-label">Password</label>
-                <input type="password" id="login-password" class="form-input" placeholder="lindvior999">
+                <input type="password" id="login-password" class="form-input" placeholder="777999" onkeydown="if(event.key==='Enter') AdminController.login(document.getElementById('login-username').value, document.getElementById('login-password').value)">
                 <button class="btn btn-primary" style="width: 100%; margin-top: 14px;" onclick="AdminController.login(document.getElementById('login-username').value, document.getElementById('login-password').value)">
                     Log In
                 </button>
