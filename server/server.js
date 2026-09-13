@@ -688,10 +688,10 @@ function renderHtml(pageData, title = '#Kain7') {
         <link rel="icon" href="/favicon.png" sizes="any" type="image/png">
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
-        <link rel="preload" as="style" href="/build/assets/app-DIKwFrKw.css" />
-        <link rel="modulepreload" as="script" href="/build/assets/app-CTdHufbH.js" />
-        <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css" />
-        <script type="module" src="/build/assets/app-CTdHufbH.js"></script>
+        <link rel="preload" as="style" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
+        <link rel="modulepreload" as="script" href="/build/assets/app-CTdHufbH.js?v=${APP_VERSION}" />
+        <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
+        <script type="module" src="/build/assets/app-CTdHufbH.js?v=${APP_VERSION}"></script>
     </head>
     <body class="font-sans antialiased">
         <div class="browser-shell">
@@ -927,17 +927,14 @@ function getDashboardProps(req) {
 // INERTIA PAGE ROUTES
 // ==========================================================
 
-// GET / or /dashboard -> Dashboard (Requires authentication)
+// GET / or /dashboard -> Dashboard (Directly available to all clan members as 'member', or 'admin' if logged in)
 app.all(['/', '/dashboard'], (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
         return res.status(405).end();
     }
+    // If not yet authenticated, auto-assign member session so all clan visitors see the boss list immediately
     if (!isAuthenticated(req)) {
-        if (req.headers['x-inertia']) {
-            res.setHeader('X-Inertia-Location', '/login');
-            return res.status(409).send('');
-        }
-        return res.redirect('/login');
+        res.setHeader('Set-Cookie', 'boss_session=authenticated_member_session; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000');
     }
     sendInertia(req, res, 'dashboard', getDashboardProps(req), '/');
 });
