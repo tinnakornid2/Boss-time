@@ -698,77 +698,80 @@ function renderHtml(pageData, title = '#Kain7') {
             <div id="app" data-page="${jsonStr}"></div>
         </div>
         ${adminPasswordSnippet}
-        <!-- App Version Watermark & Header Badge -->
+        <!-- App Top Status Bar: Firebase & Version -->
         <style>
-            .app-version-badge {
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-                padding: 2px 7px;
-                background: rgba(255, 255, 255, 0.06);
-                border: 1px solid rgba(255, 255, 255, 0.14);
-                border-radius: 5px;
-                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size: 10px;
-                font-weight: 600;
-                color: rgba(255, 255, 255, 0.65);
-                letter-spacing: 0.04em;
-                user-select: none;
-                backdrop-filter: blur(4px);
-                box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-                transition: all 0.2s ease;
-            }
-            .app-version-badge:hover {
-                color: #38bdf8;
-                border-color: rgba(56, 189, 248, 0.4);
-                background: rgba(56, 189, 248, 0.1);
-            }
-            .firebase-mini-badge {
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-                padding: 1.5px 7px;
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.14);
-                border-radius: 9999px;
-                font-family: inherit;
-                font-size: 10px;
-                font-weight: 600;
-                color: rgba(255, 255, 255, 0.7);
-                cursor: pointer;
-                user-select: none;
-                transition: all 0.2s ease;
-            }
-            .firebase-mini-badge:hover {
-                color: #fff;
-                border-color: rgba(16, 185, 129, 0.5);
-                background: rgba(16, 185, 129, 0.12);
-            }
-        <style>
-            #bottom-floating-status-bar {
+            #top-floating-status-bar {
                 position: fixed;
-                bottom: 8px;
+                top: 8px;
                 right: 12px;
-                z-index: 88888;
+                z-index: 999999;
                 display: flex;
                 align-items: center;
                 gap: 6px;
                 pointer-events: auto;
-                opacity: 0.85;
-                transition: opacity 0.2s ease, transform 0.2s ease;
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+                transition: transform 0.2s ease;
             }
-            #bottom-floating-status-bar:hover {
-                opacity: 1;
+            #top-floating-status-bar:hover {
                 transform: translateY(-1px);
             }
+            .app-version-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2.5px 8px;
+                background: rgba(0, 0, 0, 0.65);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                border-radius: 6px;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size: 10px;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.75);
+                letter-spacing: 0.04em;
+                user-select: none;
+                backdrop-filter: blur(6px);
+                -webkit-backdrop-filter: blur(6px);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+                transition: all 0.2s ease;
+            }
+            .app-version-badge:hover {
+                color: #38bdf8;
+                border-color: rgba(56, 189, 248, 0.5);
+                background: rgba(56, 189, 248, 0.15);
+            }
+            .firebase-mini-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                padding: 2.5px 9px;
+                background: rgba(0, 0, 0, 0.65);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                border-radius: 9999px;
+                font-family: inherit;
+                font-size: 10px;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.85);
+                cursor: pointer;
+                user-select: none;
+                backdrop-filter: blur(6px);
+                -webkit-backdrop-filter: blur(6px);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+                transition: all 0.2s ease;
+            }
+            .firebase-mini-badge:hover {
+                color: #fff;
+                border-color: rgba(16, 185, 129, 0.6);
+                background: rgba(16, 185, 129, 0.2);
+            }
         </style>
-        <div id="bottom-floating-status-bar">
-            <span id="header-firebase-status-badge" class="firebase-mini-badge" title="Firebase Cloud: Connecting...">
-                <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;box-shadow:0 0 4px #f59e0b;"></span>
+        <div id="top-floating-status-bar">
+            <span id="header-firebase-status-badge" class="firebase-mini-badge" title="Firebase Cloud: Connecting... (Click for info)">
+                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#f59e0b;box-shadow:0 0 5px #f59e0b;"></span>
                 <span>☁️ Firebase</span>
             </span>
             <span class="app-version-badge" title="Lineage 2 Boss Tracker ${APP_VERSION}">
-                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981;margin-right:2px;box-shadow:0 0 6px #10b981;"></span>
+                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span>
                 ${APP_VERSION}
             </span>
         </div>

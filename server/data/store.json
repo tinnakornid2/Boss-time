@@ -1237,14 +1237,14 @@
       "id": 44,
       "interval": 480,
       "is_invasion": false,
-      "last_kill_time": "2026-09-12T21:49:00.000Z",
+      "last_kill_time": "2026-09-13T05:51:00.000Z",
       "location": "Enchanted V. [East]",
       "name": "Timiniel",
-      "next_spawn": "2026-09-13T12:49:00+07:00",
+      "next_spawn": "2026-09-13T13:51:00.000Z",
       "pinned_alive": false,
       "post_maintenance": false,
       "pre_spawned": false,
-      "updated_at": "2026-09-13T02:05:37.803Z"
+      "updated_at": "2026-09-13T10:04:39.592Z"
     },
     {
       "auto_advanced": false,
