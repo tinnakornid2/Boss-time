@@ -40,6 +40,9 @@ function decodeFirebaseKeys(obj) {
 
 // Load config
 function getConfig() {
+    try {
+        return require('./firebase-config.json');
+    } catch (e) {}
     const configPath = path.join(__dirname, 'firebase-config.json');
     if (fs.existsSync(configPath)) {
         try {

@@ -1,8 +1,13 @@
 {
   "version": 2,
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "public/**"
+    }
+  },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!build|sounds|css|js|favicon|splash|.*\\.(?:css|js|mp3|wav|jpg|png|ico|json|woff2?|ttf)).*)",
       "destination": "/api/index.js"
     }
   ]

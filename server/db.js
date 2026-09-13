@@ -8,10 +8,14 @@ let isInitializedFirebase = false;
 
 function load() {
     if (!cache) {
-        if (!fs.existsSync(dataFile)) {
-            throw new Error(`Data store not found at ${dataFile}`);
+        try {
+            cache = JSON.parse(JSON.stringify(require('./data/store.json')));
+        } catch (e) {
+            if (!fs.existsSync(dataFile)) {
+                throw new Error(`Data store not found at ${dataFile}`);
+            }
+            cache = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
         }
-        cache = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
     }
     return cache;
 }
