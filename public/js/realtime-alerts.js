@@ -292,6 +292,51 @@
         [/notify|pre-spawn/i, 'Notify Members — แจ้งเตือนสมาชิก']
     ];
 
+    const TOOLTIP_TEXT = {
+        'Search': 'Search — ค้นหา',
+        'Show muted': 'Show Muted — แสดงรายการปิดเสียง',
+        'Hide muted': 'Hide Muted — ซ่อนรายการปิดเสียง',
+        'Settings': 'Settings — ตั้งค่า',
+        'Edit Boss': 'Edit Boss — แก้ไขบอส',
+        'Delete Boss': 'Delete Boss — ลบบอส',
+        'Delete': 'Delete — ลบ',
+        'Still alive': 'Still Alive — บอสยังไม่ตาย',
+        'Still alive — pinned': 'Still Alive — ยืนยันว่าบอสยังไม่ตาย',
+        'Not spawned': 'Not Spawned — บอสยังไม่เกิด',
+        'Pre-spawning': 'Notify Members — แจ้งเตือนสมาชิก',
+        'Update spawn': 'Update Spawn — อัปเดตเวลาเกิด',
+        'Reset Boss Time': 'Reset Boss Time — รีเซ็ตเวลาบอส',
+        'Post Maintenance Mode': 'Maintenance Mode — โหมดหลังปิดปรับปรุง',
+        'Resend alert sound': 'Resend Alert — ส่งเสียงแจ้งเตือนอีกครั้ง',
+        'Force all users to reload their page': 'Force Reload — ให้ทุกเครื่องโหลดใหม่',
+        'Undo': 'Undo — ย้อนกลับ',
+        'Alert before spawn': 'Alert Before Spawn — แจ้งก่อนบอสเกิด',
+        'Boss alert sound': 'Boss Alert Sound — เสียงแจ้งเตือนบอส',
+        'Just-spawned sound': 'Spawn Sound — เสียงเมื่อบอสเกิด',
+        'Pre-spawn alert': 'Pre-spawn Alert — เสียงแจ้งก่อนเกิด',
+        'Next spawn time': 'Next Spawn — เวลาเกิดครั้งถัดไป',
+        'Last Kill Time': 'Last Kill Time — เวลาตายล่าสุด',
+        'Location': 'Location — สถานที่',
+        'Chance (%)': 'Chance — โอกาสเกิด',
+        'Spawn in 1 min': 'Spawn +1 Minute — เพิ่มเวลาเกิด 1 นาที',
+        'Spawn in 5 min': 'Spawn +5 Minutes — เพิ่มเวลาเกิด 5 นาที',
+        'Show tooltips when hovering action buttons': 'Tooltips — แสดงคำอธิบายเมื่อชี้ปุ่ม',
+        'Hides row buttons until you hover the row': 'Hover Actions — ซ่อนปุ่มจนกว่าจะชี้แถว',
+        'Replaces kill buttons with status shortcuts': 'Status Buttons — ใช้ปุ่มสถานะแบบย่อ',
+        'Split spawn status buttons': 'Split Buttons — แยกปุ่มสถานะบอส'
+    };
+
+    function translateVisibleTooltips() {
+        for (const element of document.querySelectorAll('[role="tooltip"], [role="tooltip"] *')) {
+            if (element.children.length > 0) continue;
+            const original = (element.textContent || '').trim();
+            const direct = TOOLTIP_TEXT[original];
+            const updateSpawn = original.startsWith('Update spawn —') ? 'Update Spawn — อัปเดตเวลาเกิด' : null;
+            const translated = direct || updateSpawn;
+            if (translated && original !== translated) element.textContent = translated;
+        }
+    }
+
     function enhanceUi() {
         for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
         for (const element of document.querySelectorAll('button, [role="button"], a')) {
@@ -299,6 +344,7 @@
             const match = TOOLTIP_TRANSLATIONS.find(([pattern]) => pattern.test(source));
             if (match) element.setAttribute('title', match[1]);
         }
+        translateVisibleTooltips();
     }
 
     function checkScheduledAlerts() {
