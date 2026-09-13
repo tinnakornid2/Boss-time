@@ -199,7 +199,8 @@ module.exports = {
         const config = firebase.getConfig();
         const keyPath = firebase.findServiceAccountKey();
         return {
-            connected: firebase.isReady(),
+            connected: firebase.isActuallyConnected(),
+            initialized: firebase.isReady(),
             strictCloudMode: Boolean(config.strictCloudMode),
             projectId: config.projectId,
             databaseURL: config.databaseURL,
@@ -253,13 +254,29 @@ module.exports = {
         const idx = store.bosses.findIndex(b => b.id === numId);
         if (idx === -1) return null;
 
+        const previous = { ...store.bosses[idx] };
+
         store.bosses[idx] = {
             ...store.bosses[idx],
             ...updates,
             updated_at: new Date().toISOString()
         };
+        const now = Date.now();
+        const liveEvent = {
+            id: `${now}-${numId}-${Math.random().toString(36).slice(2, 8)}`,
+            type: updates.pre_spawned === true && !previous.pre_spawned
+                ? 'boss_pre_spawn_started'
+                : updates.pre_spawned === false && previous.pre_spawned
+                    ? 'boss_pre_spawn_cleared'
+                    : 'boss_updated',
+            bossId: numId,
+            bossName: store.bosses[idx].name,
+            boss: store.bosses[idx],
+            createdAt: now
+        };
+        store.liveEvent = liveEvent;
         save();
-        await firebase.syncBoss(idx, store.bosses[idx]);
+        await firebase.syncBossAndLiveEvent(idx, store.bosses[idx], liveEvent);
         return store.bosses[idx];
     },
 
@@ -429,6 +446,23 @@ module.exports = {
 
     getSettings() {
         return load().settings || {};
+    },
+
+    getLiveEvent() {
+        return load().liveEvent || null;
+    },
+
+    async publishLiveEvent(eventData) {
+        const store = load();
+        const liveEvent = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            createdAt: Date.now(),
+            ...eventData
+        };
+        store.liveEvent = liveEvent;
+        save();
+        await firebase.syncLiveEvent(liveEvent);
+        return liveEvent;
     },
 
     async updateSettings(updates) {

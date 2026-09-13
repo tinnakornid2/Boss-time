@@ -708,6 +708,7 @@ function renderHtml(pageData, title = '#Kain7') {
         <link rel="preload" as="style" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
         <link rel="modulepreload" as="script" href="/build/assets/app-CTdHufbH.js?v=${APP_VERSION}" />
         <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
+        <script src="/js/realtime-alerts.js?v=${APP_VERSION}"></script>
         <script type="module" src="/build/assets/app-CTdHufbH.js?v=${APP_VERSION}"></script>
     </head>
     <body class="font-sans antialiased">
@@ -1063,7 +1064,8 @@ app.get('/poll', (req, res) => {
         invasionLabel: settings.invasionLabel || 'L3',
         resetTimeConfigs: db.getResetConfigs(),
         savedMaintenanceEndTime: db.getSavedMaintenanceEndTime() || null,
-        forceReloadAt: forceReloadAt
+        forceReloadAt: forceReloadAt,
+        liveEvent: db.getLiveEvent()
     });
 });
 
@@ -1603,5 +1605,3 @@ if (!process.env.VERCEL) {
 }
 
 module.exports = app;
-
-

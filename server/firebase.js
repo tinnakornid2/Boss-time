@@ -5,6 +5,7 @@ const { getDatabase } = require('firebase-admin/database');
 
 let dbRef = null;
 let isInitialized = false;
+let isConnected = false;
 let serviceAccountPathUsed = null;
 
 // Helper: Escape invalid Firebase characters in keys (., #, $, /, [, ])
@@ -196,6 +197,12 @@ function init(onRemoteDataChange) {
         dbRef = getDatabase(app).ref(rootNode);
         isInitialized = true;
 
+        getDatabase(app).ref('.info/connected').on('value', (snapshot) => {
+            isConnected = snapshot.val() === true;
+        }, () => {
+            isConnected = false;
+        });
+
         console.log('====================================================');
         console.log(`🔥 [Firebase RTDB] Connected successfully to "${serviceAccount.project_id || config.projectId}"!`);
         console.log(`🌐 Database URL: ${dbUrl}`);
@@ -230,6 +237,10 @@ function isReady() {
     return isInitialized && dbRef !== null;
 }
 
+function isActuallyConnected() {
+    return isReady() && isConnected;
+}
+
 // Get the root database reference
 function getRef() {
     return dbRef;
@@ -259,6 +270,34 @@ async function syncBoss(bossIndex, bossData) {
         return true;
     } catch (e) {
         console.error('[Firebase RTDB] syncBoss error:', e.message);
+        return false;
+    }
+}
+
+// One atomic RTDB write: update the changed boss and publish a tiny event.
+async function syncBossAndLiveEvent(bossIndex, bossData, liveEvent) {
+    if (!isReady()) return false;
+    try {
+        await dbRef.update({
+            [`bosses/${bossIndex}`]: bossData,
+            liveEvent
+        });
+        return true;
+    } catch (e) {
+        isConnected = false;
+        console.error('[Firebase RTDB] syncBossAndLiveEvent error:', e.message);
+        return false;
+    }
+}
+
+async function syncLiveEvent(liveEvent) {
+    if (!isReady()) return false;
+    try {
+        await dbRef.child('liveEvent').set(liveEvent);
+        return true;
+    } catch (e) {
+        isConnected = false;
+        console.error('[Firebase RTDB] syncLiveEvent error:', e.message);
         return false;
     }
 }
@@ -354,12 +393,15 @@ async function fetchOnce() {
 module.exports = {
     init,
     isReady,
+    isActuallyConnected,
     getRef,
     getConfig,
     findServiceAccountKey,
     fetchOnce,
     syncFullStore,
     syncBoss,
+    syncBossAndLiveEvent,
+    syncLiveEvent,
     syncAllBosses,
     syncAllEvents,
     syncResetConfigs,
