@@ -13,6 +13,14 @@ const INERTIA_VERSION = '55c7f37e0516ec0f9ab5340e89e90c20';
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Safe JSON parse error handler
+app.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ error: 'Malformed JSON payload' });
+    }
+    next(err);
+});
+
 // Request Logger
 app.use((req, res, next) => {
     console.log(`[REQ] ${req.method} ${req.url} (Inertia: ${req.headers['x-inertia'] || 'no'}) Body: ${JSON.stringify(req.body)}`);
@@ -1080,23 +1088,37 @@ app.put('/bosses/:id', (req, res) => {
             const killDate = new Date(body.last_kill_time);
             if (!isNaN(killDate.getTime())) {
                 const intervalMinutes = boss.interval || 60;
-                const spawnDate = new Date(killDate.getTime() + intervalMinutes * 60000);
+                let spawnDate = new Date(killDate.getTime() + intervalMinutes * 60000);
+                let autoAdvanced = false;
+
+                // Auto-advance if spawn time has already passed!
+                // If a player missed hunting rounds or inputs a past kill time (e.g. 04:59:00),
+                // automatically calculate and roll forward by interval cycles to the next upcoming future spawn.
+                const now = Date.now();
+                if (spawnDate.getTime() < now) {
+                    while (spawnDate.getTime() <= now) {
+                        spawnDate = new Date(spawnDate.getTime() + intervalMinutes * 60000);
+                    }
+                    autoAdvanced = true;
+                }
+
                 updates.last_kill_time = killDate.toISOString();
                 updates.next_spawn = spawnDate.toISOString();
                 updates.pinned_alive = false;
-                updates.auto_advanced = false;
+                updates.auto_advanced = autoAdvanced;
                 updates.post_maintenance = false;
                 updates.pre_spawned = false;
             }
         }
     } else if (body.not_spawned) {
         let currentNext = boss.next_spawn ? new Date(boss.next_spawn) : new Date();
-        let advanced = new Date(currentNext.getTime() + (boss.interval || 60) * 60000);
-        if (advanced.getTime() < Date.now()) {
-            advanced = new Date(Date.now() + (boss.interval || 60) * 60000);
+        const intervalMinutes = boss.interval || 60;
+        let advanced = new Date(currentNext.getTime() + intervalMinutes * 60000);
+        while (advanced.getTime() <= Date.now()) {
+            advanced = new Date(advanced.getTime() + intervalMinutes * 60000);
         }
         updates.next_spawn = advanced.toISOString();
-        updates.last_kill_time = new Date(advanced.getTime() - (boss.interval || 60) * 60000).toISOString();
+        updates.last_kill_time = new Date(advanced.getTime() - intervalMinutes * 60000).toISOString();
         updates.auto_advanced = true;
         updates.pinned_alive = false;
         updates.pre_spawned = false;
