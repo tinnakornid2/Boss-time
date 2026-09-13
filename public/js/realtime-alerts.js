@@ -24,7 +24,6 @@
         lastPlayedAt: 0,
         serverOffset: 0,
         initialEventsLoaded: false,
-        role: 'guest',
         audioQueue: [],
         audioPlaying: false
     };
@@ -277,7 +276,6 @@
         if (!root) return;
         try {
             const page = JSON.parse(root.getAttribute('data-page') || '{}');
-            state.role = page.props?.auth?.user?.role || 'guest';
             for (const boss of page.props?.bosses || []) state.bosses.set(Number(boss.id), boss);
             for (const event of page.props?.events || []) state.events.set(Number(event.id), event);
         } catch (_) {}
@@ -300,40 +298,6 @@
             const source = element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent || '';
             const match = TOOLTIP_TRANSLATIONS.find(([pattern]) => pattern.test(source));
             if (match) element.setAttribute('title', match[1]);
-        }
-    }
-
-    function findBossForRow(row) {
-        const text = row?.textContent || '';
-        const matches = Array.from(state.bosses.values()).filter(boss =>
-            text.includes(boss.name) && (!boss.location || text.includes(boss.location))
-        );
-        return matches.length === 1 ? matches[0] : null;
-    }
-
-    async function notifyMembersFromRow(event) {
-        if (state.role !== 'member' || event.target.closest('button, a, input, select, textarea')) return;
-        const cell = event.target.closest('td');
-        const row = cell?.closest('tr');
-        if (!cell || !row || cell !== row.querySelector('td')) return;
-        const boss = findBossForRow(row);
-        if (!boss || boss.is_event) return;
-        try {
-            const response = await nativeFetch(`/bosses/${boss.id}/notify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: '{}'
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                showNotice(data.message === 'Alert already sent' ? 'แจ้งเตือนบอสตัวนี้ไปแล้ว' : 'ส่งแจ้งเตือนไม่สำเร็จ', true);
-                return;
-            }
-            if (data.boss) state.bosses.set(Number(data.boss.id), data.boss);
-            reconcileBossRows();
-            showNotice(`⚡ ${boss.name} — แจ้งเตือนสมาชิกแล้ว`, false);
-        } catch (_) {
-            showNotice('Connection lost — การเชื่อมต่อขาดหาย', true);
         }
     }
 
@@ -388,7 +352,6 @@
         setInterval(reconcileBossRows, 1000);
         window.addEventListener('offline', () => updateStatus('⚠️ Offline — การเชื่อมต่อขาดหาย'));
         window.addEventListener('online', () => updateStatus());
-        document.addEventListener('dblclick', notifyMembersFromRow);
         let uiRefreshPending = false;
         new MutationObserver(() => {
             if (uiRefreshPending) return;

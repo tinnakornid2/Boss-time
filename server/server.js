@@ -1195,7 +1195,7 @@ app.get('/live-event', (req, res) => {
 // ==========================================================
 
 // Member/admin alert: explicit start with a short expiry (never toggle off by accident).
-app.post('/bosses/:id/notify', async (req, res) => {
+app.post('/bosses/:id/notify', requireAdmin, async (req, res) => {
     const id = Number(req.params.id);
     const boss = db.getBoss(id);
     if (!boss) return res.status(404).json({ success: false, message: 'Boss not found' });
@@ -1261,17 +1261,13 @@ app.post('/bosses', requireAdmin, async (req, res) => {
 });
 
 // PUT /bosses/:id -> Update boss / kill / advance / pin / settings
-app.put('/bosses/:id', async (req, res) => {
+app.put('/bosses/:id', requireAdmin, async (req, res) => {
     const id = Number(req.params.id);
     const boss = db.getBoss(id);
     if (!boss) return respondInertiaOrRedirect(req, res, '/');
 
     const body = req.body || {};
-    const memberKeys = new Set(['last_kill_time', 'not_spawned', 'still_alive', 'toggle_pre_spawned']);
-    if (getSessionRole(req) !== 'admin' && Object.keys(body).some(key => !memberKeys.has(key))) {
-        return res.status(403).json({ success: false, message: 'Admin access required' });
-    }
-    const updates = {};
+        const updates = {};
 
     if (body.last_kill_time !== undefined) {
         if (!body.last_kill_time) {
@@ -1544,13 +1540,9 @@ app.post('/bosses/reset-maintenance-kill-times', requireAdmin, async (req, res) 
 // ==========================================================
 
 // PUT /events/:id
-app.put('/events/:id', async (req, res) => {
+app.put('/events/:id', requireAdmin, async (req, res) => {
     const id = Number(req.params.id);
     const body = req.body || {};
-    const memberEventKeys = new Set(['mark_done', 'mark_skipped', 'pin_alive', 'undo_exception']);
-    if (getSessionRole(req) !== 'admin' && Object.keys(body).some(key => !memberEventKeys.has(key))) {
-        return res.status(403).json({ success: false, message: 'Admin access required' });
-    }
     const event = db.getEvent(id);
     if (event) {
         if (body.mark_done || body.mark_skipped) {
