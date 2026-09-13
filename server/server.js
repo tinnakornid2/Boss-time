@@ -179,7 +179,7 @@ function renderLoginHtml(pageData, title) {
 </style></head><body><main class="login"><div class="brand">#madebyelon</div>
 <form method="post" action="/login" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Signing in — กำลังเข้าสู่ระบบ'">
 <div class="tabs"><label><input type="radio" name="name" value="kain7" checked>MEMBER — สมาชิก</label><label><input type="radio" name="name" value="admin">ADMIN — ผู้ดูแล</label></div>
-<label class="field" for="password">PASSWORD — รหัสผ่าน</label><input class="password" id="password" name="password" type="password" required autocomplete="current-password" autofocus>
+<label class="field" for="password">PASSWORD — รหัสผ่าน</label><input class="password" id="password" name="password" type="password" required autocomplete="current-password" autofocus onkeydown="if(event.key==='Enter'){event.preventDefault();this.form.requestSubmit()}">
 ${error ? `<p class="error">${error}</p>` : ''}<button class="submit" type="submit">SIGN IN — เข้าสู่ระบบ</button>
 </form><div class="note">Boss Tracker ${APP_VERSION}</div></main></body></html>`;
 }
