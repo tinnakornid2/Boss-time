@@ -931,7 +931,7 @@ function getDashboardProps(req) {
 // ==========================================================
 
 // GET / or /dashboard -> Dashboard (Directly available to all clan members as 'member', or 'admin' if logged in)
-app.all(['/', '/dashboard'], (req, res) => {
+app.all(['/', '/dashboard'], async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
         return res.status(405).end();
     }
@@ -939,6 +939,7 @@ app.all(['/', '/dashboard'], (req, res) => {
     if (!isAuthenticated(req)) {
         res.setHeader('Set-Cookie', 'boss_session=authenticated_member_session; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000');
     }
+    await db.autoAdvanceOverdueBosses();
     sendInertia(req, res, 'dashboard', getDashboardProps(req), '/');
 });
 
@@ -1053,7 +1054,8 @@ app.post('/logout', (req, res) => {
 let forceReloadAt = null;
 
 // GET /poll -> Real-time polling
-app.get('/poll', (req, res) => {
+app.get('/poll', async (req, res) => {
+    await db.autoAdvanceOverdueBosses();
     const settings = db.getSettings();
     res.json({
         bosses: db.getBosses(),

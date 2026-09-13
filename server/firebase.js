@@ -314,6 +314,26 @@ async function syncAllBosses(bosses) {
     }
 }
 
+// Run a conditional bosses update atomically across all server instances.
+// The transaction is aborted when transform returns no value.
+async function transactionBosses(transform) {
+    if (!isReady()) return { committed: false, value: null };
+    try {
+        const result = await dbRef.child('bosses').transaction(current => {
+            if (!current) return;
+            return transform(current) || undefined;
+        });
+        return {
+            committed: result.committed,
+            value: result.committed ? result.snapshot.val() : null
+        };
+    } catch (e) {
+        isConnected = false;
+        console.error('[Firebase RTDB] transactionBosses error:', e.message);
+        return { committed: false, value: null };
+    }
+}
+
 // Sync events
 async function syncAllEvents(allEvents) {
     if (!isReady()) return false;
@@ -403,6 +423,7 @@ module.exports = {
     syncBossAndLiveEvent,
     syncLiveEvent,
     syncAllBosses,
+    transactionBosses,
     syncAllEvents,
     syncResetConfigs,
     syncSettings,

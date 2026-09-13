@@ -5,6 +5,9 @@ const firebase = require('./firebase');
 const dataFile = path.join(__dirname, 'data', 'store.json');
 let cache = null;
 let isInitializedFirebase = false;
+let autoAdvancePromise = null;
+
+const BOSS_NOW_WINDOW_MS = 60 * 1000;
 
 function load() {
     if (!cache) {
@@ -30,6 +33,65 @@ function save() {
             // In serverless environments like Vercel, the local filesystem is read-only.
             // Data persistence is handled via Firebase Realtime Database.
         }
+    }
+}
+
+function calculateBossAutoAdvance(boss, nowMs = Date.now()) {
+    // Unset bosses and bosses explicitly marked Still alive never auto-advance.
+    if (!boss?.next_spawn || boss.pinned_alive) return null;
+
+    const firstSpawnMs = new Date(boss.next_spawn).getTime();
+    const intervalMs = Number(boss.interval) * 60 * 1000;
+    if (!Number.isFinite(firstSpawnMs) || !Number.isFinite(intervalMs) || intervalMs <= 0) return null;
+    if (nowMs < firstSpawnMs + BOSS_NOW_WINDOW_MS) return null;
+
+    // Advance only cycles whose one-minute NOW window has completed. If the
+    // app was closed, this catches up directly to the latest completed cycle.
+    const completedCycles = Math.floor((nowMs - firstSpawnMs - BOSS_NOW_WINDOW_MS) / intervalMs) + 1;
+    const latestSpawnMs = firstSpawnMs + (completedCycles - 1) * intervalMs;
+    const nextSpawnMs = latestSpawnMs + intervalMs;
+
+    return {
+        last_kill_time: new Date(latestSpawnMs).toISOString(),
+        next_spawn: new Date(nextSpawnMs).toISOString(),
+        auto_advanced: true,
+        pre_spawned: false,
+        updated_at: new Date(nowMs).toISOString()
+    };
+}
+
+function hasOverdueBoss(bosses, nowMs) {
+    return (bosses || []).some(boss => calculateBossAutoAdvance(boss, nowMs) !== null);
+}
+
+async function autoAdvanceOverdueBosses(nowMs = Date.now()) {
+    if (autoAdvancePromise) return autoAdvancePromise;
+    if (!hasOverdueBoss(load().bosses, nowMs)) return false;
+
+    autoAdvancePromise = (async () => {
+        const result = await firebase.transactionBosses(current => {
+            let changed = false;
+            for (const key of Object.keys(current)) {
+                const boss = current[key];
+                const updates = calculateBossAutoAdvance(boss, nowMs);
+                if (!updates) continue;
+                current[key] = { ...boss, ...updates };
+                changed = true;
+            }
+            return changed ? current : undefined;
+        });
+
+        if (!result.committed || !result.value) return false;
+        const store = load();
+        store.bosses = toArray(result.value);
+        save();
+        return true;
+    })();
+
+    try {
+        return await autoAdvancePromise;
+    } finally {
+        autoAdvancePromise = null;
     }
 }
 
@@ -192,6 +254,7 @@ function calculateNextEventSpawn(event, now = new Date()) {
 module.exports = {
     getThaiDateInfo,
     calculateNextEventSpawn,
+    calculateBossAutoAdvance,
     initFirebase,
 
     getFirebaseStatus() {
@@ -217,6 +280,8 @@ module.exports = {
     getBosses() {
         return load().bosses || [];
     },
+
+    autoAdvanceOverdueBosses,
 
     getBoss(id) {
         const numId = Number(id);
