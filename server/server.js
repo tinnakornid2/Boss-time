@@ -23,10 +23,27 @@ function limitLogin(req, res, next) {
     next();
 }
 
+let cachedSessionSecret = null;
 function sessionSecret() {
-    const source = process.env.SESSION_SECRET || process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (source) return crypto.createHash('sha256').update(source).digest();
-    return crypto.createHash('sha256').update(`local:${__dirname}:${APP_VERSION}`).digest();
+    if (cachedSessionSecret) return cachedSessionSecret;
+    let source = process.env.SESSION_SECRET || '';
+    if (!source && process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+            const raw = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+            const credential = JSON.parse(raw.startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8'));
+            source = `${credential.project_id}:${credential.client_email}:${credential.private_key}`;
+        } catch (_) {}
+    }
+    if (!source) {
+        try {
+            const credential = require('./cloud-credentials').getCredentials();
+            if (credential) source = `${credential.project_id}:${credential.client_email}:${credential.private_key}`;
+        } catch (_) {}
+    }
+    // Stable local fallback; production normally uses one of the credentials above.
+    if (!source) source = `boss-timel2m:${__dirname}:session`;
+    cachedSessionSecret = crypto.createHash('sha256').update(source).digest();
+    return cachedSessionSecret;
 }
 
 function createSession(role) {
@@ -1135,7 +1152,7 @@ app.post('/login', limitLogin, async (req, res) => {
     const sessionVal = createSession(sessionRole);
     const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader('Set-Cookie', [
-        `boss_session=${sessionVal}; Path=/; HttpOnly; SameSite=Lax${secure}`,
+        `boss_session=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SECONDS}${secure}`,
         `remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SECONDS}${secure}`
     ]);
     return res.redirect(303, '/');
