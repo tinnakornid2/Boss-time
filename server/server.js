@@ -64,6 +64,11 @@ function verifyPassword(password, plaintext, storedHash, fallback) {
     return legacyHash === storedHash;
 }
 
+function hashPassword(password) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    return `scrypt$${salt}$${crypto.scryptSync(password, salt, 64).toString('hex')}`;
+}
+
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -632,9 +637,9 @@ function renderHtml(pageData, title = '#Kain7') {
             const alertBox = document.getElementById('pwd-alert-box');
             const saveBtn = document.getElementById('btn-modal-save-pwd');
 
-            if (adminVal.length < 4 || memberVal.length < 4) {
+            if (adminVal.length < 8 || memberVal.length < 8) {
                 alertBox.className = 'pwd-alert error';
-                alertBox.textContent = '❌ รหัสผ่านทั้งสองต้องมีความยาวอย่างน้อย 4 ตัวอักษร';
+                alertBox.textContent = '❌ รหัสผ่านทั้งสองต้องมีความยาวอย่างน้อย 8 ตัวอักษร';
                 return;
             }
 
@@ -1068,7 +1073,7 @@ app.get('/login', (req, res) => {
 });
 
 // POST /login -> Authenticate
-app.post('/login', limitLogin, (req, res) => {
+app.post('/login', limitLogin, async (req, res) => {
     const { name, username, password } = req.body;
     const user = (name || username || '').trim().toLowerCase();
     const pass = (password || '').trim();
@@ -1198,6 +1203,14 @@ app.post('/bosses/:id/notify', async (req, res) => {
     const previousExpiry = new Date(boss.pre_spawn_expires_at || 0).getTime();
     if (boss.pre_spawned && previousExpiry > now) {
         return res.status(429).json({ success: false, message: 'Alert already sent', retryAfterMs: previousExpiry - now });
+    }
+
+    // One-time migration: keep the same password while removing plaintext and
+    // legacy SHA-256 storage from Firebase after a successful login.
+    const passwordKey = sessionRole === 'admin' ? 'adminPassword' : 'memberPassword';
+    const hashKey = sessionRole === 'admin' ? 'adminPasswordHash' : 'memberPasswordHash';
+    if (settings[passwordKey] || !String(settings[hashKey] || '').startsWith('scrypt$')) {
+        await db.updateSettings({ [passwordKey]: null, [hashKey]: hashPassword(pass) });
     }
     const updated = await db.updateBoss(id, {
         pre_spawned: true,

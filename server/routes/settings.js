@@ -28,20 +28,20 @@ router.post('/passwords', requireAdmin, async (req, res) => {
     const { adminPassword, memberPassword } = req.body;
     const updates = {};
 
-    if (adminPassword && typeof adminPassword === 'string' && adminPassword.trim().length >= 4) {
+    if (adminPassword && typeof adminPassword === 'string' && adminPassword.trim().length >= 8) {
         const clean = adminPassword.trim();
         updates.adminPassword = null;
         updates.adminPasswordHash = hashPassword(clean);
     }
 
-    if (memberPassword && typeof memberPassword === 'string' && memberPassword.trim().length >= 4) {
+    if (memberPassword && typeof memberPassword === 'string' && memberPassword.trim().length >= 8) {
         const clean = memberPassword.trim();
         updates.memberPassword = null;
         updates.memberPasswordHash = hashPassword(clean);
     }
 
     if (Object.keys(updates).length === 0) {
-        return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 4 ตัวอักษร' });
+        return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร' });
     }
 
     await db.updateSettings(updates);
