@@ -634,11 +634,11 @@
       "last_kill_time": "2026-09-12T21:59:00.000Z",
       "location": "Cruma [6F]",
       "name": "Katan",
-      "next_spawn": "2026-09-13T12:59:00+07:00",
+      "next_spawn": "2026-09-13T05:59:00.000Z",
       "pinned_alive": false,
       "post_maintenance": false,
       "pre_spawned": false,
-      "updated_at": "2026-09-13T02:05:37.803Z"
+      "updated_at": "2026-09-13T08:32:27.418Z"
     },
     {
       "auto_advanced": true,
