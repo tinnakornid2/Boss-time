@@ -74,7 +74,7 @@ function renderHtml(pageData, title = '#Kain7') {
     const userRole = (pageData && pageData.props && pageData.props.auth && pageData.props.auth.user && pageData.props.auth.user.role) || 'guest';
     const isAdmin = userRole === 'admin';
 
-    const adminPasswordSnippet = !isDashboard ? '' : `
+    const adminPasswordSnippet = `
     <!-- Admin Password Management Modal & Permanent Button Script -->
     <style>
         #admin-pwd-modal {
@@ -305,12 +305,12 @@ function renderHtml(pageData, title = '#Kain7') {
             transform: translateY(-1px);
         }
 
-        /* Top Floating Trigger Bar */
+        /* Floating Key Button Trigger Bar */
         #admin-pwd-floating-bar {
             position: fixed;
-            top: 6px;
-            right: 12px;
-            z-index: 99999;
+            bottom: 12px;
+            left: 14px;
+            z-index: 999999;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -319,27 +319,32 @@ function renderHtml(pageData, title = '#Kain7') {
         .pwd-trigger-pill {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 3px 11px;
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.15));
-            border: 1px solid rgba(245, 158, 11, 0.55);
+            gap: 6px;
+            padding: 5px 14px;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(217, 119, 6, 0.25));
+            border: 1.5px solid #f59e0b;
             border-radius: 9999px;
             color: #fbbf24;
             font-family: inherit;
             font-size: 11px;
             font-weight: 700;
             cursor: pointer;
-            backdrop-filter: blur(8px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(245, 158, 11, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 12px rgba(245, 158, 11, 0.35);
             transition: all 0.2s ease;
             user-select: none;
+            animation: pwdPulseGlow 3s ease-in-out infinite;
+        }
+        @keyframes pwdPulseGlow {
+            0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 10px rgba(245, 158, 11, 0.3); }
+            50% { box-shadow: 0 4px 22px rgba(0,0,0,0.8), 0 0 20px rgba(245, 158, 11, 0.65); }
         }
         .pwd-trigger-pill:hover {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.45), rgba(217, 119, 6, 0.3));
-            border-color: #f59e0b;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.55), rgba(217, 119, 6, 0.4));
+            border-color: #fbbf24;
             color: #fff;
-            transform: translateY(-1px) scale(1.02);
-            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+            transform: translateY(-1px) scale(1.03);
         }
         .header-pwd-btn {
             display: inline-flex;
@@ -366,9 +371,9 @@ function renderHtml(pageData, title = '#Kain7') {
     </style>
 
     <div id="admin-pwd-floating-bar">
-        <button type="button" class="pwd-trigger-pill" onclick="openAdminPwdModal()" title="จัดการรหัสผ่านระบบ Admin และ Member">
-            <span style="font-size:12px;">🔑</span>
-            <span id="pwd-pill-label">${isAdmin ? '🛡️ Admin (รหัสผ่าน)' : '👥 Member (รหัสผ่าน)'}</span>
+        <button type="button" class="pwd-trigger-pill" onclick="openAdminPwdModal()" title="จัดการรหัสผ่านระบบ (Admin & Member)">
+            <span style="font-size:13px;">🔑</span>
+            <span id="pwd-pill-label">${isAdmin ? '🛡️ จัดการรหัสผ่าน (Admin)' : '🔑 จัดการรหัสผ่าน (Admin/Member)'}</span>
         </button>
     </div>
 
@@ -571,6 +576,13 @@ function renderHtml(pageData, title = '#Kain7') {
             });
         }
 
+        // Expose functions on window for React and global buttons
+        window.openAdminPwdModal = openAdminPwdModal;
+        window.closeAdminPwdModal = closeAdminPwdModal;
+        window.togglePwdVisibility = togglePwdVisibility;
+        window.verifyAdminAndUnlock = verifyAdminAndUnlock;
+        window.submitAdminPasswords = submitAdminPasswords;
+
         // Close on clicking backdrop
         document.addEventListener('click', function(e) {
             const modal = document.getElementById('admin-pwd-modal');
@@ -582,9 +594,16 @@ function renderHtml(pageData, title = '#Kain7') {
             if (e.key === 'Escape') closeAdminPwdModal();
         });
 
-        // Auto-open if query param present
-        if (window.location.search.includes('openPwdModal=1') || window.location.search.includes('pwd=1')) {
-            setTimeout(openAdminPwdModal, 400);
+        // Auto-open if query param or path present
+        function checkAutoOpen() {
+            if (window.location.search.includes('pwd=') || window.location.search.includes('openPwdModal=1') || window.location.hash.includes('pwd') || window.location.pathname === '/admin') {
+                setTimeout(openAdminPwdModal, 350);
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkAutoOpen);
+        } else {
+            checkAutoOpen();
         }
     </script>
     `;
@@ -910,6 +929,14 @@ app.all(['/', '/dashboard'], (req, res) => {
         return res.redirect('/login');
     }
     sendInertia(req, res, 'dashboard', getDashboardProps(req), '/');
+});
+
+// Direct URL shortcuts to password management
+app.all(['/admin', '/passwords', '/password'], (req, res) => {
+    if (!isAuthenticated(req)) {
+        return res.redirect('/login?pwd=1');
+    }
+    return res.redirect('/?pwd=1');
 });
 
 // GET /login -> Login Form (Redirects to dashboard if already authenticated)
