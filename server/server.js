@@ -527,30 +527,61 @@ function renderHtml(pageData, title = '#Kain7') {
                         document.documentElement.classList.add('dark');
                     }
                 }
-                const isMaxDesktop = window.matchMedia('(min-width: 1400px)').matches;
-                const isDesktop = window.matchMedia('(min-width: 768px)').matches;
-                if (isDesktop) {
-                    document.documentElement.classList.add('desktop');
+                // Immediate restoration of user-configured Panel width (webMaxWidthRem)
+                function applyPanelWidth(val) {
+                    if (val !== null && val !== undefined) {
+                        const num = Number(val);
+                        if (Number.isFinite(num)) {
+                            document.documentElement.style.setProperty('--dashboard-web-max-width', num === 0 ? '100%' : num + 'rem');
+                        }
+                    }
                 }
-                if (isMaxDesktop) {
-                    document.documentElement.classList.add('max');
-                    document.documentElement.classList.add('desktop');
-                }
+                try {
+                    applyPanelWidth(localStorage.getItem('dashboard.webMaxWidthRem'));
+                } catch (e) {}
+
+                // Intercept localStorage.setItem to immediately update layout width in real-time
+                try {
+                    const origSetItem = localStorage.setItem.bind(localStorage);
+                    localStorage.setItem = function(key, value) {
+                        origSetItem(key, value);
+                        if (key === 'dashboard.webMaxWidthRem') {
+                            applyPanelWidth(value);
+                        }
+                    };
+                    window.addEventListener('storage', function(e) {
+                        if (e.key === 'dashboard.webMaxWidthRem') {
+                            applyPanelWidth(e.newValue);
+                        }
+                    });
+                } catch (e) {}
             })();
         </script>
         <style>
+            :root {
+                --dashboard-web-max-width: 36rem;
+            }
             html, body, #app {
                 margin: 0;
                 padding: 0;
                 height: 100%;
                 overflow: hidden;
             }
-            html.desktop,
-            html.desktop body,
-            html.desktop #app,
-            html.desktop .browser-shell,
-            html.desktop .browser-shell > * {
-                background: transparent !important;
+            /* Ensure web dashboard centers and dynamically respects user-configured Panel width */
+            html:not(.page-analytics):not(.page-login):not(.page-download) .browser-shell {
+                display: flex !important;
+                justify-content: center !important;
+                width: 100% !important;
+                height: 100% !important;
+            }
+            html:not(.page-analytics):not(.page-login):not(.page-download) .browser-shell > * {
+                max-width: var(--dashboard-web-max-width, 36rem) !important;
+                width: 100% !important;
+                height: 100% !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                border-inline-style: var(--tw-border-style, solid) !important;
+                border-inline-width: 1px !important;
             }
         </style>
         <title inertia>${title} (${APP_VERSION})</title>
