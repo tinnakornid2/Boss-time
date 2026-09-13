@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { initializeApp, getApps, cert } = require('firebase-admin/app');
-const { getDatabase } = require('firebase-admin/database');
+const { getDatabase, ServerValue } = require('firebase-admin/database');
 
 let dbRef = null;
 let isInitialized = false;
@@ -246,13 +246,26 @@ function getRef() {
     return dbRef;
 }
 
+function revisionUpdate(payload) {
+    return {
+        ...payload,
+        'meta/dataRevision': ServerValue.increment(1),
+        'meta/updatedAt': ServerValue.TIMESTAMP
+    };
+}
+
 // Sync full store to Firebase (e.g. for initial seed or full backup)
 async function syncFullStore(store) {
     if (!isReady()) return false;
     try {
         const payload = {
             ...store,
-            resetTimeConfigs: encodeFirebaseKeys(store.resetTimeConfigs)
+            resetTimeConfigs: encodeFirebaseKeys(store.resetTimeConfigs),
+            meta: {
+                ...(store.meta || {}),
+                dataRevision: Math.max(1, Number(store.meta?.dataRevision) || 0),
+                updatedAt: ServerValue.TIMESTAMP
+            }
         };
         await dbRef.set(payload);
         return true;
@@ -266,7 +279,7 @@ async function syncFullStore(store) {
 async function syncBoss(bossIndex, bossData) {
     if (!isReady()) return false;
     try {
-        await dbRef.child(`bosses/${bossIndex}`).set(bossData);
+        await dbRef.update(revisionUpdate({ [`bosses/${bossIndex}`]: bossData }));
         return true;
     } catch (e) {
         console.error('[Firebase RTDB] syncBoss error:', e.message);
@@ -283,7 +296,7 @@ async function syncBossUpdates(changes) {
             payload[`bosses/${index}`] = boss;
         }
         if (Object.keys(payload).length === 0) return true;
-        await dbRef.update(payload);
+        await dbRef.update(revisionUpdate(payload));
         return true;
     } catch (e) {
         isConnected = false;
@@ -296,11 +309,11 @@ async function syncBossUpdates(changes) {
 async function syncBossAndLiveEvent(bossIndex, bossData, liveEvent, recentLiveEvents) {
     if (!isReady()) return false;
     try {
-        await dbRef.update({
+        await dbRef.update(revisionUpdate({
             [`bosses/${bossIndex}`]: bossData,
             liveEvent,
             recentLiveEvents
-        });
+        }));
         return true;
     } catch (e) {
         isConnected = false;
@@ -312,7 +325,7 @@ async function syncBossAndLiveEvent(bossIndex, bossData, liveEvent, recentLiveEv
 async function syncLiveEvent(liveEvent, recentLiveEvents) {
     if (!isReady()) return false;
     try {
-        await dbRef.update({ liveEvent, recentLiveEvents });
+        await dbRef.update(revisionUpdate({ liveEvent, recentLiveEvents }));
         return true;
     } catch (e) {
         isConnected = false;
@@ -325,7 +338,7 @@ async function syncLiveEvent(liveEvent, recentLiveEvents) {
 async function syncAllBosses(bosses) {
     if (!isReady()) return false;
     try {
-        await dbRef.child('bosses').set(bosses);
+        await dbRef.update(revisionUpdate({ bosses }));
         return true;
     } catch (e) {
         console.error('[Firebase RTDB] syncAllBosses error:', e.message);
@@ -338,13 +351,24 @@ async function syncAllBosses(bosses) {
 async function transactionBosses(transform) {
     if (!isReady()) return { committed: false, value: null };
     try {
-        const result = await dbRef.child('bosses').transaction(current => {
-            if (!current) return;
-            return transform(current) || undefined;
+        const result = await dbRef.transaction(currentRoot => {
+            if (!currentRoot?.bosses) return;
+            const bosses = transform(currentRoot.bosses);
+            if (!bosses) return;
+            return {
+                ...currentRoot,
+                bosses,
+                meta: {
+                    ...(currentRoot.meta || {}),
+                    dataRevision: (Number(currentRoot.meta?.dataRevision) || 0) + 1,
+                    updatedAt: Date.now()
+                }
+            };
         });
         return {
             committed: result.committed,
-            value: result.committed ? result.snapshot.val() : null
+            value: result.committed ? result.snapshot.val()?.bosses : null,
+            revision: result.committed ? Number(result.snapshot.val()?.meta?.dataRevision) || 0 : 0
         };
     } catch (e) {
         isConnected = false;
@@ -357,7 +381,7 @@ async function transactionBosses(transform) {
 async function syncAllEvents(allEvents) {
     if (!isReady()) return false;
     try {
-        await dbRef.child('allEvents').set(allEvents);
+        await dbRef.update(revisionUpdate({ allEvents }));
         return true;
     } catch (e) {
         console.error('[Firebase RTDB] syncAllEvents error:', e.message);
@@ -369,7 +393,7 @@ async function syncAllEvents(allEvents) {
 async function syncResetConfigs(configs) {
     if (!isReady()) return false;
     try {
-        await dbRef.child('resetTimeConfigs').set(encodeFirebaseKeys(configs));
+        await dbRef.update(revisionUpdate({ resetTimeConfigs: encodeFirebaseKeys(configs) }));
         return true;
     } catch (e) {
         console.error('[Firebase RTDB] syncResetConfigs error:', e.message);
@@ -381,7 +405,7 @@ async function syncResetConfigs(configs) {
 async function syncSettings(settings) {
     if (!isReady()) return false;
     try {
-        await dbRef.child('settings').set(settings);
+        await dbRef.update(revisionUpdate({ settings }));
         return true;
     } catch (e) {
         console.error('[Firebase RTDB] syncSettings error:', e.message);
@@ -393,7 +417,7 @@ async function syncSettings(settings) {
 async function syncSavedMaintenanceEndTime(time) {
     if (!isReady()) return false;
     try {
-        await dbRef.child('savedMaintenanceEndTime').set(time);
+        await dbRef.update(revisionUpdate({ savedMaintenanceEndTime: time }));
         return true;
     } catch (e) {
         console.error('[Firebase RTDB] syncSavedMaintenanceEndTime error:', e.message);
@@ -405,7 +429,7 @@ async function syncSavedMaintenanceEndTime(time) {
 async function syncKillHistory(killHistory) {
     if (!isReady()) return false;
     try {
-        await dbRef.child('killHistory').set(killHistory);
+        await dbRef.update(revisionUpdate({ killHistory }));
         return true;
     } catch (e) {
         console.error('[Firebase RTDB] syncKillHistory error:', e.message);

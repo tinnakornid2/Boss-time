@@ -25,7 +25,9 @@
         serverOffset: 0,
         initialEventsLoaded: false,
         audioQueue: [],
-        audioPlaying: false
+        audioPlaying: false,
+        highestDataRevision: 0,
+        lastGoodPollData: null
     };
 
     function setting(key, fallback) {
@@ -156,25 +158,6 @@
             const expiry = new Date(boss.pre_spawn_expires_at || 0).getTime();
             const active = boss.pre_spawned && (!Number.isFinite(expiry) || expiry === 0 || expiry > now);
             for (const row of bossRows(boss)) row.classList.toggle('realtime-pre-spawn-flash', active);
-            if (!boss.next_spawn && !boss.pre_spawned && !boss.pinned_alive) showBossAsUnset(boss);
-        }
-    }
-
-    function showBossAsUnset(boss) {
-        if (!boss?.name) return;
-        for (const row of document.querySelectorAll('tr')) {
-            const rowText = row.textContent || '';
-            if (!rowText.includes(boss.name)) continue;
-            if (boss.location && !rowText.includes(boss.location)) continue;
-            for (const node of row.querySelectorAll('span, td')) {
-                const label = (node.textContent || '').trim();
-                if (label === 'NOW' || label === 'Spawned') {
-                    node.textContent = 'Unset';
-                    node.className = String(node.className || '')
-                        .replace(/text-red-\d+/g, '')
-                        .replace(/font-bold/g, '');
-                }
-            }
         }
     }
 
@@ -200,9 +183,20 @@
             if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
             reconcileBossRows();
         } else if (event.type === 'boss_time_unset') {
-            showBossAsUnset(event.boss);
             reconcileBossRows();
         }
+    }
+
+    function processPollData(data) {
+        if (Number.isFinite(Number(data.serverTime))) state.serverOffset = Number(data.serverTime) - Date.now();
+        for (const boss of data.bosses || []) state.bosses.set(Number(boss.id), boss);
+        for (const event of data.events || []) state.events.set(Number(event.id), event);
+        const initial = !state.initialEventsLoaded;
+        for (const event of data.recentLiveEvents || []) consumeLiveEvent(event, initial);
+        consumeLiveEvent(data.liveEvent, initial);
+        state.initialEventsLoaded = true;
+        reconcileBossRows();
+        updateStatus();
     }
 
     // Reuse the dashboard's existing /poll response as a no-extra-request fallback.
@@ -212,19 +206,29 @@
         const response = await nativeFetch(...args);
         const requestUrl = String(args[0]?.url || args[0] || '');
         if (requestUrl.endsWith('/poll') || requestUrl.includes('/poll?')) {
-            response.clone().json().then(data => {
-                if (Number.isFinite(Number(data.serverTime))) state.serverOffset = Number(data.serverTime) - Date.now();
-                for (const boss of data.bosses || []) {
-                    state.bosses.set(Number(boss.id), boss);
+            if (!response.ok) return response;
+            try {
+                const data = await response.clone().json();
+                const revision = Number(data.dataRevision);
+                const isOlder = Number.isFinite(revision) && revision < state.highestDataRevision;
+                if (data.stale || isOlder) {
+                    if (state.lastGoodPollData) {
+                        return new Response(JSON.stringify(state.lastGoodPollData), {
+                            status: 200,
+                            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+                        });
+                    }
+                    return new Response(JSON.stringify({ notReady: true, stale: true }), {
+                        status: 503,
+                        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': '2' }
+                    });
                 }
-                for (const event of data.events || []) state.events.set(Number(event.id), event);
-                const initial = !state.initialEventsLoaded;
-                for (const event of data.recentLiveEvents || []) consumeLiveEvent(event, initial);
-                consumeLiveEvent(data.liveEvent, initial);
-                state.initialEventsLoaded = true;
-                reconcileBossRows();
-                updateStatus();
-            }).catch(() => {});
+                if (!data.stale) {
+                    if (Number.isFinite(revision)) state.highestDataRevision = Math.max(state.highestDataRevision, revision);
+                    state.lastGoodPollData = data;
+                    processPollData(data);
+                }
+            } catch (_) {}
         }
         return response;
     };
@@ -276,6 +280,7 @@
         if (!root) return;
         try {
             const page = JSON.parse(root.getAttribute('data-page') || '{}');
+            state.highestDataRevision = Number(page.props?.dataRevision) || 0;
             for (const boss of page.props?.bosses || []) state.bosses.set(Number(boss.id), boss);
             for (const event of page.props?.events || []) state.events.set(Number(event.id), event);
         } catch (_) {}

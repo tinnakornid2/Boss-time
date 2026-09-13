@@ -5,6 +5,8 @@ const firebase = require('./firebase');
 const dataFile = path.join(__dirname, 'data', 'store.json');
 let cache = null;
 let isInitializedFirebase = false;
+let hasCloudSnapshot = false;
+let lastCloudSyncAt = 0;
 let autoAdvancePromise = null;
 
 const BOSS_NOW_WINDOW_MS = 60 * 1000;
@@ -102,6 +104,23 @@ function toArray(val) {
     return Object.values(val).filter(Boolean);
 }
 
+function applyRemoteStore(remoteData) {
+    if (!remoteData) return false;
+    if (remoteData.bosses) cache.bosses = toArray(remoteData.bosses);
+    if (remoteData.allEvents) cache.allEvents = toArray(remoteData.allEvents);
+    if (remoteData.resetTimeConfigs) cache.resetTimeConfigs = remoteData.resetTimeConfigs;
+    if (remoteData.settings) cache.settings = remoteData.settings;
+    if (remoteData.savedMaintenanceEndTime !== undefined) cache.savedMaintenanceEndTime = remoteData.savedMaintenanceEndTime;
+    if (remoteData.killHistory) cache.killHistory = toArray(remoteData.killHistory);
+    if (remoteData.liveEvent) cache.liveEvent = remoteData.liveEvent;
+    if (remoteData.recentLiveEvents) cache.recentLiveEvents = toArray(remoteData.recentLiveEvents);
+    cache.meta = { ...(cache.meta || {}), ...(remoteData.meta || {}) };
+    hasCloudSnapshot = Boolean(remoteData.bosses);
+    lastCloudSyncAt = Date.now();
+    save();
+    return hasCloudSnapshot;
+}
+
 // Initialize Firebase integration
 async function initFirebase(onRemoteChange) {
     if (isInitializedFirebase) return;
@@ -110,17 +129,7 @@ async function initFirebase(onRemoteChange) {
     const connected = firebase.init((remoteData) => {
         if (remoteData) {
             console.log('🔄 [Firebase RTDB] Remote data update received from Firebase');
-            if (remoteData.bosses) cache.bosses = toArray(remoteData.bosses);
-            if (remoteData.allEvents) cache.allEvents = toArray(remoteData.allEvents);
-            if (remoteData.resetTimeConfigs) cache.resetTimeConfigs = remoteData.resetTimeConfigs;
-            if (remoteData.settings) cache.settings = remoteData.settings;
-            if (remoteData.savedMaintenanceEndTime !== undefined) {
-                cache.savedMaintenanceEndTime = remoteData.savedMaintenanceEndTime;
-            }
-            if (remoteData.killHistory) cache.killHistory = toArray(remoteData.killHistory);
-            if (remoteData.liveEvent) cache.liveEvent = remoteData.liveEvent;
-            if (remoteData.recentLiveEvents) cache.recentLiveEvents = toArray(remoteData.recentLiveEvents);
-            save();
+            applyRemoteStore(remoteData);
 
             if (typeof onRemoteChange === 'function') {
                 onRemoteChange(remoteData);
@@ -135,21 +144,16 @@ async function initFirebase(onRemoteChange) {
             const remoteStore = await firebase.fetchOnce();
             if (!remoteStore || !remoteStore.bosses || (Array.isArray(remoteStore.bosses) && remoteStore.bosses.length === 0)) {
                 console.log('🌱 [Firebase RTDB] Initial seeding local store to Firebase Realtime Database (Single Source of Truth)...');
-                await firebase.syncFullStore(cache);
-                console.log(`✅ [Firebase RTDB] Seeded ${cache.bosses?.length || 0} bosses, ${cache.allEvents?.length || 0} events, and configs to Firebase!`);
+                const seeded = await firebase.syncFullStore(cache);
+                if (seeded) {
+                    cache.meta = { ...(cache.meta || {}), dataRevision: Math.max(1, Number(cache.meta?.dataRevision) || 0) };
+                    hasCloudSnapshot = true;
+                    lastCloudSyncAt = Date.now();
+                    console.log(`✅ [Firebase RTDB] Seeded ${cache.bosses?.length || 0} bosses, ${cache.allEvents?.length || 0} events, and configs to Firebase!`);
+                }
             } else {
                 console.log('📥 [Firebase RTDB] Cloud database found! Syncing cloud master data to local cache...');
-                if (remoteStore.bosses) cache.bosses = toArray(remoteStore.bosses);
-                if (remoteStore.allEvents) cache.allEvents = toArray(remoteStore.allEvents);
-                if (remoteStore.resetTimeConfigs) cache.resetTimeConfigs = remoteStore.resetTimeConfigs;
-                if (remoteStore.settings) cache.settings = remoteStore.settings;
-                if (remoteStore.savedMaintenanceEndTime !== undefined) {
-                    cache.savedMaintenanceEndTime = remoteStore.savedMaintenanceEndTime;
-                }
-                if (remoteStore.killHistory) cache.killHistory = toArray(remoteStore.killHistory);
-                if (remoteStore.liveEvent) cache.liveEvent = remoteStore.liveEvent;
-                if (remoteStore.recentLiveEvents) cache.recentLiveEvents = toArray(remoteStore.recentLiveEvents);
-                save();
+                applyRemoteStore(remoteStore);
                 console.log(`✅ [Firebase RTDB] Synced ${cache.bosses.length} bosses from Firebase cloud.`);
             }
         } catch (e) {
@@ -273,7 +277,10 @@ module.exports = {
             databaseURL: config.databaseURL,
             serviceAccountKeyFound: Boolean(keyPath),
             keyPath: keyPath ? path.basename(keyPath) : null,
-            totalBosses: (store && store.bosses) ? store.bosses.length : 0
+            totalBosses: (store && store.bosses) ? store.bosses.length : 0,
+            cloudDataReady: hasCloudSnapshot,
+            dataRevision: Number(store?.meta?.dataRevision) || 0,
+            lastCloudSyncAt: lastCloudSyncAt || null
         };
     },
 
@@ -283,6 +290,18 @@ module.exports = {
 
     getBosses() {
         return load().bosses || [];
+    },
+
+    isCloudDataReady() {
+        return hasCloudSnapshot;
+    },
+
+    getDataRevision() {
+        return Number(load().meta?.dataRevision) || 0;
+    },
+
+    getLastCloudSyncAt() {
+        return lastCloudSyncAt;
     },
 
     autoAdvanceOverdueBosses,

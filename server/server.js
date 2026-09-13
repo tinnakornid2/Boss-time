@@ -1045,7 +1045,8 @@ function getDashboardProps(req) {
         invasionLabel: settings.invasionLabel || 'L3',
         announcement: settings.announcement || null,
         resetTimeConfigs: db.getResetConfigs(),
-        savedMaintenanceEndTime: db.getSavedMaintenanceEndTime() || null
+        savedMaintenanceEndTime: db.getSavedMaintenanceEndTime() || null,
+        dataRevision: db.getDataRevision()
     };
 }
 
@@ -1060,6 +1061,10 @@ app.all(['/', '/dashboard'], async (req, res) => {
     }
     if (!isAuthenticated(req)) {
         return res.redirect(303, '/login');
+    }
+    if (process.env.VERCEL && !db.isCloudDataReady()) {
+        res.set('Retry-After', '2');
+        return res.status(503).send('Cloud data is still loading — กำลังโหลดข้อมูลล่าสุด กรุณารีเฟรชอีกครั้ง');
     }
     await db.expireBossAlerts();
     await db.autoAdvanceOverdueBosses();
@@ -1178,6 +1183,11 @@ let forceReloadAt = null;
 
 // GET /poll -> Real-time polling
 app.get('/poll', async (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    if (process.env.VERCEL && !db.isCloudDataReady()) {
+        res.set('Retry-After', '2');
+        return res.status(503).json({ notReady: true, stale: true, source: 'local-fallback', serverTime: Date.now() });
+    }
     await db.expireBossAlerts();
     await db.autoAdvanceOverdueBosses();
     const settings = db.getSettings();
@@ -1193,7 +1203,10 @@ app.get('/poll', async (req, res) => {
         forceReloadAt: forceReloadAt,
         liveEvent: db.getLiveEvent(),
         recentLiveEvents: db.getRecentLiveEvents(),
-        serverTime: Date.now()
+        serverTime: Date.now(),
+        dataRevision: db.getDataRevision(),
+        source: 'firebase',
+        stale: false
     });
 });
 
@@ -1203,7 +1216,10 @@ app.get('/live-event', (req, res) => {
     res.json({
         liveEvent: db.getLiveEvent(),
         recentLiveEvents: db.getRecentLiveEvents(),
-        serverTime: Date.now()
+        serverTime: Date.now(),
+        dataRevision: db.getDataRevision(),
+        source: db.isCloudDataReady() ? 'firebase' : 'local-fallback',
+        stale: !db.isCloudDataReady()
     });
 });
 
