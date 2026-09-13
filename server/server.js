@@ -62,19 +62,21 @@ function escapeHtml(str) {
 // Helper: HTML page wrapper matching boss.kain7.com exactly
 function renderHtml(pageData, title = '#Kain7') {
     const jsonStr = escapeHtml(JSON.stringify(pageData));
-    const isAdmin = Boolean(pageData && pageData.props && pageData.props.auth && pageData.props.auth.user && pageData.props.auth.user.role === 'admin');
+    const isDashboard = Boolean(pageData && pageData.component === 'dashboard');
+    const userRole = (pageData && pageData.props && pageData.props.auth && pageData.props.auth.user && pageData.props.auth.user.role) || 'guest';
+    const isAdmin = userRole === 'admin';
 
-    const adminPasswordSnippet = !isAdmin ? '' : `
-    <!-- Admin Password Management Modal & Button Script -->
+    const adminPasswordSnippet = !isDashboard ? '' : `
+    <!-- Admin Password Management Modal & Permanent Button Script -->
     <style>
         #admin-pwd-modal {
             display: none;
             position: fixed;
             inset: 0;
             z-index: 999999;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             align-items: center;
             justify-content: center;
             padding: 16px;
@@ -86,12 +88,12 @@ function renderHtml(pageData, title = '#Kain7') {
         .pwd-card {
             position: relative;
             width: 100%;
-            max-width: 440px;
+            max-width: 450px;
             background: linear-gradient(145deg, #18181b, #09090b);
-            border: 1px solid rgba(245, 158, 11, 0.35);
+            border: 1px solid rgba(245, 158, 11, 0.4);
             border-radius: 16px;
             padding: 24px;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.9), 0 0 25px rgba(245,158,11,0.15);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.9), 0 0 30px rgba(245,158,11,0.2);
             color: #fff;
             box-sizing: border-box;
             animation: pwdModalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -162,13 +164,17 @@ function renderHtml(pageData, title = '#Kain7') {
         .pwd-label {
             font-size: 12px;
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .pwd-badge {
             font-size: 10px;
-            padding: 1px 6px;
+            padding: 2px 6px;
             border-radius: 4px;
             background: rgba(255, 255, 255, 0.08);
             color: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .pwd-input-wrap {
             position: relative;
@@ -177,47 +183,49 @@ function renderHtml(pageData, title = '#Kain7') {
         }
         .pwd-input {
             width: 100%;
-            padding: 10px 42px 10px 12px;
-            background: rgba(255, 255, 255, 0.05);
+            background: #09090b;
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 8px;
+            padding: 10px 42px 10px 12px;
+            font-size: 13px;
             color: #fff;
-            font-size: 14px;
-            font-family: monospace;
             box-sizing: border-box;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         }
         .pwd-input:focus {
             border-color: #f59e0b;
-            box-shadow: 0 0 0 1px #f59e0b;
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
         }
         .pwd-toggle-eye {
             position: absolute;
-            right: 8px;
+            right: 10px;
             background: none;
             border: none;
+            color: rgba(255, 255, 255, 0.4);
             cursor: pointer;
+            padding: 4px;
             font-size: 14px;
-            padding: 4px 6px;
-            border-radius: 4px;
-            color: rgba(255, 255, 255, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: color 0.15s;
         }
         .pwd-toggle-eye:hover {
             color: #fff;
         }
         .pwd-subhint {
-            font-size: 11px;
+            margin: 5px 0 0 0;
+            font-size: 10px;
             color: rgba(255, 255, 255, 0.4);
-            margin: 4px 0 0 0;
             line-height: 1.4;
         }
         .pwd-alert {
             display: none;
             padding: 10px 12px;
             border-radius: 8px;
-            font-size: 12px;
+            font-size: 11px;
             margin-bottom: 14px;
             line-height: 1.4;
         }
@@ -225,25 +233,25 @@ function renderHtml(pageData, title = '#Kain7') {
             display: block;
             background: rgba(16, 185, 129, 0.15);
             border: 1px solid rgba(16, 185, 129, 0.4);
-            color: #6ee7b7;
+            color: #34d399;
         }
         .pwd-alert.error {
             display: block;
             background: rgba(239, 68, 68, 0.15);
             border: 1px solid rgba(239, 68, 68, 0.4);
-            color: #fca5a5;
+            color: #f87171;
         }
         .pwd-cloud-notice {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: rgba(16, 185, 129, 0.08);
-            border: 1px solid rgba(16, 185, 129, 0.25);
+            gap: 6px;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.2);
             border-radius: 8px;
             padding: 8px 12px;
             font-size: 11px;
-            color: #34d399;
-            margin-top: 18px;
+            color: #7dd3fc;
+            margin-top: 16px;
         }
         .pwd-footer {
             display: flex;
@@ -288,31 +296,73 @@ function renderHtml(pageData, title = '#Kain7') {
             filter: brightness(1.1);
             transform: translateY(-1px);
         }
-        #btn-admin-pwd-trigger {
+
+        /* Top Floating Trigger Bar */
+        #admin-pwd-floating-bar {
+            position: fixed;
+            top: 6px;
+            right: 12px;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            pointer-events: auto;
+        }
+        .pwd-trigger-pill {
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            padding: 4px 10px;
-            background: rgba(245, 158, 11, 0.15);
-            border: 1px solid rgba(245, 158, 11, 0.45);
-            border-radius: 6px;
+            padding: 3px 11px;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.15));
+            border: 1px solid rgba(245, 158, 11, 0.55);
+            border-radius: 9999px;
             color: #fbbf24;
+            font-family: inherit;
             font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(245, 158, 11, 0.2);
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .pwd-trigger-pill:hover {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.45), rgba(217, 119, 6, 0.3));
+            border-color: #f59e0b;
+            color: #fff;
+            transform: translateY(-1px) scale(1.02);
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+        }
+        .header-pwd-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 5px;
+            color: #fbbf24;
+            font-family: inherit;
+            font-size: 10px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            user-select: none;
-            margin-right: 6px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            margin: 0 4px;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
         }
-        #btn-admin-pwd-trigger:hover {
+        .header-pwd-btn:hover {
             background: rgba(245, 158, 11, 0.3);
-            border-color: rgba(245, 158, 11, 0.8);
-            color: #fef08a;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+            border-color: #f59e0b;
+            color: #fff;
         }
     </style>
+
+    <div id="admin-pwd-floating-bar">
+        <button type="button" class="pwd-trigger-pill" onclick="openAdminPwdModal()" title="จัดการรหัสผ่านระบบ Admin และ Member">
+            <span style="font-size:12px;">🔑</span>
+            <span id="pwd-pill-label">${isAdmin ? '🛡️ Admin (รหัสผ่าน)' : '👥 Member (รหัสผ่าน)'}</span>
+        </button>
+    </div>
 
     <div id="admin-pwd-modal">
         <div class="pwd-card" onclick="event.stopPropagation()">
@@ -329,40 +379,58 @@ function renderHtml(pageData, title = '#Kain7') {
 
             <div id="pwd-alert-box" class="pwd-alert"></div>
 
-            <div class="pwd-group">
-                <div class="pwd-label-row">
-                    <span class="pwd-label" style="color: #fbbf24;">🛡️ รหัสผ่าน Admin (ผู้ดูแล)</span>
-                    <span class="pwd-badge">สิทธิ์จัดการระบบ</span>
+            <!-- Member Unlock Form if not yet authenticated as Admin -->
+            <div id="pwd-verify-admin-section" style="${isAdmin ? 'display:none;' : 'display:block;'}">
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+                    <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 700; color: #fbbf24;">🛡️ ยืนยันสิทธิ์ Admin</p>
+                    <p style="margin: 0 0 12px 0; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.5;">
+                        ปัจจุบันคุณกำลังเปิดในสถานะ <b>Member</b> หากต้องการแก้ไขรหัสผ่าน กรุณากรอกรหัสผ่าน Admin ปัจจุบัน (<code>@777999</code>) เพื่อปลดล็อก:
+                    </p>
+                    <div style="display:flex; gap:8px;">
+                        <input type="password" id="modal-input-verify-admin" placeholder="กรอกรหัส Admin เช่น @777999" class="pwd-input" style="flex:1;">
+                        <button type="button" class="pwd-btn-save" style="padding: 8px 16px; white-space: nowrap;" onclick="verifyAdminAndUnlock()">🔓 ยืนยัน</button>
+                    </div>
+                    <div id="pwd-verify-error" style="color: #f87171; font-size: 11px; margin-top: 8px; display: none;"></div>
                 </div>
-                <div class="pwd-input-wrap">
-                    <input type="password" id="modal-input-admin-pwd" class="pwd-input" placeholder="@777999" autocomplete="off">
-                    <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-admin-pwd', this)">👁️</button>
-                </div>
-                <p class="pwd-subhint">สำหรับเข้าสู่โหมด Admin: บันทึกเวลาเกิดบอส, เพิ่ม/ลบบอส, จัดการอีเวนต์</p>
             </div>
 
-            <div class="pwd-group" style="margin-top: 14px;">
-                <div class="pwd-label-row">
-                    <span class="pwd-label" style="color: #38bdf8;">👥 รหัสผ่าน Member (สมาชิกแคลน)</span>
-                    <span class="pwd-badge">สิทธิ์ดูตาราง</span>
+            <!-- Password Editing Fields -->
+            <div id="pwd-edit-fields-section" style="${isAdmin ? 'display:block;' : 'display:none;'}">
+                <div class="pwd-group">
+                    <div class="pwd-label-row">
+                        <span class="pwd-label" style="color: #fbbf24;">🛡️ รหัสผ่าน Admin (ผู้ดูแล)</span>
+                        <span class="pwd-badge">สิทธิ์จัดการระบบ</span>
+                    </div>
+                    <div class="pwd-input-wrap">
+                        <input type="password" id="modal-input-admin-pwd" class="pwd-input" placeholder="@777999" autocomplete="off">
+                        <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-admin-pwd', this)">👁️</button>
+                    </div>
+                    <p class="pwd-subhint">สำหรับเข้าสู่โหมด Admin: บันทึกเวลาเกิดบอส, เพิ่ม/ลบบอส, จัดการอีเวนต์</p>
                 </div>
-                <div class="pwd-input-wrap">
-                    <input type="password" id="modal-input-member-pwd" class="pwd-input" placeholder="password777999" autocomplete="off">
-                    <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-member-pwd', this)">👁️</button>
+
+                <div class="pwd-group" style="margin-top: 14px;">
+                    <div class="pwd-label-row">
+                        <span class="pwd-label" style="color: #38bdf8;">👥 รหัสผ่าน Member (สมาชิกแคลน)</span>
+                        <span class="pwd-badge">สิทธิ์ดูตาราง</span>
+                    </div>
+                    <div class="pwd-input-wrap">
+                        <input type="password" id="modal-input-member-pwd" class="pwd-input" placeholder="password777999" autocomplete="off">
+                        <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-member-pwd', this)">👁️</button>
+                    </div>
+                    <p class="pwd-subhint">สำหรับแจกคนในแคลน: เปิดดูตารางเวลาบอส, เวลานับถอยหลัง และเสียงเตือน</p>
                 </div>
-                <p class="pwd-subhint">สำหรับแจกคนในแคลน: เปิดดูตารางเวลาบอส, เวลานับถอยหลัง และเสียงเตือน</p>
-            </div>
 
-            <div class="pwd-cloud-notice">
-                <span>☁️</span>
-                <span>เมื่อบันทึกแล้ว ข้อมูลจะซิงค์ไปยัง Firebase Cloud อัตโนมัติ</span>
-            </div>
+                <div class="pwd-cloud-notice">
+                    <span>☁️</span>
+                    <span>เมื่อบันทึกแล้ว ข้อมูลจะซิงค์ไปยัง Firebase Cloud อัตโนมัติ</span>
+                </div>
 
-            <div class="pwd-footer">
-                <button type="button" class="pwd-btn-cancel" onclick="closeAdminPwdModal()">ยกเลิก</button>
-                <button type="button" id="btn-modal-save-pwd" class="pwd-btn-save" onclick="submitAdminPasswords()">
-                    <span>💾 บันทึกรหัสผ่านใหม่</span>
-                </button>
+                <div class="pwd-footer" id="pwd-footer-save">
+                    <button type="button" class="pwd-btn-cancel" onclick="closeAdminPwdModal()">ยกเลิก</button>
+                    <button type="button" id="btn-modal-save-pwd" class="pwd-btn-save" onclick="submitAdminPasswords()">
+                        <span>💾 บันทึกรหัสผ่านใหม่</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -378,16 +446,8 @@ function renderHtml(pageData, title = '#Kain7') {
                 alertBox.textContent = '';
             }
 
-            // Fetch current passwords from server
-            fetch('/api/settings/passwords')
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        if (data.adminPassword) document.getElementById('modal-input-admin-pwd').value = data.adminPassword;
-                        if (data.memberPassword) document.getElementById('modal-input-member-pwd').value = data.memberPassword;
-                    }
-                })
-                .catch(e => console.error('Fetch passwords error:', e));
+            // Fetch current passwords if already admin
+            fetchPasswords();
         }
 
         function closeAdminPwdModal() {
@@ -405,6 +465,56 @@ function renderHtml(pageData, title = '#Kain7') {
                 el.type = 'password';
                 btn.textContent = '👁️';
             }
+        }
+
+        function fetchPasswords() {
+            fetch('/api/settings/passwords')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const adminInput = document.getElementById('modal-input-admin-pwd');
+                        const memberInput = document.getElementById('modal-input-member-pwd');
+                        if (adminInput && data.adminPassword) adminInput.value = data.adminPassword;
+                        if (memberInput && data.memberPassword) memberInput.value = data.memberPassword;
+                        const verifySec = document.getElementById('pwd-verify-admin-section');
+                        const editSec = document.getElementById('pwd-edit-fields-section');
+                        if (verifySec) verifySec.style.display = 'none';
+                        if (editSec) editSec.style.display = 'block';
+                        const pillLabel = document.getElementById('pwd-pill-label');
+                        if (pillLabel) pillLabel.textContent = '🛡️ Admin (รหัสผ่าน)';
+                    }
+                })
+                .catch(e => console.log('Fetch passwords:', e));
+        }
+
+        function verifyAdminAndUnlock() {
+            const input = document.getElementById('modal-input-verify-admin');
+            const err = document.getElementById('pwd-verify-error');
+            const val = input ? input.value.trim() : '';
+            if (!val) {
+                if (err) { err.textContent = '❌ กรุณากรอกรหัสผ่าน Admin'; err.style.display = 'block'; }
+                return;
+            }
+
+            fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ name: 'admin', password: val })
+            })
+            .then(r => {
+                if (r.ok || r.redirected || r.status === 200 || r.status === 302) {
+                    if (err) err.style.display = 'none';
+                    document.getElementById('pwd-verify-admin-section').style.display = 'none';
+                    document.getElementById('pwd-edit-fields-section').style.display = 'block';
+                    fetchPasswords();
+                    setTimeout(() => { window.location.reload(); }, 1500);
+                } else {
+                    if (err) { err.textContent = '❌ รหัสผ่าน Admin ไม่ถูกต้อง'; err.style.display = 'block'; }
+                }
+            })
+            .catch(e => {
+                if (err) { err.textContent = '❌ รหัสผ่าน Admin ไม่ถูกต้อง'; err.style.display = 'block'; }
+            });
         }
 
         function submitAdminPasswords() {
@@ -464,55 +574,12 @@ function renderHtml(pageData, title = '#Kain7') {
             if (e.key === 'Escape') closeAdminPwdModal();
         });
 
-        // Auto-inject button into top bar
-        (function setupButtonInjection() {
-            function inject() {
-                if (document.getElementById('btn-admin-pwd-trigger')) return;
-
-                // Look for action toolbar or header
-                const allButtons = document.querySelectorAll('button');
-                let targetContainer = null;
-
-                for (const b of allButtons) {
-                    const rect = b.getBoundingClientRect();
-                    if (rect.top >= 0 && rect.top < 60) {
-                        const parent = b.parentElement;
-                        if (parent && parent.children.length >= 2) {
-                            targetContainer = parent;
-                            break;
-                        }
-                    }
-                }
-
-                const triggerBtn = document.createElement('button');
-                triggerBtn.id = 'btn-admin-pwd-trigger';
-                triggerBtn.type = 'button';
-                triggerBtn.title = 'แก้ไขรหัสผ่าน Admin และ Member';
-                triggerBtn.onclick = openAdminPwdModal;
-                triggerBtn.innerHTML = '<span>🔑</span><span>รหัสผ่าน</span>';
-
-                if (targetContainer) {
-                    targetContainer.prepend(triggerBtn);
-                } else {
-                    // Fallback to top-right floating position
-                    triggerBtn.style.position = 'fixed';
-                    triggerBtn.style.top = '10px';
-                    triggerBtn.style.right = '50px';
-                    triggerBtn.style.zIndex = '9999';
-                    document.body.appendChild(triggerBtn);
-                }
-            }
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', inject);
-            } else {
-                inject();
-            }
-            setInterval(inject, 1500);
-        })();
+        // Auto-open if query param present
+        if (window.location.search.includes('openPwdModal=1') || window.location.search.includes('pwd=1')) {
+            setTimeout(openAdminPwdModal, 400);
+        }
     </script>
     `;
-
     return `<!DOCTYPE html>
 <html lang="en" class="">
     <head>
@@ -664,6 +731,14 @@ function renderHtml(pageData, title = '#Kain7') {
                             vBadge.title = 'Lineage 2 Boss Tracker ${APP_VERSION}';
                             vBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span> ${APP_VERSION}';
                             flexGroup.appendChild(vBadge);
+                            const pwdBtn = document.createElement('button');
+                            pwdBtn.id = 'header-admin-pwd-btn';
+                            pwdBtn.className = 'header-pwd-btn';
+                            pwdBtn.type = 'button';
+                            pwdBtn.title = 'จัดการรหัสผ่านระบบ (Admin & Member)';
+                            pwdBtn.onclick = function() { if (typeof openAdminPwdModal === 'function') openAdminPwdModal(); };
+                            pwdBtn.innerHTML = '<span>🔑</span> <span>รหัสผ่าน</span>';
+                            flexGroup.appendChild(pwdBtn);
                         }
                     }
                 }
@@ -1383,6 +1458,9 @@ app.get('/api/v1/backup', (req, res) => {
 });
 
 // Settings page redirects (for standard Inertia links)
+app.get(['/admin', '/admin/passwords', '/admin/password', '/passwords'], (req, res) => {
+    return res.redirect('/?openPwdModal=1');
+});
 app.all(['/settings/appearance', '/settings/password', '/settings/profile'], (req, res) => {
     return respondInertiaOrRedirect(req, res, '/');
 });
