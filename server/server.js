@@ -5,6 +5,8 @@ const crypto = require('crypto');
 const db = require('./db');
 
 const app = express();
+const pkg = require('../package.json');
+const APP_VERSION = `v${pkg.version || '1.2.0'}`;
 const INERTIA_VERSION = '55c7f37e0516ec0f9ab5340e89e90c20';
 
 // Middlewares
@@ -551,7 +553,7 @@ function renderHtml(pageData, title = '#Kain7') {
                 background: transparent !important;
             }
         </style>
-        <title inertia>${title}</title>
+        <title inertia>${title} (${APP_VERSION})</title>
         <meta name="theme-color" content="#000000">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
@@ -571,6 +573,77 @@ function renderHtml(pageData, title = '#Kain7') {
             <div id="app" data-page="${jsonStr}"></div>
         </div>
         ${adminPasswordSnippet}
+        <!-- App Version Watermark & Header Badge -->
+        <style>
+            .app-version-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2px 7px;
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                border-radius: 5px;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size: 10px;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.65);
+                letter-spacing: 0.04em;
+                user-select: none;
+                backdrop-filter: blur(4px);
+                box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+                transition: all 0.2s ease;
+            }
+            .app-version-badge:hover {
+                color: #38bdf8;
+                border-color: rgba(56, 189, 248, 0.4);
+                background: rgba(56, 189, 248, 0.1);
+            }
+            #app-version-watermark {
+                position: fixed;
+                bottom: 8px;
+                right: 12px;
+                z-index: 88888;
+                pointer-events: auto;
+                opacity: 0.75;
+                transition: opacity 0.2s ease, transform 0.2s ease;
+            }
+            #app-version-watermark:hover {
+                opacity: 1;
+                transform: translateY(-1px);
+            }
+        </style>
+        <div id="app-version-watermark">
+            <span class="app-version-badge" title="Lineage 2 Boss Tracker ${APP_VERSION} (Firebase Cloud Active)">
+                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981;margin-right:2px;box-shadow:0 0 6px #10b981;"></span>
+                ${APP_VERSION}
+            </span>
+        </div>
+        <script>
+            (function setupVersionHeader() {
+                function attachToHeader() {
+                    if (document.getElementById('app-version-header')) return;
+                    const headerBar = document.querySelector('.drag-region, header, nav');
+                    if (headerBar) {
+                        const flexGroup = headerBar.querySelector('.flex.items-center') || headerBar.firstElementChild;
+                        if (flexGroup) {
+                            const vBadge = document.createElement('span');
+                            vBadge.id = 'app-version-header';
+                            vBadge.className = 'app-version-badge';
+                            vBadge.style.margin = '0 6px';
+                            vBadge.title = 'Lineage 2 Boss Tracker ${APP_VERSION}';
+                            vBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span> ${APP_VERSION}';
+                            flexGroup.appendChild(vBadge);
+                        }
+                    }
+                }
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', attachToHeader);
+                } else {
+                    attachToHeader();
+                }
+                setInterval(attachToHeader, 2000);
+            })();
+        </script>
     </body>
 </html>`;
 }
@@ -1261,19 +1334,19 @@ app.get('/api/v1/time-bosses', (req, res) => {
 
 // Gemini Status health check
 app.get('/api/gemini-status', (req, res) => {
-    res.json({ ok: true, status: 'online', version: '1.1.0', time: new Date().toISOString() });
+    res.json({ ok: true, status: 'online', version: APP_VERSION, time: new Date().toISOString() });
 });
 
 // Firebase Status health check
 app.get('/api/firebase-status', (req, res) => {
-    res.json({ ...db.getFirebaseStatus(), version: '1.1.0' });
+    res.json({ ...db.getFirebaseStatus(), version: APP_VERSION });
 });
 
 // Backup Download Endpoint (JSON file download)
 app.get('/api/v1/backup', (req, res) => {
     const store = db.getStore();
     const dateStr = new Date().toISOString().split('T')[0];
-    res.setHeader('Content-Disposition', `attachment; filename="boss-tracker-backup-v1.1.0-${dateStr}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="boss-tracker-backup-${APP_VERSION}-${dateStr}.json"`);
     res.setHeader('Content-Type', 'application/json');
     res.send(JSON.stringify(store, null, 2));
 });
@@ -1288,7 +1361,7 @@ function startServer(port = 3000) {
     const srv = http.createServer(app);
     srv.listen(port, () => {
         console.log(`================================================`);
-        console.log(`⚔️  Lineage 2 Exact Clone Server running on port ${port}`);
+        console.log(`⚔️  Lineage 2 Exact Clone Server (${APP_VERSION}) running on port ${port}`);
         console.log(`🌐 Local URL: http://localhost:${port}`);
         console.log(`🛡️  Admin user:  admin / @777999`);
         console.log(`👥 Member user: kain7 / password777999`);
