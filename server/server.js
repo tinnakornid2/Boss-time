@@ -70,9 +70,9 @@ app.use(async (req, res, next) => {
 });
 
 // Mount REST API
-app.use('/api/v1', requireSession, require('./routes/api'));
+app.use('/api/v1', require('./routes/api'));
 app.use('/api/auth', require('./routes/auth').router);
-app.use('/api/settings', requireSession, require('./routes/settings'));
+app.use('/api/settings', require('./routes/settings'));
 
 // Helper: Escape HTML for data-page attribute
 function escapeHtml(str) {
@@ -881,29 +881,6 @@ function isAuthenticated(req) {
     return sess.includes('authenticated_admin_session') || sess.includes('authenticated_member_session');
 }
 
-function requireSession(req, res, next) {
-    if (isAuthenticated(req)) return next();
-
-    const requestPath = req.originalUrl || req.url || req.path || '';
-    const expectsJson = Boolean(
-        requestPath.startsWith('/api/') ||
-        req.path === '/poll' ||
-        req.path === '/live-event' ||
-        (req.headers.accept && req.headers.accept.includes('application/json')) ||
-        req.headers['x-requested-with'] === 'XMLHttpRequest'
-    );
-
-    if (expectsJson) {
-        return res.status(401).json({
-            success: false,
-            message: 'Authentication required',
-            loginUrl: '/login'
-        });
-    }
-
-    return res.redirect(303, '/login');
-}
-
 function getSessionRole(req) {
     if (req.query && req.query.role === 'member') return 'member';
     if (req.query && req.query.role === 'admin') return 'admin';
@@ -953,13 +930,14 @@ function getDashboardProps(req) {
 // INERTIA PAGE ROUTES
 // ==========================================================
 
-// GET / or /dashboard -> Dashboard (login required for every user)
+// GET / or /dashboard -> Dashboard (Directly available to all clan members as 'member', or 'admin' if logged in)
 app.all(['/', '/dashboard'], async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
         return res.status(405).end();
     }
+    // If not yet authenticated, auto-assign member session so all clan visitors see the boss list immediately
     if (!isAuthenticated(req)) {
-        return res.redirect(303, '/login');
+        res.setHeader('Set-Cookie', 'boss_session=authenticated_member_session; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000');
     }
     await db.autoAdvanceOverdueBosses();
     sendInertia(req, res, 'dashboard', getDashboardProps(req), '/');
@@ -1072,10 +1050,6 @@ app.post('/logout', (req, res) => {
     }
     res.redirect(303, '/login');
 });
-
-// Everything below this point exposes live data or changes tracker state.
-// Require a logged-in member/admin session for all of it.
-app.use(requireSession);
 
 let forceReloadAt = null;
 
