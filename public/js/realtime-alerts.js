@@ -3,7 +3,7 @@
 
     const DB_URL = 'https://boss-timel2m-default-rtdb.asia-southeast1.firebasedatabase.app';
     const LIVE_URL = `${DB_URL}/tracker/liveEvent.json`;
-    const NOW_PIN_WINDOW_MS = 10 * 60 * 1000;
+    const NOW_PIN_WINDOW_MS = 5 * 60 * 1000;
     const SOUND_FILES = {
         alert: '/alert.mp3', bell: '/bell.mp3', flute: '/flute.mp3', guitar: '/guitar.mp3',
         warHorn: '/warHorn.mp3', levelUp: '/game.wav', ratedRSuperstar: '/rated-r.mp3',

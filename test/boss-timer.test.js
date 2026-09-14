@@ -8,11 +8,11 @@ test('unset boss never advances', () => {
     assert.equal(_test.calculateBossAutoAdvance({ next_spawn: null, interval: 60 }, Date.now()), null);
 });
 
-test('NOW remains for exactly ten minutes', () => {
+test('NOW remains for exactly five minutes', () => {
     const spawn = Date.parse('2026-09-14T00:00:00.000Z');
     const boss = { next_spawn: new Date(spawn).toISOString(), interval: 60, pinned_alive: false };
-    assert.equal(_test.calculateBossAutoAdvance(boss, spawn + 10 * minute - 1), null);
-    const result = _test.calculateBossAutoAdvance(boss, spawn + 10 * minute);
+    assert.equal(_test.calculateBossAutoAdvance(boss, spawn + 5 * minute - 1), null);
+    const result = _test.calculateBossAutoAdvance(boss, spawn + 5 * minute);
     assert.equal(result.last_kill_time, new Date(spawn).toISOString());
     assert.equal(result.next_spawn, new Date(spawn + 60 * minute).toISOString());
 });
