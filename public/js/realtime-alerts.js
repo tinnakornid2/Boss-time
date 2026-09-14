@@ -92,6 +92,7 @@
                 background: rgba(255,255,255,.07) !important;
                 color: rgba(255,255,255,.92) !important;
             }
+            #compact-system-controls .compact-system-control[hidden] { display: none !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="connected"] { color: #34d399 !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="offline"] { color: #f59e0b !important; }
             #compact-system-controls #pwd-pill-label { display: none !important; }

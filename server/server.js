@@ -489,7 +489,7 @@ function renderHtml(pageData, title = '#Kain7') {
     </style>
 
     <div id="admin-pwd-floating-bar" style="${isAdmin ? '' : 'display:none;'}">
-        <button type="button" id="header-password-control" class="pwd-trigger-pill" onclick="openAdminPwdModal()" title="Manage Passwords — จัดการรหัสผ่าน" aria-label="Manage Passwords — จัดการรหัสผ่าน">
+        <button type="button" id="header-password-control" class="pwd-trigger-pill" ${isAdmin ? '' : 'hidden'} onclick="openAdminPwdModal()" title="Manage Passwords — จัดการรหัสผ่าน" aria-label="Manage Passwords — จัดการรหัสผ่าน">
             <span aria-hidden="true">🔑</span>
             <span id="pwd-pill-label">Manage Passwords</span>
         </button>
