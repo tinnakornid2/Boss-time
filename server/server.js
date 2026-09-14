@@ -807,10 +807,10 @@ function renderHtml(pageData, title = '#Kain7') {
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
         <link rel="preload" as="style" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
-        <link rel="modulepreload" as="script" href="/build/assets/app-CTdHufbH.js?v=${APP_VERSION}" />
+        <link rel="modulepreload" as="script" href="/build/assets/app-CTdHufbH.js" />
         <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
         <script src="/js/realtime-alerts.js?v=${APP_VERSION}"></script>
-        <script type="module" src="/build/assets/app-CTdHufbH.js?v=${APP_VERSION}"></script>
+        <script type="module" src="/build/assets/app-CTdHufbH.js"></script>
     </head>
     <body class="font-sans antialiased">
         <div class="browser-shell">
