@@ -524,8 +524,8 @@
     ];
 
     const ICON_TOOLTIP_TRANSLATIONS = [
-        [/lucide-zap\b/, 'Kill Now — บันทึกเวลาตายเป็นเวลาปัจจุบัน'],
-        [/lucide-skull\b/, 'Record Kill Time — เปิดหน้าบันทึกเวลาตาย'],
+        [/lucide-zap\b/, 'Kill Now (2 Clicks) — บันทึกเวลาตายตอนนี้ (คลิก 2 ครั้ง)'],
+        [/lucide-skull\b/, 'Custom Kill Time — กำหนดเวลาตายเอง'],
         [/lucide-ellipsis(?:-vertical)?\b|lucide-more-vertical\b/, 'More Options — ตัวเลือกเพิ่มเติม'],
         [/lucide-search\b/, 'Search — ค้นหา'],
         [/lucide-settings\b|lucide-cog\b/, 'Settings — ตั้งค่า'],
@@ -545,8 +545,12 @@
 
     const TOOLTIP_TEXT = {
         'Search': 'Search — ค้นหา',
-        'Kill now (click 2x)': 'Kill Now — บันทึกเวลาตายเป็นเวลาปัจจุบัน',
-        'Click again to confirm kill now': 'Kill Now — บันทึกเวลาตายเป็นเวลาปัจจุบัน',
+        'Kill now (click 2x)': 'Kill Now (2 Clicks) — บันทึกเวลาตายตอนนี้ (คลิก 2 ครั้ง)',
+        'Click again to confirm kill now': 'Confirm Kill Now — คลิกครั้งที่ 2 เพื่อยืนยันเวลาตาย',
+        'Still alive (click 2x)': 'Still Alive (2 Clicks) — บอสยังไม่ตาย (คลิก 2 ครั้ง)',
+        'Spawn in 5 min (click 2x)': 'Spawn in 5 Minutes (2 Clicks) — บอสเกิดใน 5 นาที (คลิก 2 ครั้ง)',
+        'Spawn in 1 min (click 2x)': 'Spawn in 1 Minute (2 Clicks) — บอสเกิดใน 1 นาที (คลิก 2 ครั้ง)',
+        'Not spawned (click 2x)': 'Not Spawned (2 Clicks) — บอสยังไม่เกิด (คลิก 2 ครั้ง)',
         'Mark event done (click 2x)': 'Mark Event Done (2 Clicks) — กิจกรรมเสร็จแล้ว (กด 2 ครั้ง)',
         'Skip today (click 2x)': 'Skip Today (2 Clicks) — ข้ามกิจกรรมวันนี้ (กด 2 ครั้ง)',
         'Pin still alive (click 2x)': 'Pin Still Alive (2 Clicks) — ปักหมุดว่ายังไม่จบ (กด 2 ครั้ง)',
