@@ -10,7 +10,7 @@ let lastCloudSyncAt = 0;
 let cloudRefreshPromise = null;
 let autoAdvancePromise = null;
 
-const BOSS_NOW_WINDOW_MS = 60 * 1000;
+const BOSS_NOW_WINDOW_MS = 10 * 60 * 1000;
 
 function load() {
     if (!cache) {
@@ -48,7 +48,7 @@ function calculateBossAutoAdvance(boss, nowMs = Date.now()) {
     if (!Number.isFinite(firstSpawnMs) || !Number.isFinite(intervalMs) || intervalMs <= 0) return null;
     if (nowMs < firstSpawnMs + BOSS_NOW_WINDOW_MS) return null;
 
-    // Advance only cycles whose one-minute NOW window has completed. If the
+    // Advance only cycles whose ten-minute NOW window has completed. If the
     // app was closed, this catches up directly to the latest completed cycle.
     const completedCycles = Math.floor((nowMs - firstSpawnMs - BOSS_NOW_WINDOW_MS) / intervalMs) + 1;
     const latestSpawnMs = firstSpawnMs + (completedCycles - 1) * intervalMs;

@@ -14,8 +14,8 @@ Read this file completely before changing the project. This is a production boss
 
 1. A boss with no recorded kill/spawn time is `Unset` and does nothing.
 2. Once a time is recorded, the timer continues until Admin uses Unset or a reset action.
-3. At spawn time, the boss moves to the top and displays `NOW` for exactly one minute.
-4. If no new kill time is recorded during that minute, use the scheduled spawn as the latest kill time and calculate the next cycle automatically.
+3. At spawn time, the boss moves to the top and displays `NOW` for exactly ten minutes.
+4. If no new kill time is recorded during those ten minutes, use the scheduled spawn as the latest kill time and calculate the next cycle automatically.
 5. `Still alive` pins the boss at `NOW` indefinitely until Admin updates it.
 6. Do not read or write Firebase every second. One-second countdown rendering must be local and use the server clock offset.
 7. Every screen must derive time from the same server time and receive the same Firebase-backed state.
@@ -75,7 +75,7 @@ Before editing:
 Before production deployment:
 
 1. Run syntax checks for changed JavaScript files.
-2. Run `npm test`; the Unset, one-minute NOW, Still Alive, and catch-up tests must pass.
+2. Run `npm test`; the Unset, ten-minute NOW, Still Alive, and catch-up tests must pass.
 3. Review the staged file list and exclude `server/data/store.json` and secrets.
 4. Deploy through GitHub/Vercel and verify the production version, authentication boundary, Firebase readiness, browser console, and relevant user flow.
 5. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.10` unchanged as the primary recovery point.
@@ -83,7 +83,7 @@ Before production deployment:
 ## Files that define the system
 
 - `server/server.js`: authentication, roles, routes, dashboard data, cold-start handling.
-- `server/db.js`: cache, boss/event logic, one-minute NOW auto-advance, Firebase readiness.
+- `server/db.js`: cache, boss/event logic, ten-minute NOW auto-advance, Firebase readiness.
 - `server/firebase.js`: Firebase initialization and atomic revisioned writes.
 - `public/js/realtime-alerts.js`: client revision guard, clock offset, audio, realtime events, tooltips.
 - `test/boss-timer.test.js`: required timer behavior tests.
