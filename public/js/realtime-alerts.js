@@ -94,6 +94,7 @@
             }
             #compact-system-controls #header-firebase-status-badge[data-status="connected"] { color: #34d399 !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="offline"] { color: #f59e0b !important; }
+            #compact-system-controls #pwd-pill-label { display: none !important; }
             #admin-pwd-floating-bar, #top-floating-status-bar { display: none !important; }
         `;
         document.head.appendChild(style);
