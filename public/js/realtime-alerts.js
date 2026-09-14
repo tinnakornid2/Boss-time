@@ -547,6 +547,12 @@
         'Search': 'Search — ค้นหา',
         'Kill now (click 2x)': 'Kill Now — บันทึกเวลาตายเป็นเวลาปัจจุบัน',
         'Click again to confirm kill now': 'Kill Now — บันทึกเวลาตายเป็นเวลาปัจจุบัน',
+        'Mark event done (click 2x)': 'Mark Event Done (2 Clicks) — กิจกรรมเสร็จแล้ว (กด 2 ครั้ง)',
+        'Skip today (click 2x)': 'Skip Today (2 Clicks) — ข้ามกิจกรรมวันนี้ (กด 2 ครั้ง)',
+        'Pin still alive (click 2x)': 'Pin Still Alive (2 Clicks) — ปักหมุดว่ายังไม่จบ (กด 2 ครั้ง)',
+        'Click again to confirm': 'Confirm with Second Click — กดครั้งที่ 2 เพื่อยืนยัน',
+        'Double-click to mark as pre-spawned': 'Double-click Boss Name — ดับเบิลคลิกชื่อบอสเพื่อแจ้งเตือนสมาชิก',
+        'Double-click to clear pre-spawned': 'Double-click Boss Name — ดับเบิลคลิกชื่อบอสเพื่อยกเลิกการแจ้งเตือน',
         'Show muted': 'Show Muted — แสดงรายการปิดเสียง',
         'Hide muted': 'Hide Muted — ซ่อนรายการปิดเสียง',
         'Settings': 'Settings — ตั้งค่า',
@@ -610,7 +616,7 @@
 
     function enhanceUi() {
         for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
-        for (const element of document.querySelectorAll('button, [role="button"], a')) {
+        for (const element of document.querySelectorAll('button, [role="button"], a, [title]')) {
             const source = element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent || '';
             const translated = bilingualTooltip(source) || tooltipFromIcon(element);
             if (translated) {
