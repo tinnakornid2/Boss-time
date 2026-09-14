@@ -4,7 +4,7 @@ Read this file completely before changing the project. This is a production boss
 
 ## Stable recovery point
 
-- Stable release: `stable-v1.3.10`
+- Stable release: `stable-v1.3.11`
 - Stable commit is recorded by the annotated Git tag on GitHub.
 - Production URL: `https://boss-time-eloni.vercel.app/`
 - Firebase RTDB project: `boss-timel2m`
@@ -78,7 +78,7 @@ Before production deployment:
 2. Run `npm test`; the Unset, ten-minute NOW, Still Alive, and catch-up tests must pass.
 3. Review the staged file list and exclude `server/data/store.json` and secrets.
 4. Deploy through GitHub/Vercel and verify the production version, authentication boundary, Firebase readiness, browser console, and relevant user flow.
-5. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.10` unchanged as the primary recovery point.
+5. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.11` unchanged as the primary recovery point.
 
 ## Files that define the system
 
