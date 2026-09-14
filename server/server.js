@@ -488,10 +488,10 @@ function renderHtml(pageData, title = '#Kain7') {
         }
     </style>
 
-    <div id="admin-pwd-floating-bar">
-        <button type="button" class="pwd-trigger-pill" onclick="openAdminPwdModal()" title="จัดการรหัสผ่านระบบ (Admin & Member)">
-            <span style="font-size:13px;">🔑</span>
-            <span id="pwd-pill-label">${isAdmin ? '🛡️ จัดการรหัสผ่าน (Admin)' : '🔑 จัดการรหัสผ่าน (Admin/Member)'}</span>
+    <div id="admin-pwd-floating-bar" style="${isAdmin ? '' : 'display:none;'}">
+        <button type="button" id="header-password-control" class="pwd-trigger-pill" onclick="openAdminPwdModal()" title="Manage Passwords — จัดการรหัสผ่าน" aria-label="Manage Passwords — จัดการรหัสผ่าน">
+            <span aria-hidden="true">🔑</span>
+            <span id="pwd-pill-label">Manage Passwords</span>
         </button>
     </div>
 
@@ -821,10 +821,8 @@ function renderHtml(pageData, title = '#Kain7') {
         <style>
             #top-floating-status-bar {
                 position: fixed;
-                top: auto;
-                right: auto;
-                bottom: 8px;
-                left: 12px;
+                top: -9999px;
+                left: -9999px;
                 z-index: 999999;
                 display: flex;
                 align-items: center;
@@ -833,22 +831,6 @@ function renderHtml(pageData, title = '#Kain7') {
                 backdrop-filter: blur(8px);
                 -webkit-backdrop-filter: blur(8px);
                 transition: transform 0.2s ease;
-            }
-            #top-floating-status-bar:hover {
-                transform: translateY(-1px);
-            }
-            @media (max-width: 640px) {
-                #top-floating-status-bar {
-                    bottom: 6px;
-                    left: 6px;
-                    gap: 4px;
-                }
-                .app-version-badge,
-                .firebase-mini-badge {
-                    padding: 2px 6px;
-                    font-size: 9px;
-                    opacity: 0.82;
-                }
             }
             .app-version-badge {
                 display: inline-flex;
@@ -900,13 +882,11 @@ function renderHtml(pageData, title = '#Kain7') {
             }
         </style>
         <div id="top-floating-status-bar">
-            <span id="header-firebase-status-badge" class="firebase-mini-badge" title="Firebase Cloud: Connecting... (Click for info)">
-                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#f59e0b;box-shadow:0 0 5px #f59e0b;"></span>
-                <span>☁️ Firebase</span>
+            <span id="header-firebase-status-badge" class="firebase-mini-badge" title="Firebase Connecting — กำลังเชื่อมต่อ Firebase" aria-label="Firebase Connecting — กำลังเชื่อมต่อ Firebase">
+                <span aria-hidden="true">☁️</span>
             </span>
-            <span class="app-version-badge" title="Lineage 2 Boss Tracker ${APP_VERSION}">
-                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span>
-                ${APP_VERSION}
+            <span id="header-version-control" class="app-version-badge" title="Version ${APP_VERSION} — เวอร์ชัน ${APP_VERSION}" aria-label="Version ${APP_VERSION} — เวอร์ชัน ${APP_VERSION}">
+                <span aria-hidden="true">ⓥ</span>
             </span>
         </div>
         <script>
@@ -918,11 +898,15 @@ function renderHtml(pageData, title = '#Kain7') {
                         .then(r => r.json())
                         .then(st => {
                             if (st.connected) {
-                                fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px #10b981;"></span> <span>☁️ Firebase</span>';
-                                fbBadge.title = 'Firebase Cloud: Connected & Synced (Click for info)';
+                                fbBadge.innerHTML = '<span aria-hidden="true">☁️</span>';
+                                fbBadge.title = 'Firebase Connected — เชื่อมต่อ Firebase แล้ว';
+                                fbBadge.setAttribute('aria-label', fbBadge.title);
+                                fbBadge.dataset.status = 'connected';
                             } else {
-                                fbBadge.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;box-shadow:0 0 5px #f59e0b;"></span> <span>☁️ Offline</span>';
-                                fbBadge.title = 'Firebase Cloud: Offline (Local Mode) - Click for info';
+                                fbBadge.innerHTML = '<span aria-hidden="true">☁️</span>';
+                                fbBadge.title = 'Firebase Offline — Firebase ออฟไลน์';
+                                fbBadge.setAttribute('aria-label', fbBadge.title);
+                                fbBadge.dataset.status = 'offline';
                             }
                         }).catch(() => {});
                 }

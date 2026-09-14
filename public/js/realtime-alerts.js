@@ -56,13 +56,54 @@
                 50% { background-color: rgba(239, 68, 68, .48); box-shadow: inset 0 0 0 2px #f87171, 0 0 18px rgba(239, 68, 68, .7); }
             }
             .realtime-pre-spawn-flash { animation: realtimeBossPulse .8s ease-in-out infinite !important; }
+            #compact-system-controls {
+                display: inline-flex;
+                align-items: center;
+                gap: 1px;
+                min-width: 0;
+                margin-left: 2px;
+                padding-left: 3px;
+                border-left: 1px solid rgba(255,255,255,.08);
+            }
+            #compact-system-controls .compact-system-control {
+                position: relative !important;
+                inset: auto !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 20px !important;
+                height: 20px !important;
+                min-width: 20px !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                border-radius: 5px !important;
+                background: transparent !important;
+                color: rgba(255,255,255,.55) !important;
+                box-shadow: none !important;
+                animation: none !important;
+                backdrop-filter: none !important;
+                font: 11px/1 system-ui !important;
+                cursor: pointer;
+                opacity: 1 !important;
+                transform: none !important;
+            }
+            #compact-system-controls .compact-system-control:hover {
+                background: rgba(255,255,255,.07) !important;
+                color: rgba(255,255,255,.92) !important;
+            }
+            #compact-system-controls #header-firebase-status-badge[data-status="connected"] { color: #34d399 !important; }
+            #compact-system-controls #header-firebase-status-badge[data-status="offline"] { color: #f59e0b !important; }
+            #admin-pwd-floating-bar, #top-floating-status-bar { display: none !important; }
         `;
         document.head.appendChild(style);
         const button = document.createElement('button');
         button.id = 'realtime-audio-status';
         button.type = 'button';
-        button.textContent = '🔇 กดเปิดเสียงแจ้งเตือน';
-        button.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:100000;padding:8px 12px;border:1px solid #f59e0b;border-radius:999px;background:#18181b;color:#fff;font:600 12px system-ui;box-shadow:0 4px 18px #0008;cursor:pointer';
+        button.textContent = '🔇';
+        button.title = 'Enable Audio — เปิดเสียงแจ้งเตือน';
+        button.setAttribute('aria-label', button.title);
+        button.className = 'compact-system-control';
         button.addEventListener('click', unlockAudio);
         document.body.appendChild(button);
         updateStatus();
@@ -71,15 +112,48 @@
     function updateStatus(message) {
         const button = document.getElementById('realtime-audio-status');
         if (!button) return;
-        if (message) button.textContent = message;
+        if (message) {
+            button.textContent = '⚠️';
+            button.title = message;
+            button.setAttribute('aria-label', message);
+        }
         else if (state.audioUnlocked) {
-            button.textContent = state.streamConnected
-                ? '🔊 Realtime — เชื่อมต่อแล้ว'
+            button.textContent = state.streamConnected ? '🔊' : state.streamFailed ? '📡' : '🔉';
+            button.title = state.streamConnected
+                ? 'Realtime Audio — เสียงเรียลไทม์เชื่อมต่อแล้ว'
                 : state.streamFailed
-                    ? '🔊 Polling — เชื่อมต่อสำรอง'
-                    : '🔊 Connecting — กำลังเชื่อมต่อ';
+                    ? 'Polling Audio — เสียงเชื่อมต่อสำรอง'
+                    : 'Audio Connecting — กำลังเชื่อมต่อเสียง';
+            button.setAttribute('aria-label', button.title);
             button.style.borderColor = state.streamConnected ? '#22c55e' : '#f59e0b';
         }
+    }
+
+    function mountCompactHeaderControls() {
+        const header = document.querySelector('[data-tauri-drag-region]');
+        const leftControls = header?.firstElementChild;
+        if (!leftControls) return false;
+
+        let controls = document.getElementById('compact-system-controls');
+        if (!controls) {
+            controls = document.createElement('div');
+            controls.id = 'compact-system-controls';
+            controls.className = 'no-drag';
+            leftControls.appendChild(controls);
+        } else if (controls.parentElement !== leftControls) {
+            leftControls.appendChild(controls);
+        }
+
+        const password = document.getElementById('header-password-control');
+        const firebase = document.getElementById('header-firebase-status-badge');
+        const version = document.getElementById('header-version-control');
+        const audio = document.getElementById('realtime-audio-status');
+        for (const element of [password, firebase, version, audio]) {
+            if (!element) continue;
+            element.classList.add('compact-system-control', 'no-drag');
+            if (element.parentElement !== controls) controls.appendChild(element);
+        }
+        return true;
     }
 
     async function unlockAudio() {
@@ -389,6 +463,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         readInitialData();
         ensureStatusButton();
+        mountCompactHeaderControls();
         enhanceUi();
         reconcileBossRows();
         state.audioUnlocked = localStorage.getItem('dashboard.audioUnlocked') === 'true';
@@ -410,6 +485,7 @@
             requestAnimationFrame(() => {
                 uiRefreshPending = false;
                 enhanceUi();
+                mountCompactHeaderControls();
                 reconcileBossRows();
             });
         }).observe(document.body, { childList: true, subtree: true });
