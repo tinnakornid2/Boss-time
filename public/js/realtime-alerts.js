@@ -62,7 +62,7 @@
                 align-items: center;
                 gap: 3px;
                 min-width: 0;
-                max-width: min(100%, 280px);
+                max-width: min(100%, 330px);
                 margin-left: 2px;
                 padding-left: 3px;
                 border-left: 1px solid rgba(255,255,255,.08);
@@ -98,7 +98,8 @@
             }
             #compact-system-controls .compact-system-control[hidden] { display: none !important; }
             #compact-system-controls #header-firebase-status-badge,
-            #compact-system-controls #header-version-control {
+            #compact-system-controls #header-version-control,
+            #compact-system-controls #header-timezone-control {
                 width: auto !important;
                 min-width: 0 !important;
                 max-width: 112px !important;
@@ -113,7 +114,8 @@
                 flex: 0 1 auto;
             }
             #compact-system-controls #header-firebase-status-badge .system-badge-label,
-            #compact-system-controls #header-version-control .system-badge-label {
+            #compact-system-controls #header-version-control .system-badge-label,
+            #compact-system-controls #header-timezone-control .system-badge-label {
                 display: block;
                 min-width: 0;
                 overflow: hidden;
@@ -121,13 +123,15 @@
             }
             #compact-system-controls #header-firebase-status-badge[data-status="connected"] { color: #34d399 !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="offline"] { color: #f59e0b !important; }
+            #compact-system-controls #header-timezone-control { color: #fbbf24 !important; max-width: 58px !important; }
             #compact-system-controls #pwd-pill-label { display: none !important; }
             #admin-pwd-floating-bar, #top-floating-status-bar { display: none !important; }
             @media (max-width: 430px) {
-                #compact-system-controls { gap: 2px; max-width: 190px; }
+                #compact-system-controls { gap: 2px; max-width: 240px; }
                 #compact-system-controls #header-firebase-status-badge,
-                #compact-system-controls #header-version-control { padding-inline: 4px !important; font-size: 8px !important; }
-                #compact-system-controls #header-firebase-status-badge { max-width: 88px !important; }
+                #compact-system-controls #header-version-control,
+                #compact-system-controls #header-timezone-control { padding-inline: 4px !important; font-size: 8px !important; }
+                #compact-system-controls #header-firebase-status-badge { max-width: 72px !important; }
             }
         `;
         document.head.appendChild(style);
@@ -140,7 +144,67 @@
         button.className = 'compact-system-control';
         button.addEventListener('click', unlockAudio);
         document.body.appendChild(button);
+        ensureTimezoneButton();
         updateStatus();
+    }
+
+    function selectedTimezoneOffset() {
+        return localStorage.getItem('dashboard.timeZoneOffset') === '8' ? 8 : 7;
+    }
+
+    function ensureTimezoneButton() {
+        if (document.getElementById('header-timezone-control')) return;
+        const button = document.createElement('button');
+        button.id = 'header-timezone-control';
+        button.type = 'button';
+        button.className = 'compact-system-control no-drag';
+        button.addEventListener('click', () => {
+            const next = selectedTimezoneOffset() === 7 ? 8 : 7;
+            localStorage.setItem('dashboard.timeZoneOffset', String(next));
+            updateTimezoneButton();
+            applyTimezoneDisplay(true);
+            showNotice(`🕐 Time Zone GMT+${next} — เปลี่ยนเขตเวลาเป็น GMT+${next}`, false);
+        });
+        document.body.appendChild(button);
+        updateTimezoneButton();
+    }
+
+    function updateTimezoneButton() {
+        const button = document.getElementById('header-timezone-control');
+        if (!button) return;
+        const offset = selectedTimezoneOffset();
+        button.innerHTML = `<span aria-hidden="true">🕐</span><span class="system-badge-label">GMT+${offset}</span>`;
+        button.title = `Time Zone GMT+${offset} — เขตเวลา GMT+${offset} (กดเพื่อสลับ)`;
+        button.setAttribute('aria-label', button.title);
+    }
+
+    function shiftClockText(text, deltaMinutes) {
+        return String(text).replace(/\b([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\b/g, (match, hour, minute, second) => {
+            const totalMinutes = (Number(hour) * 60 + Number(minute) + deltaMinutes + 1440) % 1440;
+            const shiftedHour = Math.floor(totalMinutes / 60);
+            const shiftedMinute = totalMinutes % 60;
+            return `${String(shiftedHour).padStart(2, '0')}:${String(shiftedMinute).padStart(2, '0')}${second === undefined ? '' : `:${second}`}`;
+        });
+    }
+
+    function applyTimezoneDisplay(force) {
+        const browserOffset = -new Date().getTimezoneOffset() / 60;
+        const deltaMinutes = Math.round((selectedTimezoneOffset() - browserOffset) * 60);
+        for (const element of document.querySelectorAll('span, time, td, p, div')) {
+            if (element.childElementCount || element.closest('#compact-system-controls, [role="tooltip"]')) continue;
+            const current = element.textContent || '';
+            if (!/\b(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?\b/.test(current)) continue;
+            const previousRendered = element.dataset.timezoneRenderedText;
+            const source = previousRendered && current === previousRendered
+                ? (element.dataset.timezoneSourceText || current)
+                : current;
+            if (!force && previousRendered === current && element.dataset.timezoneOffset === String(selectedTimezoneOffset())) continue;
+            const rendered = shiftClockText(source, deltaMinutes);
+            element.dataset.timezoneSourceText = source;
+            element.dataset.timezoneRenderedText = rendered;
+            element.dataset.timezoneOffset = String(selectedTimezoneOffset());
+            if (rendered !== current) element.textContent = rendered;
+        }
     }
 
     function updateStatus(message) {
@@ -181,8 +245,9 @@
         const password = document.getElementById('header-password-control');
         const firebase = document.getElementById('header-firebase-status-badge');
         const version = document.getElementById('header-version-control');
+        const timezone = document.getElementById('header-timezone-control');
         const audio = document.getElementById('realtime-audio-status');
-        for (const element of [password, firebase, version, audio]) {
+        for (const element of [password, firebase, version, timezone, audio]) {
             if (!element) continue;
             element.classList.add('compact-system-control', 'no-drag');
             if (element.parentElement !== controls) controls.appendChild(element);
@@ -556,6 +621,7 @@
         mountCompactHeaderControls();
         enhanceUi();
         reconcileBossRows();
+        applyTimezoneDisplay(false);
         state.audioUnlocked = localStorage.getItem('dashboard.audioUnlocked') === 'true';
         updateStatus();
         const unlockOnFirstInteraction = () => unlockAudio();
@@ -577,7 +643,8 @@
                 enhanceUi();
                 mountCompactHeaderControls();
                 reconcileBossRows();
+                applyTimezoneDisplay(false);
             });
-        }).observe(document.body, { childList: true, subtree: true });
+        }).observe(document.body, { childList: true, characterData: true, subtree: true });
     });
 })();
