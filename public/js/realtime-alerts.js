@@ -513,6 +513,26 @@
         [/volume|audio|sound/i, 'Audio Settings — ตั้งค่าเสียง']
     ];
 
+    const ICON_TOOLTIP_TRANSLATIONS = [
+        [/lucide-zap\b/, 'Notify Members — แจ้งเตือนสมาชิก'],
+        [/lucide-skull\b/, 'Still Alive — บอสยังไม่ตาย'],
+        [/lucide-ellipsis(?:-vertical)?\b|lucide-more-vertical\b/, 'More Options — ตัวเลือกเพิ่มเติม'],
+        [/lucide-search\b/, 'Search — ค้นหา'],
+        [/lucide-settings\b|lucide-cog\b/, 'Settings — ตั้งค่า'],
+        [/lucide-pencil\b|lucide-edit\b/, 'Edit — แก้ไข'],
+        [/lucide-trash(?:-2)?\b/, 'Delete — ลบ'],
+        [/lucide-pin-off\b/, 'Unpin — ยกเลิกปักหมุด'],
+        [/lucide-pin\b/, 'Pin — ปักหมุด'],
+        [/lucide-bell-off\b|lucide-volume-x\b/, 'Unmute Alert — เปิดเสียงแจ้งเตือน'],
+        [/lucide-bell\b|lucide-volume-2\b/, 'Mute Alert — ปิดเสียงแจ้งเตือน'],
+        [/lucide-clock\b/, 'Update Time — อัปเดตเวลา'],
+        [/lucide-rotate-ccw\b|lucide-refresh-ccw\b/, 'Reset Time — รีเซ็ตเวลา'],
+        [/lucide-chevrons-right\b|lucide-skip-forward\b/, 'Advance Cycle — ข้ามรอบ'],
+        [/lucide-check\b/, 'Confirm — ยืนยัน'],
+        [/lucide-x\b/, 'Close — ปิด'],
+        [/lucide-key-round\b|lucide-key\b/, 'Manage Passwords — จัดการรหัสผ่าน']
+    ];
+
     const TOOLTIP_TEXT = {
         'Search': 'Search — ค้นหา',
         'Show muted': 'Show Muted — แสดงรายการปิดเสียง',
@@ -557,11 +577,19 @@
         return match ? match[1] : '';
     }
 
+    function tooltipFromIcon(element) {
+        const svg = element.querySelector('svg');
+        if (!svg) return '';
+        const className = typeof svg.className === 'string' ? svg.className : (svg.className?.baseVal || '');
+        const match = ICON_TOOLTIP_TRANSLATIONS.find(([pattern]) => pattern.test(className));
+        return match ? match[1] : '';
+    }
+
     function translateVisibleTooltips() {
         for (const element of document.querySelectorAll('[role="tooltip"], [role="tooltip"] *')) {
             if (element.children.length > 0) continue;
             const original = (element.textContent || '').trim();
-            const direct = TOOLTIP_TEXT[original];
+            const direct = bilingualTooltip(original);
             const updateSpawn = original.startsWith('Update spawn —') ? 'Update Spawn — อัปเดตเวลาเกิด' : null;
             const translated = direct || updateSpawn;
             if (translated && original !== translated) element.textContent = translated;
@@ -572,7 +600,7 @@
         for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
         for (const element of document.querySelectorAll('button, [role="button"], a')) {
             const source = element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent || '';
-            const translated = bilingualTooltip(source);
+            const translated = bilingualTooltip(source) || tooltipFromIcon(element);
             if (translated) {
                 element.setAttribute('title', translated);
                 element.setAttribute('aria-label', translated);
