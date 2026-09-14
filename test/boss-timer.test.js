@@ -15,6 +15,9 @@ test('NOW remains for exactly five minutes', () => {
     const result = _test.calculateBossAutoAdvance(boss, spawn + 5 * minute);
     assert.equal(result.last_kill_time, new Date(spawn).toISOString());
     assert.equal(result.next_spawn, new Date(spawn + 60 * minute).toISOString());
+    assert.equal(result.pre_spawned, false);
+    assert.equal(result.pre_spawn_expires_at, null);
+    assert.equal(result.alerted_by, null);
 });
 
 test('Still alive remains NOW indefinitely', () => {
@@ -29,4 +32,6 @@ test('closed app catches up to the latest completed cycle', () => {
     const result = _test.calculateBossAutoAdvance(boss, spawn + 125 * minute);
     assert.equal(result.last_kill_time, new Date(spawn + 120 * minute).toISOString());
     assert.equal(result.next_spawn, new Date(spawn + 180 * minute).toISOString());
+    assert.equal(result.pre_spawned, false);
+    assert.equal(result.pre_spawn_expires_at, null);
 });

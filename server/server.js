@@ -1233,7 +1233,7 @@ function getPreSpawnAlertUpdates(boss, role, now = Date.now()) {
     const expiry = new Date(boss.pre_spawn_expires_at || 0).getTime();
     const isActive = boss.pre_spawned && (!Number.isFinite(expiry) || expiry <= 0 || expiry > now);
     if (isActive) {
-        return { pre_spawned: false, pre_spawn_expires_at: null };
+        return { pre_spawned: false, pre_spawn_expires_at: null, alerted_by: null };
     }
     return {
         pre_spawned: true,
@@ -1241,6 +1241,12 @@ function getPreSpawnAlertUpdates(boss, role, now = Date.now()) {
         pinned_alive: false,
         alerted_by: role
     };
+}
+
+function clearPreSpawnAlert(updates) {
+    updates.pre_spawned = false;
+    updates.pre_spawn_expires_at = null;
+    updates.alerted_by = null;
 }
 
 // Double-click alert: toggle on/off, with automatic expiry after five minutes.
@@ -1308,7 +1314,7 @@ app.put('/bosses/:id', requireAdmin, async (req, res) => {
             updates.pinned_alive = false;
             updates.auto_advanced = false;
             updates.post_maintenance = false;
-            updates.pre_spawned = false;
+            clearPreSpawnAlert(updates);
         } else {
             const killDate = new Date(body.last_kill_time);
             if (!isNaN(killDate.getTime())) {
@@ -1332,7 +1338,7 @@ app.put('/bosses/:id', requireAdmin, async (req, res) => {
                 updates.pinned_alive = false;
                 updates.auto_advanced = autoAdvanced;
                 updates.post_maintenance = false;
-                updates.pre_spawned = false;
+                clearPreSpawnAlert(updates);
             }
         }
     } else if (body.not_spawned) {
@@ -1346,10 +1352,10 @@ app.put('/bosses/:id', requireAdmin, async (req, res) => {
         updates.last_kill_time = new Date(advanced.getTime() - intervalMinutes * 60000).toISOString();
         updates.auto_advanced = true;
         updates.pinned_alive = false;
-        updates.pre_spawned = false;
+        clearPreSpawnAlert(updates);
     } else if (body.still_alive) {
         updates.pinned_alive = !boss.pinned_alive;
-        if (updates.pinned_alive) updates.pre_spawned = false;
+        if (updates.pinned_alive) clearPreSpawnAlert(updates);
     } else if (body.toggle_pre_spawned) {
         Object.assign(updates, getPreSpawnAlertUpdates(boss, getSessionRole(req)));
     } else if (body.toggle_maintenance) {
@@ -1361,14 +1367,14 @@ app.put('/bosses/:id', requireAdmin, async (req, res) => {
         updates.last_kill_time = new Date(spawnDate.getTime() - (boss.interval || 60) * 60000).toISOString();
         updates.pinned_alive = false;
         updates.auto_advanced = false;
-        updates.pre_spawned = false;
+        clearPreSpawnAlert(updates);
     } else if (body.unset_kill_time) {
         updates.last_kill_time = null;
         updates.next_spawn = null;
         updates.pinned_alive = false;
         updates.auto_advanced = false;
         updates.post_maintenance = false;
-        updates.pre_spawned = false;
+        clearPreSpawnAlert(updates);
     } else if (body.name !== undefined) {
         updates.name = body.name;
         if (body.location !== undefined) updates.location = body.location;
@@ -1383,6 +1389,7 @@ app.put('/bosses/:id', requireAdmin, async (req, res) => {
                 const killDate = new Date(boss.last_kill_time);
                 if (!isNaN(killDate.getTime())) {
                     updates.next_spawn = new Date(killDate.getTime() + updates.interval * 60000).toISOString();
+                    clearPreSpawnAlert(updates);
                 }
             }
         }
@@ -1428,7 +1435,9 @@ app.post('/bosses/reset-invasion-kill-times', requireAdmin, async (req, res) => 
                 pinned_alive: false,
                 auto_advanced: false,
                 post_maintenance: false,
-                pre_spawned: false
+                pre_spawned: false,
+                pre_spawn_expires_at: null,
+                alerted_by: null
             };
         }
         return null;
@@ -1484,7 +1493,9 @@ app.post('/bosses/apply-reset-boss-time', requireAdmin, async (req, res) => {
                     post_maintenance: true,
                     pinned_alive: false,
                     auto_advanced: false,
-                    pre_spawned: false
+                    pre_spawned: false,
+                    pre_spawn_expires_at: null,
+                    alerted_by: null
                 };
             }
             return null;
@@ -1557,7 +1568,9 @@ app.post('/bosses/reset-maintenance-kill-times', requireAdmin, async (req, res) 
                 post_maintenance: false,
                 pinned_alive: false,
                 auto_advanced: false,
-                pre_spawned: false
+                pre_spawned: false,
+                pre_spawn_expires_at: null,
+                alerted_by: null
             };
         }
         return null;

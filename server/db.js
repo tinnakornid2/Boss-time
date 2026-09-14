@@ -59,6 +59,8 @@ function calculateBossAutoAdvance(boss, nowMs = Date.now()) {
         next_spawn: new Date(nextSpawnMs).toISOString(),
         auto_advanced: true,
         pre_spawned: false,
+        pre_spawn_expires_at: null,
+        alerted_by: null,
         updated_at: new Date(nowMs).toISOString()
     };
 }
@@ -336,7 +338,7 @@ module.exports = {
             if (!boss.pre_spawned || !boss.pre_spawn_expires_at) return null;
             const expiry = new Date(boss.pre_spawn_expires_at).getTime();
             if (!Number.isFinite(expiry) || expiry > nowMs) return null;
-            return { pre_spawned: false, pre_spawn_expires_at: null };
+            return { pre_spawned: false, pre_spawn_expires_at: null, alerted_by: null };
         });
     },
 
@@ -361,6 +363,8 @@ module.exports = {
             post_maintenance: false,
             pinned_alive: false,
             pre_spawned: false,
+            pre_spawn_expires_at: null,
+            alerted_by: null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
