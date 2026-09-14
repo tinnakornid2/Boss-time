@@ -524,8 +524,8 @@
     ];
 
     const ICON_TOOLTIP_TRANSLATIONS = [
-        [/lucide-zap\b/, 'Notify Members — แจ้งเตือนสมาชิก'],
-        [/lucide-skull\b/, 'Still Alive — บอสยังไม่ตาย'],
+        [/lucide-zap\b/, 'Kill Now — บันทึกเวลาตายเป็นเวลาปัจจุบัน'],
+        [/lucide-skull\b/, 'Record Kill Time — เปิดหน้าบันทึกเวลาตาย'],
         [/lucide-ellipsis(?:-vertical)?\b|lucide-more-vertical\b/, 'More Options — ตัวเลือกเพิ่มเติม'],
         [/lucide-search\b/, 'Search — ค้นหา'],
         [/lucide-settings\b|lucide-cog\b/, 'Settings — ตั้งค่า'],
@@ -545,6 +545,8 @@
 
     const TOOLTIP_TEXT = {
         'Search': 'Search — ค้นหา',
+        'Kill now (click 2x)': 'Kill Now — บันทึกเวลาตายเป็นเวลาปัจจุบัน',
+        'Click again to confirm kill now': 'Kill Now — บันทึกเวลาตายเป็นเวลาปัจจุบัน',
         'Show muted': 'Show Muted — แสดงรายการปิดเสียง',
         'Hide muted': 'Hide Muted — ซ่อนรายการปิดเสียง',
         'Settings': 'Settings — ตั้งค่า',
