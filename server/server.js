@@ -821,8 +821,10 @@ function renderHtml(pageData, title = '#Kain7') {
         <style>
             #top-floating-status-bar {
                 position: fixed;
-                top: 8px;
-                right: 12px;
+                top: auto;
+                right: auto;
+                bottom: 8px;
+                left: 12px;
                 z-index: 999999;
                 display: flex;
                 align-items: center;
@@ -834,6 +836,19 @@ function renderHtml(pageData, title = '#Kain7') {
             }
             #top-floating-status-bar:hover {
                 transform: translateY(-1px);
+            }
+            @media (max-width: 640px) {
+                #top-floating-status-bar {
+                    bottom: 6px;
+                    left: 6px;
+                    gap: 4px;
+                }
+                .app-version-badge,
+                .firebase-mini-badge {
+                    padding: 2px 6px;
+                    font-size: 9px;
+                    opacity: 0.82;
+                }
             }
             .app-version-badge {
                 display: inline-flex;
