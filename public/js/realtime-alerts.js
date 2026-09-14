@@ -123,7 +123,17 @@
             }
             #compact-system-controls #header-firebase-status-badge[data-status="connected"] { color: #34d399 !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="offline"] { color: #f59e0b !important; }
-            #compact-system-controls #header-timezone-control { color: #fbbf24 !important; max-width: 58px !important; }
+            #compact-system-controls #header-timezone-control {
+                width: 58px !important;
+                min-width: 58px !important;
+                max-width: 58px !important;
+                flex: 0 0 58px !important;
+                color: #fbbf24 !important;
+            }
+            #compact-system-controls #header-timezone-control .system-badge-label {
+                overflow: visible;
+                text-overflow: clip;
+            }
             #compact-system-controls #pwd-pill-label { display: none !important; }
             #admin-pwd-floating-bar, #top-floating-status-bar { display: none !important; }
             @media (max-width: 430px) {
