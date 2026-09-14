@@ -34,9 +34,10 @@ Read this file completely before changing the project. This is a production boss
 ## Roles and settings
 
 - Admin: may update/unset/reset boss times, maintain bosses/events, and send double-click member alerts.
-- Member: view-only. Member must not mutate boss/event data and must not send double-click alerts.
+- Member: view-only for shared boss/event data and shared alerts. Member must not mutate boss/event data and must not send double-click alerts.
+- Member may freely increase/decrease volume, mute/unmute, choose alert sounds, and change all Display/Audio preferences on their own device.
 - Enforce permissions on server routes with `requireAdmin`; hiding a button is not security.
-- Display and Audio settings are local per browser/device. Do not sync these preferences into shared Firebase settings.
+- Display and Audio settings are local per browser/device and must remain available to both Admin and Member. Do not sync these preferences into shared Firebase settings.
 - Shared settings are limited to data that is intentionally global, such as announcements and server-wide labels.
 
 ## Audio and alert behavior
