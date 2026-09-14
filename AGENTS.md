@@ -44,6 +44,7 @@ Read this file completely before changing the project. This is a production boss
 
 - Browsers require a user interaction before audio can play. Preserve the audio-unlock control and first-interaction handling.
 - Alert before spawn, spawn sound, double-click alert, flash, and message must be driven from the same boss/event update.
+- Admin double-clicking a boss name toggles the shared pre-spawn alert. When enabled, it flashes for at most five minutes; double-clicking again clears it immediately, and reloading must not replay the same alert sound.
 - Keep sound queuing and event deduplication so rapid updates do not lose or duplicate sounds.
 - A Member can receive alerts but cannot initiate shared alerts.
 

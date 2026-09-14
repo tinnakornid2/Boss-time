@@ -9,6 +9,7 @@ const pkg = require('../package.json');
 const APP_VERSION = `v${pkg.version || '1.2.0'}`;
 const INERTIA_VERSION = '55c7f37e0516ec0f9ab5340e89e90c20';
 const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+const PRE_SPAWN_ALERT_WINDOW_MS = 5 * 60 * 1000;
 const loginAttempts = new Map();
 
 function limitLogin(req, res, next) {
@@ -810,7 +811,7 @@ function renderHtml(pageData, title = '#Kain7') {
         <link rel="modulepreload" as="script" href="/build/assets/app-CTdHufbH.js" />
         <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
         <script src="/js/realtime-alerts.js?v=${APP_VERSION}"></script>
-        <script type="module" src="/build/assets/app-CTdHufbH.js"></script>
+        <script type="module" src="/build/assets/app-CTdHufbH.js?v=${APP_VERSION}"></script>
     </head>
     <body class="font-sans antialiased">
         <div class="browser-shell">
@@ -1228,31 +1229,28 @@ app.get('/live-event', (req, res) => {
 // BOSS ACTIONS
 // ==========================================================
 
-// Member/admin alert: explicit start with a short expiry (never toggle off by accident).
+function getPreSpawnAlertUpdates(boss, role, now = Date.now()) {
+    const expiry = new Date(boss.pre_spawn_expires_at || 0).getTime();
+    const isActive = boss.pre_spawned && (!Number.isFinite(expiry) || expiry <= 0 || expiry > now);
+    if (isActive) {
+        return { pre_spawned: false, pre_spawn_expires_at: null };
+    }
+    return {
+        pre_spawned: true,
+        pre_spawn_expires_at: new Date(now + PRE_SPAWN_ALERT_WINDOW_MS).toISOString(),
+        pinned_alive: false,
+        alerted_by: role
+    };
+}
+
+// Double-click alert: toggle on/off, with automatic expiry after five minutes.
 app.post('/bosses/:id/notify', requireAdmin, async (req, res) => {
     const id = Number(req.params.id);
     const boss = db.getBoss(id);
     if (!boss) return res.status(404).json({ success: false, message: 'Boss not found' });
-    const now = Date.now();
-    const previousExpiry = new Date(boss.pre_spawn_expires_at || 0).getTime();
-    if (boss.pre_spawned && previousExpiry > now) {
-        return res.status(429).json({ success: false, message: 'Alert already sent', retryAfterMs: previousExpiry - now });
-    }
-
-    // One-time migration: keep the same password while removing plaintext and
-    // legacy SHA-256 storage from Firebase after a successful login.
-    const passwordKey = sessionRole === 'admin' ? 'adminPassword' : 'memberPassword';
-    const hashKey = sessionRole === 'admin' ? 'adminPasswordHash' : 'memberPasswordHash';
-    if (settings[passwordKey] || !String(settings[hashKey] || '').startsWith('scrypt$')) {
-        await db.updateSettings({ [passwordKey]: null, [hashKey]: hashPassword(pass) });
-    }
-    const updated = await db.updateBoss(id, {
-        pre_spawned: true,
-        pre_spawn_expires_at: new Date(now + 15000).toISOString(),
-        pinned_alive: false,
-        alerted_by: getSessionRole(req)
-    });
-    return res.json({ success: true, boss: updated });
+    const updated = await db.updateBoss(id, getPreSpawnAlertUpdates(boss, getSessionRole(req)));
+    if (req.headers['x-inertia']) return respondInertiaOrRedirect(req, res, '/');
+    return res.json({ success: true, active: updated.pre_spawned, boss: updated });
 });
 
 // POST /bosses -> Create boss
@@ -1353,8 +1351,7 @@ app.put('/bosses/:id', requireAdmin, async (req, res) => {
         updates.pinned_alive = !boss.pinned_alive;
         if (updates.pinned_alive) updates.pre_spawned = false;
     } else if (body.toggle_pre_spawned) {
-        updates.pre_spawned = !boss.pre_spawned;
-        if (updates.pre_spawned) updates.pinned_alive = false;
+        Object.assign(updates, getPreSpawnAlertUpdates(boss, getSessionRole(req)));
     } else if (body.toggle_maintenance) {
         updates.post_maintenance = !boss.post_maintenance;
     } else if (body.adjust_spawn_minutes !== undefined) {

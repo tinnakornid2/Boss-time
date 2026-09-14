@@ -4,6 +4,22 @@
     const DB_URL = 'https://boss-timel2m-default-rtdb.asia-southeast1.firebasedatabase.app';
     const LIVE_URL = `${DB_URL}/tracker/liveEvent.json`;
     const NOW_PIN_WINDOW_MS = 5 * 60 * 1000;
+    const suppressInitialPreSpawnAudio = performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload';
+    if (suppressInitialPreSpawnAudio) {
+        const originalPlay = HTMLMediaElement.prototype.play;
+        const suppressUntil = Date.now() + 3000;
+        const guardedPlay = function (...args) {
+            const src = String(this.currentSrc || this.src || '');
+            if (Date.now() < suppressUntil && /\/(?:pop2|ultraman)\.mp3(?:\?|$)/i.test(src)) {
+                return Promise.resolve();
+            }
+            return originalPlay.apply(this, args);
+        };
+        HTMLMediaElement.prototype.play = guardedPlay;
+        setTimeout(() => {
+            if (HTMLMediaElement.prototype.play === guardedPlay) HTMLMediaElement.prototype.play = originalPlay;
+        }, 3100);
+    }
     const SOUND_FILES = {
         alert: '/alert.mp3', bell: '/bell.mp3', flute: '/flute.mp3', guitar: '/guitar.mp3',
         warHorn: '/warHorn.mp3', levelUp: '/game.wav', ratedRSuperstar: '/rated-r.mp3',
@@ -390,7 +406,7 @@
         if (event.type === 'boss_pre_spawn_started') {
             if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
             reconcileBossRows();
-            if (!initial && fresh && !isMuted(event.bossId, 'boss')) {
+            if (!initial && fresh && document.visibilityState !== 'visible' && !isMuted(event.bossId, 'boss')) {
                 const key = setting('preSpawnSound', 'pop2');
                 playSound(soundPath(key, '/pop2.mp3'));
                 showNotice(`⚠️ Boss Alert — ${event.bossName} กำลังจะเกิด`, true);
