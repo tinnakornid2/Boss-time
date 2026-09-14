@@ -59,11 +59,14 @@
             #compact-system-controls {
                 display: inline-flex;
                 align-items: center;
-                gap: 1px;
+                gap: 3px;
                 min-width: 0;
+                max-width: min(100%, 280px);
                 margin-left: 2px;
                 padding-left: 3px;
                 border-left: 1px solid rgba(255,255,255,.08);
+                overflow: hidden;
+                white-space: nowrap;
             }
             #compact-system-controls .compact-system-control {
                 position: relative !important;
@@ -93,10 +96,38 @@
                 color: rgba(255,255,255,.92) !important;
             }
             #compact-system-controls .compact-system-control[hidden] { display: none !important; }
+            #compact-system-controls #header-firebase-status-badge,
+            #compact-system-controls #header-version-control {
+                width: auto !important;
+                min-width: 0 !important;
+                max-width: 112px !important;
+                height: 22px !important;
+                padding: 0 6px !important;
+                gap: 4px !important;
+                border: 1px solid rgba(255,255,255,.16) !important;
+                border-radius: 6px !important;
+                background: rgba(255,255,255,.055) !important;
+                font: 600 9px/1 system-ui !important;
+                letter-spacing: 0 !important;
+                flex: 0 1 auto;
+            }
+            #compact-system-controls #header-firebase-status-badge .system-badge-label,
+            #compact-system-controls #header-version-control .system-badge-label {
+                display: block;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
             #compact-system-controls #header-firebase-status-badge[data-status="connected"] { color: #34d399 !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="offline"] { color: #f59e0b !important; }
             #compact-system-controls #pwd-pill-label { display: none !important; }
             #admin-pwd-floating-bar, #top-floating-status-bar { display: none !important; }
+            @media (max-width: 430px) {
+                #compact-system-controls { gap: 2px; max-width: 190px; }
+                #compact-system-controls #header-firebase-status-badge,
+                #compact-system-controls #header-version-control { padding-inline: 4px !important; font-size: 8px !important; }
+                #compact-system-controls #header-firebase-status-badge { max-width: 88px !important; }
+            }
         `;
         document.head.appendChild(style);
         const button = document.createElement('button');
@@ -170,7 +201,7 @@
             updateStatus();
         } catch (_) {
             state.audioUnlocked = false;
-            updateStatus('⚠️ เบราว์เซอร์บล็อกเสียง — กดอีกครั้ง');
+            updateStatus('Audio Blocked — เบราว์เซอร์บล็อกเสียง กรุณากดอีกครั้ง');
         }
     }
 
@@ -187,7 +218,7 @@
             return true;
         } catch (_) {
             state.audioUnlocked = false;
-            updateStatus('⚠️ เสียงถูกบล็อก — คลิกเพื่อเปิด');
+            updateStatus('Audio Blocked — เสียงถูกบล็อก คลิกเพื่อเปิด');
             return false;
         }
     }
@@ -253,7 +284,7 @@
             if (!initial && fresh && !isMuted(event.bossId, 'boss')) {
                 const key = setting('preSpawnSound', 'pop2');
                 playSound(soundPath(key, '/pop2.mp3'));
-                showNotice(`⚠️ ${event.bossName} กำลังจะเกิด`, true);
+                showNotice(`⚠️ Boss Alert — ${event.bossName} กำลังจะเกิด`, true);
             }
         } else if (event.type === 'boss_pre_spawn_cleared') {
             if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
@@ -363,6 +394,9 @@
     }
 
     const TOOLTIP_TRANSLATIONS = [
+        [/search/i, 'Search — ค้นหา'],
+        [/show muted/i, 'Show Muted — แสดงรายการปิดเสียง'],
+        [/hide muted/i, 'Hide Muted — ซ่อนรายการปิดเสียง'],
         [/still alive/i, 'Still Alive — บอสยังไม่ตาย'],
         [/unset/i, 'Unset Time — ล้างเวลาบอส'],
         [/edit/i, 'Edit — แก้ไข'],
@@ -370,7 +404,14 @@
         [/mute/i, 'Mute Alert — ปิดเสียงแจ้งเตือน'],
         [/settings/i, 'Settings — ตั้งค่า'],
         [/reset/i, 'Reset Time — รีเซ็ตเวลา'],
-        [/notify|pre-spawn/i, 'Notify Members — แจ้งเตือนสมาชิก']
+        [/notify|pre-spawn/i, 'Notify Members — แจ้งเตือนสมาชิก'],
+        [/more|menu/i, 'More Options — ตัวเลือกเพิ่มเติม'],
+        [/pin/i, 'Pin — ปักหมุด'],
+        [/close/i, 'Close — ปิด'],
+        [/save/i, 'Save — บันทึก'],
+        [/cancel/i, 'Cancel — ยกเลิก'],
+        [/password/i, 'Manage Passwords — จัดการรหัสผ่าน'],
+        [/volume|audio|sound/i, 'Audio Settings — ตั้งค่าเสียง']
     ];
 
     const TOOLTIP_TEXT = {
@@ -407,6 +448,16 @@
         'Split spawn status buttons': 'Split Buttons — แยกปุ่มสถานะบอส'
     };
 
+    function bilingualTooltip(source) {
+        const clean = String(source || '').trim();
+        if (!clean) return '';
+        if (clean.includes('—') && /[ก-๙]/.test(clean)) return clean;
+        const direct = TOOLTIP_TEXT[clean];
+        if (direct) return direct;
+        const match = TOOLTIP_TRANSLATIONS.find(([pattern]) => pattern.test(clean));
+        return match ? match[1] : '';
+    }
+
     function translateVisibleTooltips() {
         for (const element of document.querySelectorAll('[role="tooltip"], [role="tooltip"] *')) {
             if (element.children.length > 0) continue;
@@ -422,8 +473,11 @@
         for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
         for (const element of document.querySelectorAll('button, [role="button"], a')) {
             const source = element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent || '';
-            const match = TOOLTIP_TRANSLATIONS.find(([pattern]) => pattern.test(source));
-            if (match) element.setAttribute('title', match[1]);
+            const translated = bilingualTooltip(source);
+            if (translated) {
+                element.setAttribute('title', translated);
+                element.setAttribute('aria-label', translated);
+            }
         }
         translateVisibleTooltips();
     }
@@ -450,14 +504,14 @@
             if (!handledByDashboard && diff <= threshold && diff > -30000 && !state.alerted.has(preKey)) {
                 state.alerted.add(preKey);
                 playSound(soundPath(setting('alertSound', 'alert'), '/alert.mp3'));
-                showNotice(`🔔 ${item.name} จะเกิดใน ${Math.max(0, Math.ceil(diff / 60000))} นาที`, false);
+                showNotice(`🔔 Spawn Soon — ${item.name} จะเกิดใน ${Math.max(0, Math.ceil(diff / 60000))} นาที`, false);
             }
             if (!handledByDashboard && diff <= 0 && diff > -90000 && !state.alerted.has(spawnKey)) {
                 state.alerted.add(spawnKey);
                 const selected = setting('justSpawnedSound', 'default');
                 const path = selected === 'default' ? '/just-spawned.mp3' : soundPath(selected, '/just-spawned.mp3');
                 playSound(path);
-                showNotice(`🔥 ${item.name} เกิดแล้ว`, true);
+                showNotice(`🔥 Spawned — ${item.name} เกิดแล้ว`, true);
             }
         }
     }

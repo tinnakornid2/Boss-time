@@ -505,7 +505,7 @@ function renderHtml(pageData, title = '#Kain7') {
                         <p>ตั้งค่ารหัสผ่าน Admin & Member</p>
                     </div>
                 </div>
-                <button type="button" class="pwd-close-btn" onclick="closeAdminPwdModal()">✕</button>
+                <button type="button" class="pwd-close-btn" onclick="closeAdminPwdModal()" title="Close — ปิด" aria-label="Close — ปิด">✕</button>
             </div>
 
             <div id="pwd-alert-box" class="pwd-alert"></div>
@@ -519,7 +519,7 @@ function renderHtml(pageData, title = '#Kain7') {
                     </p>
                     <div style="display:flex; gap:8px;">
                         <input type="password" id="modal-input-verify-admin" placeholder="รหัสผ่าน Admin ปัจจุบัน" class="pwd-input" style="flex:1;">
-                        <button type="button" class="pwd-btn-save" style="padding: 8px 16px; white-space: nowrap;" onclick="verifyAdminAndUnlock()">🔓 ยืนยัน</button>
+                        <button type="button" class="pwd-btn-save" style="padding: 8px 16px; white-space: nowrap;" onclick="verifyAdminAndUnlock()" title="Verify Admin — ยืนยันสิทธิ์ผู้ดูแล" aria-label="Verify Admin — ยืนยันสิทธิ์ผู้ดูแล">🔓 ยืนยัน</button>
                     </div>
                     <div id="pwd-verify-error" style="color: #f87171; font-size: 11px; margin-top: 8px; display: none;"></div>
                 </div>
@@ -534,7 +534,7 @@ function renderHtml(pageData, title = '#Kain7') {
                     </div>
                     <div class="pwd-input-wrap">
                         <input type="password" id="modal-input-admin-pwd" class="pwd-input" placeholder="รหัสผ่านใหม่" autocomplete="off">
-                        <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-admin-pwd', this)">👁️</button>
+                        <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-admin-pwd', this)" title="Show or Hide Password — แสดงหรือซ่อนรหัสผ่าน" aria-label="Show or Hide Password — แสดงหรือซ่อนรหัสผ่าน">👁️</button>
                     </div>
                     <p class="pwd-subhint">สำหรับเข้าสู่โหมด Admin: บันทึกเวลาเกิดบอส, เพิ่ม/ลบบอส, จัดการอีเวนต์</p>
                 </div>
@@ -546,7 +546,7 @@ function renderHtml(pageData, title = '#Kain7') {
                     </div>
                     <div class="pwd-input-wrap">
                         <input type="password" id="modal-input-member-pwd" class="pwd-input" placeholder="รหัสผ่านใหม่" autocomplete="off">
-                        <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-member-pwd', this)">👁️</button>
+                        <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-member-pwd', this)" title="Show or Hide Password — แสดงหรือซ่อนรหัสผ่าน" aria-label="Show or Hide Password — แสดงหรือซ่อนรหัสผ่าน">👁️</button>
                     </div>
                     <p class="pwd-subhint">สำหรับแจกคนในแคลน: เปิดดูตารางเวลาบอส, เวลานับถอยหลัง และเสียงเตือน</p>
                 </div>
@@ -558,7 +558,7 @@ function renderHtml(pageData, title = '#Kain7') {
 
                 <div class="pwd-footer" id="pwd-footer-save">
                     <button type="button" class="pwd-btn-cancel" onclick="closeAdminPwdModal()">ยกเลิก</button>
-                    <button type="button" id="btn-modal-save-pwd" class="pwd-btn-save" onclick="submitAdminPasswords()">
+                    <button type="button" id="btn-modal-save-pwd" class="pwd-btn-save" onclick="submitAdminPasswords()" title="Save Passwords — บันทึกรหัสผ่าน" aria-label="Save Passwords — บันทึกรหัสผ่าน">
                         <span>💾 บันทึกรหัสผ่านใหม่</span>
                     </button>
                 </div>
@@ -883,10 +883,10 @@ function renderHtml(pageData, title = '#Kain7') {
         </style>
         <div id="top-floating-status-bar">
             <span id="header-firebase-status-badge" class="firebase-mini-badge" title="Firebase Connecting — กำลังเชื่อมต่อ Firebase" aria-label="Firebase Connecting — กำลังเชื่อมต่อ Firebase">
-                <span aria-hidden="true">☁️</span>
+                <span aria-hidden="true">☁️</span><span class="system-badge-label">Firebase…</span>
             </span>
             <span id="header-version-control" class="app-version-badge" title="Version ${APP_VERSION} — เวอร์ชัน ${APP_VERSION}" aria-label="Version ${APP_VERSION} — เวอร์ชัน ${APP_VERSION}">
-                <span aria-hidden="true">ⓥ</span>
+                <span aria-hidden="true">ⓥ</span><span class="system-badge-label">${APP_VERSION}</span>
             </span>
         </div>
         <script>
@@ -898,12 +898,12 @@ function renderHtml(pageData, title = '#Kain7') {
                         .then(r => r.json())
                         .then(st => {
                             if (st.connected) {
-                                fbBadge.innerHTML = '<span aria-hidden="true">☁️</span>';
+                                fbBadge.innerHTML = '<span aria-hidden="true">☁️</span><span class="system-badge-label">Firebase Live</span>';
                                 fbBadge.title = 'Firebase Connected — เชื่อมต่อ Firebase แล้ว';
                                 fbBadge.setAttribute('aria-label', fbBadge.title);
                                 fbBadge.dataset.status = 'connected';
                             } else {
-                                fbBadge.innerHTML = '<span aria-hidden="true">☁️</span>';
+                                fbBadge.innerHTML = '<span aria-hidden="true">☁️</span><span class="system-badge-label">Firebase Offline</span>';
                                 fbBadge.title = 'Firebase Offline — Firebase ออฟไลน์';
                                 fbBadge.setAttribute('aria-label', fbBadge.title);
                                 fbBadge.dataset.status = 'offline';
