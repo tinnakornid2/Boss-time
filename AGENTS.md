@@ -4,7 +4,8 @@ Read this file completely before changing the project. This is a production boss
 
 ## Stable recovery point
 
-- Stable release: `stable-v1.3.13`
+- Primary stable release: `stable-v1.3.22`
+- Previous recovery release: `stable-v1.3.13` (keep unchanged for historical rollback)
 - Stable commit is recorded by the annotated Git tag on GitHub.
 - Production URL: `https://boss-time-eloni.vercel.app/`
 - Firebase RTDB project: `boss-timel2m`
@@ -45,6 +46,7 @@ Read this file completely before changing the project. This is a production boss
 - Browsers require a user interaction before audio can play. Preserve the audio-unlock control and first-interaction handling.
 - Alert before spawn, spawn sound, double-click alert, flash, and message must be driven from the same boss/event update.
 - Admin double-clicking a boss name toggles the shared pre-spawn alert. When enabled, it flashes for at most five minutes; double-clicking again clears it immediately, and reloading must not replay the same alert sound.
+- Any action that starts, restarts, advances, unsets, or resets a boss timer must clear `pre_spawned`, `pre_spawn_expires_at`, and `alerted_by` in the same boss update. This stops flashing immediately on every screen without adding timer-based Firebase traffic.
 - Keep sound queuing and event deduplication so rapid updates do not lose or duplicate sounds.
 - A Member can receive alerts but cannot initiate shared alerts.
 
@@ -79,7 +81,7 @@ Before production deployment:
 2. Run `npm test`; the Unset, five-minute NOW, Still Alive, and catch-up tests must pass.
 3. Review the staged file list and exclude `server/data/store.json` and secrets.
 4. Deploy through GitHub/Vercel and verify the production version, authentication boundary, Firebase readiness, browser console, and relevant user flow.
-5. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.13` unchanged as the primary recovery point.
+5. For risky timer/data changes, create and validate a preview first. Keep both `stable-v1.3.22` and the historical `stable-v1.3.13` tags unchanged; use `stable-v1.3.22` as the primary recovery point.
 
 ## Files that define the system
 
