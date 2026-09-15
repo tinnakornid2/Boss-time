@@ -7,6 +7,44 @@ let dbRef = null;
 let isInitialized = false;
 let isConnected = false;
 let serviceAccountPathUsed = null;
+let lastErrorCode = null;
+let lastErrorAt = null;
+let lastSuccessfulOperationAt = null;
+
+function classifyFirebaseError(error) {
+    const detail = `${error?.code || ''} ${error?.message || error || ''}`.toLowerCase();
+    if (/quota|resource[_ -]?exhausted|limit[_ -]?exceeded|too many requests|429/.test(detail)) return 'quota_exceeded';
+    if (/permission[_ -]?denied|unauthorized|forbidden|401|403/.test(detail)) return 'permission_denied';
+    if (/credential|private key|service account|invalid_grant|app\/invalid-credential/.test(detail)) return 'configuration_error';
+    if (/timeout|timed out|deadline|network|socket|econn|unavailable|dns/.test(detail)) return 'unavailable';
+    return 'firebase_error';
+}
+
+function recordFirebaseError(operation, error) {
+    isConnected = false;
+    lastErrorCode = classifyFirebaseError(error);
+    lastErrorAt = Date.now();
+    console.error(`[Firebase RTDB] ${operation} error:`, error?.message || String(error));
+}
+
+function recordFirebaseSuccess() {
+    lastSuccessfulOperationAt = Date.now();
+    if (lastErrorCode === 'quota_exceeded' && Date.now() - lastErrorAt < 60000) return;
+    lastErrorCode = null;
+    lastErrorAt = null;
+}
+
+function getHealthStatus() {
+    const recentlySucceeded = lastSuccessfulOperationAt && Date.now() - lastSuccessfulOperationAt < 60000;
+    return {
+        connected: isReady() && (isConnected || Boolean(recentlySucceeded)),
+        transportConnected: isActuallyConnected(),
+        initialized: isReady(),
+        lastErrorCode,
+        lastErrorAt,
+        lastSuccessfulOperationAt
+    };
+}
 
 // Helper: Escape invalid Firebase characters in keys (., #, $, /, [, ])
 function encodeFirebaseKeys(obj) {
@@ -130,7 +168,7 @@ function init(onRemoteDataChange) {
             }
             keySource = 'FIREBASE_SERVICE_ACCOUNT (env variable)';
         } catch (e) {
-            console.error('[Firebase RTDB] Failed to parse FIREBASE_SERVICE_ACCOUNT env var:', e.message);
+            recordFirebaseError('service account parsing', e);
         }
     }
 
@@ -142,13 +180,15 @@ function init(onRemoteDataChange) {
                 serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
                 keySource = path.basename(keyPath);
             } catch (e) {
-                console.error('[Firebase RTDB] Failed to read key file:', e.message);
+                recordFirebaseError('service account read', e);
             }
         }
     }
 
     // 3. Check cloud runtime credentials (for Vercel / Serverless deployments)
     if (!serviceAccount) {
+        lastErrorCode = 'configuration_error';
+        lastErrorAt = Date.now();
         try {
             const cloudCred = require('./cloud-credentials');
             if (typeof cloudCred.getCredentials === 'function') {
@@ -199,8 +239,9 @@ function init(onRemoteDataChange) {
 
         getDatabase(app).ref('.info/connected').on('value', (snapshot) => {
             isConnected = snapshot.val() === true;
-        }, () => {
-            isConnected = false;
+            if (isConnected) recordFirebaseSuccess();
+        }, (error) => {
+            recordFirebaseError('connection status', error);
         });
 
         console.log('====================================================');
@@ -217,16 +258,17 @@ function init(onRemoteDataChange) {
                     if (val.resetTimeConfigs) {
                         val.resetTimeConfigs = decodeFirebaseKeys(val.resetTimeConfigs);
                     }
+                    recordFirebaseSuccess();
                     onRemoteDataChange(val);
                 }
             }, (err) => {
-                console.error('[Firebase RTDB] Listener error:', err.message);
+                recordFirebaseError('listener', err);
             });
         }
 
         return true;
     } catch (err) {
-        console.error('❌ [Firebase RTDB] Initialization error:', err.message);
+        recordFirebaseError('initialization', err);
         isInitialized = false;
         return false;
     }
@@ -268,9 +310,10 @@ async function syncFullStore(store) {
             }
         };
         await dbRef.set(payload);
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        console.error('[Firebase RTDB] syncFullStore error:', e.message);
+        recordFirebaseError('syncFullStore', e);
         return false;
     }
 }
@@ -280,9 +323,10 @@ async function syncBoss(bossIndex, bossData) {
     if (!isReady()) return false;
     try {
         await dbRef.update(revisionUpdate({ [`bosses/${bossIndex}`]: bossData }));
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        console.error('[Firebase RTDB] syncBoss error:', e.message);
+        recordFirebaseError('syncBoss', e);
         return false;
     }
 }
@@ -297,10 +341,10 @@ async function syncBossUpdates(changes) {
         }
         if (Object.keys(payload).length === 0) return true;
         await dbRef.update(revisionUpdate(payload));
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        isConnected = false;
-        console.error('[Firebase RTDB] syncBossUpdates error:', e.message);
+        recordFirebaseError('syncBossUpdates', e);
         return false;
     }
 }
@@ -314,10 +358,10 @@ async function syncBossAndLiveEvent(bossIndex, bossData, liveEvent, recentLiveEv
             liveEvent,
             recentLiveEvents
         }));
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        isConnected = false;
-        console.error('[Firebase RTDB] syncBossAndLiveEvent error:', e.message);
+        recordFirebaseError('syncBossAndLiveEvent', e);
         return false;
     }
 }
@@ -326,10 +370,10 @@ async function syncLiveEvent(liveEvent, recentLiveEvents) {
     if (!isReady()) return false;
     try {
         await dbRef.update(revisionUpdate({ liveEvent, recentLiveEvents }));
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        isConnected = false;
-        console.error('[Firebase RTDB] syncLiveEvent error:', e.message);
+        recordFirebaseError('syncLiveEvent', e);
         return false;
     }
 }
@@ -339,9 +383,10 @@ async function syncAllBosses(bosses) {
     if (!isReady()) return false;
     try {
         await dbRef.update(revisionUpdate({ bosses }));
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        console.error('[Firebase RTDB] syncAllBosses error:', e.message);
+        recordFirebaseError('syncAllBosses', e);
         return false;
     }
 }
@@ -365,14 +410,14 @@ async function transactionBosses(transform) {
                 }
             };
         });
+        recordFirebaseSuccess();
         return {
             committed: result.committed,
             value: result.committed ? result.snapshot.val()?.bosses : null,
             revision: result.committed ? Number(result.snapshot.val()?.meta?.dataRevision) || 0 : 0
         };
     } catch (e) {
-        isConnected = false;
-        console.error('[Firebase RTDB] transactionBosses error:', e.message);
+        recordFirebaseError('transactionBosses', e);
         return { committed: false, value: null };
     }
 }
@@ -382,9 +427,10 @@ async function syncAllEvents(allEvents) {
     if (!isReady()) return false;
     try {
         await dbRef.update(revisionUpdate({ allEvents }));
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        console.error('[Firebase RTDB] syncAllEvents error:', e.message);
+        recordFirebaseError('syncAllEvents', e);
         return false;
     }
 }
@@ -394,9 +440,10 @@ async function syncResetConfigs(configs) {
     if (!isReady()) return false;
     try {
         await dbRef.update(revisionUpdate({ resetTimeConfigs: encodeFirebaseKeys(configs) }));
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        console.error('[Firebase RTDB] syncResetConfigs error:', e.message);
+        recordFirebaseError('syncResetConfigs', e);
         return false;
     }
 }
@@ -406,9 +453,10 @@ async function syncSettings(settings) {
     if (!isReady()) return false;
     try {
         await dbRef.update(revisionUpdate({ settings }));
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        console.error('[Firebase RTDB] syncSettings error:', e.message);
+        recordFirebaseError('syncSettings', e);
         return false;
     }
 }
@@ -418,9 +466,10 @@ async function syncSavedMaintenanceEndTime(time) {
     if (!isReady()) return false;
     try {
         await dbRef.update(revisionUpdate({ savedMaintenanceEndTime: time }));
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        console.error('[Firebase RTDB] syncSavedMaintenanceEndTime error:', e.message);
+        recordFirebaseError('syncSavedMaintenanceEndTime', e);
         return false;
     }
 }
@@ -430,9 +479,10 @@ async function syncKillHistory(killHistory) {
     if (!isReady()) return false;
     try {
         await dbRef.update(revisionUpdate({ killHistory }));
+        recordFirebaseSuccess();
         return true;
     } catch (e) {
-        console.error('[Firebase RTDB] syncKillHistory error:', e.message);
+        recordFirebaseError('syncKillHistory', e);
         return false;
     }
 }
@@ -446,9 +496,10 @@ async function fetchOnce() {
         if (val && val.resetTimeConfigs) {
             val.resetTimeConfigs = decodeFirebaseKeys(val.resetTimeConfigs);
         }
+        recordFirebaseSuccess();
         return val;
     } catch (e) {
-        console.error('[Firebase RTDB] fetchOnce error:', e.message);
+        recordFirebaseError('fetchOnce', e);
         return null;
     }
 }
@@ -457,6 +508,7 @@ module.exports = {
     init,
     isReady,
     isActuallyConnected,
+    getHealthStatus,
     getRef,
     getConfig,
     findServiceAccountKey,
@@ -472,5 +524,6 @@ module.exports = {
     syncResetConfigs,
     syncSettings,
     syncSavedMaintenanceEndTime,
-    syncKillHistory
+    syncKillHistory,
+    _test: { classifyFirebaseError }
 };

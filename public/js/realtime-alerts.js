@@ -137,6 +137,10 @@
                 text-overflow: ellipsis;
             }
             #compact-system-controls #header-firebase-status-badge[data-status="connected"] { color: #34d399 !important; }
+            #compact-system-controls #header-firebase-status-badge[data-status="connecting"] { color: #60a5fa !important; }
+            #compact-system-controls #header-firebase-status-badge[data-status="stale"] { color: #fbbf24 !important; }
+            #compact-system-controls #header-firebase-status-badge[data-status="quota_exceeded"],
+            #compact-system-controls #header-firebase-status-badge[data-status="configuration_error"] { color: #f87171 !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="offline"] { color: #f59e0b !important; }
             #compact-system-controls #header-timezone-control {
                 width: 58px !important;

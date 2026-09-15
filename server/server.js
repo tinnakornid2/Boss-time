@@ -892,24 +892,42 @@ function renderHtml(pageData, title = '#Kain7') {
         </div>
         <script>
             (function setupFirebaseBadge() {
+                let consecutiveFailures = 0;
+                const statusCopy = {
+                    connected: ['Firebase Live', 'Firebase Connected — เชื่อมต่อ Firebase แล้ว'],
+                    connecting: ['Firebase Connecting', 'Firebase Connecting — กำลังเชื่อมต่อ Firebase'],
+                    stale: ['Firebase Stale', 'Firebase Stale — ใช้ข้อมูลล่าสุดที่ซิงค์ไว้'],
+                    quota_exceeded: ['Firebase Limit', 'Firebase Quota Exceeded — Firebase เกินลิมิต'],
+                    configuration_error: ['Firebase Config', 'Firebase Configuration Error — การตั้งค่า Firebase ผิดพลาด'],
+                    offline: ['Firebase Offline', 'Firebase Offline — Firebase ออฟไลน์']
+                };
+                function displayStatus(st) {
+                    const reported = st.status || (st.connected ? 'connected' : 'offline');
+                    if (reported === 'connected') {
+                        consecutiveFailures = 0;
+                        return 'connected';
+                    }
+                    if (['connecting', 'stale', 'quota_exceeded', 'configuration_error'].includes(reported)) {
+                        if (reported !== 'stale') consecutiveFailures = 0;
+                        return reported;
+                    }
+                    consecutiveFailures += 1;
+                    return consecutiveFailures >= 3 ? 'offline' : 'connecting';
+                }
+                function renderFbBadge(fbBadge, status) {
+                    const copy = statusCopy[status] || statusCopy.connecting;
+                    fbBadge.innerHTML = '<span aria-hidden="true">☁️</span><span class="system-badge-label">' + copy[0] + '</span>';
+                    fbBadge.title = copy[1];
+                    fbBadge.setAttribute('aria-label', copy[1]);
+                    fbBadge.dataset.status = status;
+                }
                 function updateFbBadge() {
                     const fbBadge = document.getElementById('header-firebase-status-badge');
                     if (!fbBadge) return;
                     fetch('/api/firebase-status')
-                        .then(r => r.json())
-                        .then(st => {
-                            if (st.connected) {
-                                fbBadge.innerHTML = '<span aria-hidden="true">☁️</span><span class="system-badge-label">Firebase Live</span>';
-                                fbBadge.title = 'Firebase Connected — เชื่อมต่อ Firebase แล้ว';
-                                fbBadge.setAttribute('aria-label', fbBadge.title);
-                                fbBadge.dataset.status = 'connected';
-                            } else {
-                                fbBadge.innerHTML = '<span aria-hidden="true">☁️</span><span class="system-badge-label">Firebase Offline</span>';
-                                fbBadge.title = 'Firebase Offline — Firebase ออฟไลน์';
-                                fbBadge.setAttribute('aria-label', fbBadge.title);
-                                fbBadge.dataset.status = 'offline';
-                            }
-                        }).catch(() => {});
+                        .then(r => r.ok ? r.json() : Promise.reject(new Error('Status request failed')))
+                        .then(st => renderFbBadge(fbBadge, displayStatus(st)))
+                        .catch(() => renderFbBadge(fbBadge, displayStatus({ status: 'offline' })));
                 }
                 const fbBadge = document.getElementById('header-firebase-status-badge');
                 if (fbBadge) {
@@ -917,12 +935,12 @@ function renderHtml(pageData, title = '#Kain7') {
                         fetch('/api/firebase-status')
                             .then(r => r.json())
                             .then(st => {
-                                if (st.connected) {
-                                    alert('✅ [Firebase Realtime Database]\\nStatus: Connected & Live Synced\\n\\nProject ID: ' + st.projectId + '\\nRegion: Singapore (asia-southeast1)\\nDatabase URL: ' + st.databaseURL + '\\nTotal Bosses in Cloud: ' + st.totalBosses);
-                                } else {
-                                    alert('⚠️ [Firebase Realtime Database]\\nStatus: Offline (Local Mode)\\nKey: serviceAccountKey.json not detected\\n\\nTo connect cloud database:\\n1. Download serviceAccountKey.json from Firebase Console\\n2. Place it into server/serviceAccountKey.json');
-                                }
-                            }).catch(err => alert('Error: ' + err.message));
+                                const status = displayStatus(st);
+                                const copy = statusCopy[status] || statusCopy.connecting;
+                                const icon = status === 'connected' ? '✅' : status === 'connecting' ? '🔄' : '⚠️';
+                                const lastSync = st.lastCloudSyncAt ? new Date(st.lastCloudSyncAt).toLocaleString() : 'Not available — ไม่มีข้อมูล';
+                                alert(icon + ' [Firebase Realtime Database]\\nStatus: ' + copy[1] + '\\n\\nProject ID: ' + st.projectId + '\\nCloud data ready: ' + (st.cloudDataReady ? 'Yes' : 'No') + '\\nLast cloud sync: ' + lastSync + '\\nTotal Bosses in Cloud: ' + st.totalBosses);
+                            }).catch(err => alert('Firebase Status Error — ตรวจสถานะ Firebase ไม่สำเร็จ\\n' + err.message));
                     };
                 }
                 updateFbBadge();

@@ -271,15 +271,23 @@ module.exports = {
     getFirebaseStatus() {
         const store = load();
         const config = firebase.getConfig();
-        const keyPath = firebase.findServiceAccountKey();
+        const health = firebase.getHealthStatus();
+        let status = 'offline';
+        if (health.lastErrorCode === 'quota_exceeded') status = 'quota_exceeded';
+        else if (health.lastErrorCode === 'configuration_error' || health.lastErrorCode === 'permission_denied') status = 'configuration_error';
+        else if (health.connected) status = 'connected';
+        else if (health.initialized && hasCloudSnapshot && health.lastErrorCode) status = 'stale';
+        else if (health.initialized) status = 'connecting';
         return {
-            connected: firebase.isActuallyConnected(),
-            initialized: firebase.isReady(),
+            connected: health.connected,
+            initialized: health.initialized,
+            status,
+            lastErrorCode: health.lastErrorCode,
+            lastErrorAt: health.lastErrorAt,
+            lastSuccessfulOperationAt: health.lastSuccessfulOperationAt,
             strictCloudMode: Boolean(config.strictCloudMode),
             projectId: config.projectId,
-            databaseURL: config.databaseURL,
-            serviceAccountKeyFound: Boolean(keyPath),
-            keyPath: keyPath ? path.basename(keyPath) : null,
+            credentialsConfigured: health.initialized,
             totalBosses: (store && store.bosses) ? store.bosses.length : 0,
             cloudDataReady: hasCloudSnapshot,
             dataRevision: Number(store?.meta?.dataRevision) || 0,

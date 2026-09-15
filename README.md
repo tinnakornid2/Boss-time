@@ -1,4 +1,4 @@
-# ⚔️ Lineage 2 Boss Tracker (#Kain7 Edition) `v1.3.23`
+# ⚔️ Lineage 2 Boss Tracker (#Kain7 Edition) `v1.3.24`
 
 ระบบติดตามเวลาเกิดบอสและอีเวนต์แคลนแบบเรียลไทม์ (Real-Time Boss & Event Spawn Tracker) สำหรับเกม Lineage 2 ถอดแบบโครงสร้างลอจิกและฟีเจอร์ทั้งหมดจาก `boss.kain7.com`
 
@@ -37,6 +37,7 @@
 8. **ระบบคลาวด์ Firebase Realtime Database (RTDB)**:
    - รองรับการเชื่อมต่อกับ Firebase (`boss-timel2m`) ซิงค์เวลาบอสขึ้นคลาวด์อัตโนมัติ
    - รองรับการ Deploy บน Vercel Serverless อย่างสมบูรณ์แบบ
+   - แสดงสถานะ Live, Connecting, Stale, Limit และ Configuration Error แยกกัน โดยยืนยัน Offline 3 ครั้งก่อนแจ้ง
 9. **ระบบสำรองข้อมูล (Backup Engine)**:
    - สำรองข้อมูลด้วยไฟล์ `backup.bat` หรือคำสั่ง `npm run backup`
    - ดาวน์โหลด Backup JSON ผ่าน API: `GET /api/v1/backup`
@@ -62,8 +63,8 @@
 
 ## ✅ เวอร์ชันสมบูรณ์และการกู้คืน
 
-- จุดกู้คืนหลักที่ยืนยันแล้ว: Git tag `stable-v1.3.23`
-- จุดกู้คืนเดิมที่ยังเก็บไว้: Git tags `stable-v1.3.22` และ `stable-v1.3.13`
+- จุดกู้คืนหลักที่ยืนยันแล้ว: Git tag `stable-v1.3.24`
+- จุดกู้คืนเดิมที่ยังเก็บไว้: Git tags `stable-v1.3.23`, `stable-v1.3.22` และ `stable-v1.3.13`
 - คู่มือสำหรับผู้พัฒนาและ AI: `AGENTS.md`
 - แผนอัปเกรดฐานข้อมูลสำรองในอนาคต: `docs/GOOGLE_SHEETS_FAILOVER_PLAN.md`
 - การกู้คืนโค้ดต้องไม่เขียน `server/data/store.json` ทับข้อมูล Firebase

@@ -4,8 +4,8 @@ Read this file completely before changing the project. This is a production boss
 
 ## Stable recovery point
 
-- Primary stable release: `stable-v1.3.23`
-- Previous recovery releases: `stable-v1.3.22` and `stable-v1.3.13` (keep unchanged for historical rollback)
+- Primary stable release: `stable-v1.3.24`
+- Previous recovery releases: `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` (keep unchanged for historical rollback)
 - Stable commit is recorded by the annotated Git tag on GitHub.
 - Production URL: `https://boss-time-eloni.vercel.app/`
 - Firebase RTDB project: `boss-timel2m`
@@ -32,6 +32,8 @@ Read this file completely before changing the project. This is a production boss
 - A cold Vercel instance must load Firebase before serving the dashboard. It may retry only during cold start; do not add a database read to each countdown tick or normal poll.
 - `recentLiveEvents` is bounded. Do not replace it with unbounded history or rely only on a single overwritable event.
 - Use boss IDs for identity. Do not identify a boss only by visible name/location text.
+- Firebase health must not rely only on one Vercel instance's `.info/connected` value. Count a recent successful RTDB operation as healthy, distinguish connecting/stale/quota/configuration states, and require three consecutive generic failures before showing Offline.
+- Never expose raw Firebase error messages or credential details through the health endpoint or status UI.
 
 ## Roles and settings
 
@@ -82,7 +84,7 @@ Before production deployment:
 2. Run `npm test`; the Unset, five-minute NOW, Still Alive, and catch-up tests must pass.
 3. Review the staged file list and exclude `server/data/store.json` and secrets.
 4. Deploy through GitHub/Vercel and verify the production version, authentication boundary, Firebase readiness, browser console, and relevant user flow.
-5. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` unchanged; use `stable-v1.3.23` as the primary recovery point.
+5. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` unchanged; use `stable-v1.3.24` as the primary recovery point.
 
 ## Files that define the system
 
