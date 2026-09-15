@@ -3,7 +3,6 @@
 
     const DB_URL = 'https://boss-timel2m-default-rtdb.asia-southeast1.firebasedatabase.app';
     const LIVE_URL = `${DB_URL}/tracker/liveEvent.json`;
-    const NOW_PIN_WINDOW_MS = 5 * 60 * 1000;
     const suppressInitialPreSpawnAudio = performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload';
     if (suppressInitialPreSpawnAudio) {
         const originalPlay = HTMLMediaElement.prototype.play;
@@ -357,39 +356,6 @@
             const expiry = new Date(boss.pre_spawn_expires_at || 0).getTime();
             const active = boss.pre_spawned && (!Number.isFinite(expiry) || expiry === 0 || expiry > now);
             for (const row of bossRows(boss)) row.classList.toggle('realtime-pre-spawn-flash', active);
-        }
-        pinNowBossRows(now);
-    }
-
-    function pinNowBossRows(now) {
-        const activeBosses = Array.from(state.bosses.values())
-            .filter(boss => {
-                if (boss.pinned_alive) return true;
-                const spawnAt = new Date(boss.next_spawn || 0).getTime();
-                return Number.isFinite(spawnAt) && spawnAt > 0 && now >= spawnAt && now < spawnAt + NOW_PIN_WINDOW_MS;
-            })
-            .sort((a, b) => {
-                if (a.pinned_alive !== b.pinned_alive) return a.pinned_alive ? -1 : 1;
-                return new Date(b.next_spawn || 0).getTime() - new Date(a.next_spawn || 0).getTime();
-            });
-
-        const rowsByBody = new Map();
-        for (const boss of activeBosses) {
-            for (const row of bossRows(boss)) {
-                const body = row.parentElement;
-                if (!body || body.tagName !== 'TBODY') continue;
-                if (!rowsByBody.has(body)) rowsByBody.set(body, []);
-                const rows = rowsByBody.get(body);
-                if (!rows.includes(row)) rows.push(row);
-            }
-        }
-
-        for (const [body, wanted] of rowsByBody) {
-            const current = Array.from(body.children).slice(0, wanted.length);
-            if (wanted.every((row, index) => current[index] === row)) continue;
-            const fragment = document.createDocumentFragment();
-            for (const row of wanted) fragment.appendChild(row);
-            body.insertBefore(fragment, body.firstChild);
         }
     }
 

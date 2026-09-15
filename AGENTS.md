@@ -4,8 +4,8 @@ Read this file completely before changing the project. This is a production boss
 
 ## Stable recovery point
 
-- Primary stable release: `stable-v1.3.22`
-- Previous recovery release: `stable-v1.3.13` (keep unchanged for historical rollback)
+- Primary stable release: `stable-v1.3.23`
+- Previous recovery releases: `stable-v1.3.22` and `stable-v1.3.13` (keep unchanged for historical rollback)
 - Stable commit is recorded by the annotated Git tag on GitHub.
 - Production URL: `https://boss-time-eloni.vercel.app/`
 - Firebase RTDB project: `boss-timel2m`
@@ -21,6 +21,7 @@ Read this file completely before changing the project. This is a production boss
 6. Do not read or write Firebase every second. One-second countdown rendering must be local and use the server clock offset.
 7. Every screen must derive time from the same server time and receive the same Firebase-backed state.
 8. Never mutate only the rendered `NOW`, `Spawned`, or `Unset` text in the DOM. React state and `next_spawn` are the single display source.
+9. React owns boss row grouping and ordering. Helper scripts may add alert classes but must never move, append, or reorder React-managed table rows.
 
 ## Realtime consistency contract
 
@@ -81,7 +82,7 @@ Before production deployment:
 2. Run `npm test`; the Unset, five-minute NOW, Still Alive, and catch-up tests must pass.
 3. Review the staged file list and exclude `server/data/store.json` and secrets.
 4. Deploy through GitHub/Vercel and verify the production version, authentication boundary, Firebase readiness, browser console, and relevant user flow.
-5. For risky timer/data changes, create and validate a preview first. Keep both `stable-v1.3.22` and the historical `stable-v1.3.13` tags unchanged; use `stable-v1.3.22` as the primary recovery point.
+5. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` unchanged; use `stable-v1.3.23` as the primary recovery point.
 
 ## Files that define the system
 
@@ -91,5 +92,6 @@ Before production deployment:
 - `public/js/realtime-alerts.js`: client revision guard, clock offset, audio, realtime events, tooltips.
 - `test/boss-timer.test.js`: required timer behavior tests.
 - `server/data/store.json`: user-owned local data; never treat it as current production truth.
+- `docs/GOOGLE_SHEETS_FAILOVER_PLAN.md`: approved planning notes for the future Google Sheets fallback; it is not implemented in the current stable release.
 
 If the requested change conflicts with this document, stop and ask the owner before implementing it.
