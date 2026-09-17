@@ -2105,7 +2105,7 @@ app.post('/bosses/:id/notify', requireAdmin, async (req, res) => {
 
 // POST /bosses -> Create boss
 app.post('/bosses', requireAdmin, async (req, res) => {
-    const { name, location, interval, chance_of_appearing, chanceOfAppearing, is_invasion, isInvasion, last_kill_time } = req.body;
+    const { name, location, interval, chance_of_appearing, chanceOfAppearing, is_invasion, isInvasion, last_kill_time, color } = req.body;
     if (typeof name !== 'string' || !name.trim() || name.trim().length > 100) {
         return res.status(400).json({ success: false, message: 'Invalid boss name' });
     }
@@ -2135,6 +2135,7 @@ app.post('/bosses', requireAdmin, async (req, res) => {
         interval: intervalMinutes,
         chance_of_appearing: String(chanceVal),
         is_invasion: Boolean(isInvasionVal),
+        color: color ? String(color).trim() : null,
         last_kill_time: killTime,
         next_spawn: spawnTime
     });
@@ -2241,10 +2242,24 @@ app.put('/bosses/:id', requireAdmin, async (req, res) => {
         if (chanceVal !== undefined) updates.chance_of_appearing = String(chanceVal);
         const isInvVal = body.is_invasion !== undefined ? body.is_invasion : body.isInvasion;
         if (isInvVal !== undefined) updates.is_invasion = Boolean(isInvVal);
+        if (body.color !== undefined) updates.color = body.color ? String(body.color).trim() : null;
+    } else if (body.color !== undefined) {
+        updates.color = body.color ? String(body.color).trim() : null;
     }
 
     await db.updateBoss(id, updates);
     return respondInertiaOrRedirect(req, res, '/');
+});
+
+// PUT /bosses/:id/color -> Update boss font color specifically
+app.put('/bosses/:id/color', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    const boss = db.getBoss(id);
+    if (!boss) return res.status(404).json({ success: false, message: 'Boss not found' });
+    const color = req.body.color !== undefined ? (req.body.color ? String(req.body.color).trim() : null) : null;
+    const updated = await db.updateBoss(id, { color });
+    if (req.headers['x-inertia']) return respondInertiaOrRedirect(req, res, '/');
+    return res.json({ success: true, boss: updated });
 });
 
 // DELETE /bosses/:id -> Delete boss

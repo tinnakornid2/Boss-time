@@ -26,7 +26,7 @@ router.get('/', (req, res) => {
 
 // POST create new boss
 router.post('/', authMiddleware, (req, res) => {
-    const { name, location, interval, chance_of_appearing, is_invasion, next_spawn, last_kill_time } = req.body;
+    const { name, location, interval, chance_of_appearing, is_invasion, next_spawn, last_kill_time, color } = req.body;
     if (!name) {
         return res.status(422).json({ error: 'Boss name is required' });
     }
@@ -47,6 +47,7 @@ router.post('/', authMiddleware, (req, res) => {
         interval: intervalMinutes,
         chance_of_appearing: chance_of_appearing || '100.00',
         is_invasion: Boolean(is_invasion),
+        color: color ? String(color).trim() : null,
         last_kill_time: killTime,
         next_spawn: spawnTime
     });
@@ -61,13 +62,14 @@ router.put('/:id', authMiddleware, (req, res) => {
     const boss = db.getBoss(id);
     if (!boss) return res.status(404).json({ error: 'Boss not found' });
 
-    const { name, location, interval, chance_of_appearing, is_invasion } = req.body;
+    const { name, location, interval, chance_of_appearing, is_invasion, color } = req.body;
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (location !== undefined) updates.location = location;
     if (interval !== undefined) updates.interval = Number(interval) || 60;
     if (chance_of_appearing !== undefined) updates.chance_of_appearing = String(chance_of_appearing);
     if (is_invasion !== undefined) updates.is_invasion = Boolean(is_invasion);
+    if (color !== undefined) updates.color = color ? String(color).trim() : null;
 
     const updated = db.updateBoss(id, updates);
     broadcaster.broadcast('boss:updated', updated);

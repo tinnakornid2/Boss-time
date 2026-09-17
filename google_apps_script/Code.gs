@@ -174,7 +174,7 @@ function syncFullStore(ss, store) {
 
   var bHeaders = [
     'ID', 'Name', 'Location', 'Interval (Min)', 'Chance %', 'Is Invasion',
-    'Last Kill Time', 'Next Spawn Time', 'Pinned Alive', 'Auto Advanced',
+    'Color', 'Last Kill Time', 'Next Spawn Time', 'Pinned Alive', 'Auto Advanced',
     'Post Maintenance', 'Pre Spawned', 'Updated At'
   ];
   formatHeader(bSheet, bHeaders);
@@ -188,6 +188,7 @@ function syncFullStore(ss, store) {
         b.interval || 60,
         b.chance_of_appearing || '100.00',
         b.is_invasion ? 'YES' : 'NO',
+        b.color || '',
         b.last_kill_time || '',
         b.next_spawn || '',
         b.pinned_alive ? 'YES' : 'NO',
@@ -237,6 +238,7 @@ function updateSingleBoss(ss, boss) {
     boss.interval || 60,
     boss.chance_of_appearing || '100.00',
     boss.is_invasion ? 'YES' : 'NO',
+    boss.color || '',
     boss.last_kill_time || '',
     boss.next_spawn || '',
     boss.pinned_alive ? 'YES' : 'NO',

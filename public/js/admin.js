@@ -313,6 +313,9 @@ const AdminController = {
             document.getElementById('boss-interval-input').value = boss.interval;
             document.getElementById('boss-chance-input').value = boss.chance_of_appearing || '100';
             document.getElementById('boss-invasion-input').checked = Boolean(boss.is_invasion);
+            if (document.getElementById('boss-color-input')) {
+                document.getElementById('boss-color-input').value = boss.color || '';
+            }
             deleteBtn.style.display = '';
         } else {
             titleEl.textContent = 'Add New Boss';
@@ -322,6 +325,9 @@ const AdminController = {
             document.getElementById('boss-interval-input').value = '360';
             document.getElementById('boss-chance-input').value = '100';
             document.getElementById('boss-invasion-input').checked = false;
+            if (document.getElementById('boss-color-input')) {
+                document.getElementById('boss-color-input').value = '';
+            }
             deleteBtn.style.display = 'none';
         }
 
@@ -335,6 +341,7 @@ const AdminController = {
         const interval = parseInt(document.getElementById('boss-interval-input').value, 10);
         const chance = document.getElementById('boss-chance-input').value.trim();
         const isInvasion = document.getElementById('boss-invasion-input').checked;
+        const color = document.getElementById('boss-color-input')?.value?.trim() || null;
 
         if (!name) {
             App.showToast('Boss name is required', 'amber');
@@ -346,7 +353,8 @@ const AdminController = {
             location,
             interval: interval || 60,
             chance_of_appearing: chance || '100.00',
-            is_invasion: isInvasion
+            is_invasion: isInvasion,
+            color
         };
 
         try {

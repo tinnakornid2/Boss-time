@@ -1,4 +1,4 @@
-# 🧭 คู่มือการส่งต่องานสำหรับผู้พัฒนาและ AI (Developer Handover Guide) - v1.3.25
+# 🧭 คู่มือการส่งต่องานสำหรับผู้พัฒนาและ AI (Developer Handover Guide) - v1.3.26
 
 > **สำหรับผู้พัฒนาและ AI ที่เข้ามารับช่วงต่อ:** เอกสารนี้สรุปโครงสร้าง สถาปัตยกรรม และจุดสำคัญทั้งหมดของระบบ เพื่อให้คุณเข้าใจและทำงานต่อได้ทันที **โดยไม่ต้องเสียเวลาอ่านโค้ดทีละบรรทัดทั้งโปรเจกต์**
 
@@ -7,7 +7,7 @@
 ## 📌 1. ภาพรวมระบบ (High-Level Architecture)
 
 - **โปรดักชัน URL:** https://boss-time-eloni.vercel.app/
-- **จุดกู้คืนหลัก (Stable Tag):** `stable-v1.3.25` (Recovery points: `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
+- **จุดกู้คืนหลัก (Stable Tag):** `stable-v1.3.26` (Recovery points: `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
 - **ระบบ Cloud หลัก:** Firebase Realtime Database (RTDB) โปรเจกต์ `boss-timel2m`
 - **ระบบ Cloud สำรองคู่ขนาน:** Google Sheets + Google Apps Script Web App (Parallel Mirror & Instant Failover)
 
@@ -34,15 +34,17 @@ flowchart TD
 
 | ไฟล์ / โฟลเดอร์ | หน้าที่หลัก | สิ่งที่ต้องระวัง |
 | :--- | :--- | :--- |
-| `server/server.js` | จุดรวม Router, Authentication, Inertia HTML dispatcher, Top bar badge UI, Polling endpoint | ห้ามแก้กลไกเซสชัน 30 วัน และห้ามฮาร์ดโค้ดรหัสผ่าน |
-| `server/db.js` | จัดการข้อมูลบอส/อีเวนต์, คำนวณรอบเกิด 5 นาที NOW, ตัดสินแหล่งข้อมูล `getActiveSource()` | ห้ามยิง Cloud รายวินาที, การคำนวณถอยหลังต้องเป็น Local |
+| `server/server.js` | จุดรวม Router, Authentication, Inertia HTML dispatcher, Top bar badge UI, Polling endpoint, Boss Color API | ห้ามแก้กลไกเซสชัน 30 วัน และห้ามฮาร์ดโค้ดรหัสผ่าน |
+| `server/db.js` | จัดการข้อมูลบอส/อีเวนต์, คำนวณรอบเกิด 5 นาที NOW, สีตัวอักษรบอส, ตัดสินแหล่งข้อมูล `getActiveSource()` | ห้ามยิง Cloud รายวินาที, การคำนวณถอยหลังต้องเป็น Local |
 | `server/firebase.js` | เชื่อมต่อ Firebase RTDB, Atomic revision increment (`tracker/meta/dataRevision`) | ห้ามลบคีย์ลับ และห้าม expose error ดิบให้ไคลเอนต์ |
 | `server/google-sheets.js` | Adapter ซิงค์คู่ขนานไปยัง Google Apps Script, Queue อัตโนมัติ, ระบบ Failover | สัญญา Zero Countdown Traffic: ห้ามส่ง tick/countdown เด็ดขาด |
-| `google_apps_script/Code.gs` | สคริปต์ Google Apps Script Web App รับ Mutation แยกแท็บ Bosses, Events, Settings, Log | ติดตั้งใน Google Sheet เป็น Web App (Access: Anyone) |
+| `google_apps_script/Code.gs` | สคริปต์ Google Apps Script Web App รับ Mutation แยกแท็บ Bosses (มีคอลัมน์ Color), Events, Settings, Log | ติดตั้งใน Google Sheet เป็น Web App (Access: Anyone) |
 | `server/routes/settings.js` | API จัดการรหัสผ่าน, PIN ยืนยัน Google Sheets, ไอดีชั่วคราว (Guest) | บังคับใช้ `requireAdmin` ทุก Endpoint |
-| `public/js/realtime-alerts.js` | จัดการ UI ในเบราว์เซอร์: Tooltip บอลลูนสีส้ม, สลับภาษา EN/TH, เสียงแจ้งเตือน, Revision guard | **ห้ามแก้ชื่อบอสเด็ดขาด**, ชื่อบอสต้องเป็นภาษาอังกฤษเสมอ |
+| `public/js/admin.js` | โมดอล Add Boss / Edit Boss สำหรับ Admin รองรับการกำหนดสีฟอนต์บอส | รองรับฟิลด์ `color` ส่งไปยัง Backend |
+| `public/js/realtime-alerts.js` | จัดการ UI ในเบราว์เซอร์: Color Picker ในโมดอล, สลับสีชื่อบอสบนตาราง, Tooltip บอลลูนสีส้ม, สลับภาษา EN/TH, เสียงแจ้งเตือน, Revision guard | **ห้ามแก้ชื่อบอสเด็ดขาด**, ชื่อบอสต้องเป็นภาษาอังกฤษเสมอ |
 | `test/boss-timer.test.js` | ชุดทดสอบลอจิกเวลาบอส (Unset, 5-minute NOW, Still Alive, Catch-up) | รัน `npm test` ต้องผ่าน 100% เสมอ |
 | `test/parallel-sheets-and-guest.test.js` | ชุดทดสอบระบบ Google Sheets, Guest Passwords, Active Source, Dual-Language | รัน `npm test` ต้องผ่าน 100% เสมอ |
+| `test/boss-color.test.js` | ชุดทดสอบระบบเปลี่ยนสีฟอนต์บอส (CRUD, Default Null, Countdown Immunity) | รัน `npm test` ต้องผ่าน 100% เสมอ |
 | `server/data/store.json` | ⚠️ **ไฟล์ข้อมูล Local ของผู้ใช้** | **ห้ามคอมมิต ห้ามรีเซ็ต ห้ามเขียนทับข้อมูลจริงของโปรดักชัน** |
 
 ---
@@ -78,13 +80,19 @@ flowchart TD
 2. **ชื่อบอสคงเดิม:** ชื่อบอสทุกตัวห้ามแปลเป็นภาษาไทยเด็ดขาด
 3. **Unified Tooltip (Style #1):** Tooltip ทุกจุดในระบบเป็นบอลลูนสีส้มเข้ม (Amber-600) มีลูกศรชี้ ไม่ใช้ Tooltip สีขาวเดิมของ OS
 
+### 3.6 ระบบปรับแต่งสีฟอนต์ชื่อบอสรายตัว (Custom Boss Font Color System)
+1. **Admin Color Selection:** ในหน้าต่างโมดอล Add Boss และ Edit Boss จะมีแถบเลือกสีชื่อบอส (Palette 9 สีพรีเซ็ต + Custom Color Picker + ปุ่ม Default) พร้อมกล่อง Preview สด
+2. **Realtime Sync:** เมื่อบันทึก สีฟอนต์จะซิงค์ลง Firebase RTDB, Google Sheets (คอลัมน์ `Color`), และ Local Memory Cache ทันที
+3. **Zero Network & React Conflict-Free Rendering:** ในตารางบอส ฟังก์ชัน `reconcileBossRows()` จะนำค่าสีมาประยุกต์ใช้กับช่องชื่อบอสพร้อมเอฟเฟกต์เรืองแสง (`text-shadow`) โดยอัตโนมัติ โดยไม่ไปกวนการ Render ของ React และไม่มี Network request เพิ่มเติมแม้แต่ตัวเดียว
+
 ---
 
 ## 🛠️ 4. แนวทางการทำงานต่อ (Recipes for Common Tasks)
 
-### 4.1 ต้องการเพิ่ม/แก้บอสใหม่
+### 4.1 ต้องการเพิ่ม/แก้บอสใหม่ หรือเปลี่ยนสีชื่อบอส
 - เข้าผ่านหน้าเว็บด้วยสิทธิ์ **Admin** -> กดปุ่ม Add Boss หรือ Edit Boss ในหน้า Dashboard
-- ข้อมูลจะซิงค์ลงทั้ง Firebase และ Google Sheets อัตโนมัติ
+- เลือกสีฟอนต์ที่ต้องการ หรือคลิกกล่องสีเพื่อเลือกสีแบบ Custom
+- ข้อมูลและสีจะซิงค์ลงทั้ง Firebase และ Google Sheets อัตโนมัติ
 
 ### 4.2 ต้องการแก้คำแปลหรือข้อความในหน้าเว็บ
 - เปิดไฟล์ `public/js/realtime-alerts.js`
@@ -95,7 +103,7 @@ flowchart TD
 ```bash
 npm test
 ```
-*(ต้องผ่านครบทั้ง 14 เทสเสมอ)*
+*(ต้องผ่านครบทั้ง 18 เทสเสมอ)*
 
 ### 4.4 ต้องการสำรองข้อมูลก่อนแก้ไขงานใหญ่
 ```bash
@@ -110,4 +118,5 @@ npm run backup
 1. ❌ **ห้ามคอมมิตไฟล์ `server/data/store.json` หรือรหัสผ่านลง Git**
 2. ❌ **ห้ามยิง Request ไป Firebase หรือ Google Sheets ทุกวินาที** (ต้องใช้ Local Timer เสมอ)
 3. ❌ **ห้ามแปลชื่อบอส** (เช่น ห้ามแปล Antharas, Baium เป็นภาษาไทย)
-4. ❌ **ห้ามลบ Recovery Tags** (`stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
+4. ❌ **ห้ามลบ Recovery Tags** (`stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
+

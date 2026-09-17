@@ -420,6 +420,7 @@ module.exports = {
             interval: Number(bossData.interval) || 60,
             is_invasion: Boolean(bossData.is_invasion),
             chance_of_appearing: bossData.chance_of_appearing || '100.00',
+            color: bossData.color || null,
             last_kill_time: bossData.last_kill_time || null,
             next_spawn: bossData.next_spawn || null,
             auto_advanced: false,

@@ -180,7 +180,11 @@
             sheets_test_btn: '⚡ Test Connection',
             sheets_sync_btn: '🔄 Sync All Now',
             sheets_save_btn: '💾 Save Settings',
-            sheets_script_guide: '📖 <b>Script file:</b> located at <code>google_apps_script/Code.gs</code> with guide in <code>google_apps_script/README.md</code>'
+            sheets_script_guide: '📖 <b>Script file:</b> located at <code>google_apps_script/Code.gs</code> with guide in <code>google_apps_script/README.md</code>',
+            boss_font_color: 'Boss Font Color',
+            color_preview: 'Preview',
+            color_default: 'Default',
+            color_custom: 'Custom Color'
         },
         th: {
             lang_code: 'TH',
@@ -192,6 +196,10 @@
             show_muted: 'แสดงรายการปิดเสียง',
             hide_muted: 'ซ่อนรายการปิดเสียง',
             settings: 'ตั้งค่า',
+            boss_font_color: 'สีตัวอักษรบอส',
+            color_preview: 'ตัวอย่าง',
+            color_default: 'ค่าเริ่มต้น',
+            color_custom: 'เลือกสีเอง',
             audio_status_connected: 'เสียงเรียลไทม์เชื่อมต่อแล้ว',
             audio_status_fallback: 'เสียงเชื่อมต่อสำรอง',
             audio_status_connecting: 'กำลังเชื่อมต่อเสียง...',
@@ -759,6 +767,44 @@
         });
     }
 
+    function applyRowBossColor(row, boss) {
+        if (!row || !boss) return;
+        const color = boss.color ? String(boss.color).trim() : '';
+        const tds = row.querySelectorAll('td');
+        for (const td of tds) {
+            if (td.textContent && td.textContent.includes(boss.name)) {
+                if (color) {
+                    td.style.setProperty('color', color, 'important');
+                    td.setAttribute('data-boss-custom-color', color);
+                    const spans = td.querySelectorAll('span');
+                    for (const sp of spans) {
+                        if (sp.classList.contains('pre-spawn-flash-label') ||
+                            sp.classList.contains('bg-yellow-400/20') ||
+                            sp.textContent.trim() === 'INV' ||
+                            sp.textContent.trim() === 'Pre-spawning') {
+                            continue;
+                        }
+                        sp.style.setProperty('color', color, 'important');
+                        if (color !== '#ffffff' && color !== '#f4f4f5') {
+                            sp.style.textShadow = `0 0 10px ${color}80`;
+                        } else {
+                            sp.style.textShadow = '';
+                        }
+                    }
+                } else if (td.hasAttribute('data-boss-custom-color')) {
+                    td.removeAttribute('data-boss-custom-color');
+                    td.style.removeProperty('color');
+                    const spans = td.querySelectorAll('span');
+                    for (const sp of spans) {
+                        sp.style.removeProperty('color');
+                        sp.style.textShadow = '';
+                    }
+                }
+                break;
+            }
+        }
+    }
+
     function reconcileBossRows() {
         const now = Date.now() + state.serverOffset;
         for (const row of document.querySelectorAll('tr.realtime-pre-spawn-flash')) {
@@ -767,7 +813,10 @@
         for (const boss of state.bosses.values()) {
             const expiry = new Date(boss.pre_spawn_expires_at || 0).getTime();
             const active = boss.pre_spawned && (!Number.isFinite(expiry) || expiry === 0 || expiry > now);
-            for (const row of bossRows(boss)) row.classList.toggle('realtime-pre-spawn-flash', active);
+            for (const row of bossRows(boss)) {
+                row.classList.toggle('realtime-pre-spawn-flash', active);
+                applyRowBossColor(row, boss);
+            }
         }
     }
 
@@ -792,14 +841,30 @@
         } else if (event.type === 'boss_pre_spawn_cleared') {
             if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
             reconcileBossRows();
-        } else if (event.type === 'boss_time_unset') {
+        } else if (event.type === 'boss_time_unset' || event.type === 'boss_updated') {
+            if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
             reconcileBossRows();
         }
     }
 
     function processPollData(data) {
         if (Number.isFinite(Number(data.serverTime))) state.serverOffset = Number(data.serverTime) - Date.now();
-        for (const boss of data.bosses || []) state.bosses.set(Number(boss.id), boss);
+        for (const boss of data.bosses || []) {
+            state.bosses.set(Number(boss.id), boss);
+            const pendingKey = `pending_new_boss_color_${(boss.name || '').toLowerCase()}`;
+            const pendingColor = sessionStorage.getItem(pendingKey);
+            if (pendingColor !== null) {
+                sessionStorage.removeItem(pendingKey);
+                if (pendingColor && boss.color !== pendingColor) {
+                    boss.color = pendingColor;
+                    fetch(`/bosses/${boss.id}/color`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ color: pendingColor })
+                    }).catch(() => {});
+                }
+            }
+        }
         for (const event of data.events || []) state.events.set(Number(event.id), event);
         const initial = !state.initialEventsLoaded;
         for (const event of data.recentLiveEvents || []) consumeLiveEvent(event, initial);
@@ -1265,7 +1330,204 @@
         }
     }
 
-    window.translateVisibleUi = translateVisibleUi;
+    const PRESET_BOSS_COLORS = [
+        { key: 'default', color: '', label_en: 'Default', label_th: 'ค่าเริ่มต้น', bg: '#27272a', border: '#71717a', dot: '#ffffff' },
+        { key: 'gold', color: '#f59e0b', label_en: 'Gold', label_th: 'ทอง', bg: '#78350f', border: '#f59e0b', dot: '#f59e0b' },
+        { key: 'orange', color: '#f97316', label_en: 'Orange', label_th: 'ส้ม', bg: '#7c2d12', border: '#f97316', dot: '#f97316' },
+        { key: 'red', color: '#ef4444', label_en: 'Red', label_th: 'แดง', bg: '#7f1d1d', border: '#ef4444', dot: '#ef4444' },
+        { key: 'purple', color: '#a855f7', label_en: 'Purple', label_th: 'ม่วงนีออน', bg: '#581c87', border: '#a855f7', dot: '#a855f7' },
+        { key: 'cyan', color: '#06b6d4', label_en: 'Cyan', label_th: 'ฟ้าไซแอน', bg: '#164e63', border: '#06b6d4', dot: '#06b6d4' },
+        { key: 'emerald', color: '#10b981', label_en: 'Emerald', label_th: 'เขียวมรกต', bg: '#064e3b', border: '#10b981', dot: '#10b981' },
+        { key: 'pink', color: '#ec4899', label_en: 'Pink', label_th: 'ชมพู', bg: '#831843', border: '#ec4899', dot: '#ec4899' },
+        { key: 'yellow', color: '#eab308', label_en: 'Yellow', label_th: 'เหลืองนีออน', bg: '#713f12', border: '#eab308', dot: '#eab308' }
+    ];
+
+    function attachBossColorPickerToDialog() {
+        const dialog = document.querySelector('[role="dialog"]');
+        if (!dialog) return;
+
+        const editNameInput = dialog.querySelector('#shared-edit-name');
+        const addNameInput = dialog.querySelector('#b-name');
+        const nameInput = editNameInput || addNameInput;
+        if (!nameInput) return;
+
+        const form = nameInput.closest('form');
+        if (!form) return;
+
+        const isEdit = Boolean(editNameInput);
+        const bossName = nameInput.value.trim();
+        const currentBoss = isEdit
+            ? (Array.from(state.bosses.values()).find(b => b.name.toLowerCase() === bossName.toLowerCase()) || null)
+            : null;
+
+        let picker = form.querySelector('#custom-boss-color-picker-container');
+        if (picker) {
+            const preview = picker.querySelector('#custom-boss-color-preview');
+            if (preview && nameInput.value && preview.textContent !== nameInput.value) {
+                preview.textContent = nameInput.value;
+            }
+            return;
+        }
+
+        let activeColor = (currentBoss?.color ? String(currentBoss.color).trim() : '');
+
+        picker = document.createElement('div');
+        picker.id = 'custom-boss-color-picker-container';
+        picker.style.cssText = 'margin-top: 6px; margin-bottom: 4px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12);';
+
+        const isTh = getLanguage() === 'th';
+        const titleText = isTh ? 'สีตัวอักษรบอส (Boss Font Color)' : 'Boss Font Color';
+        const previewText = isTh ? 'ตัวอย่าง:' : 'Preview:';
+
+        picker.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+                <label style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.9);display:flex;align-items:center;gap:5px;">
+                    <span>🎨</span>
+                    <span>${titleText}</span>
+                </label>
+                <div style="font-size:11px;color:rgba(255,255,255,0.55);display:flex;align-items:center;gap:5px;">
+                    <span>${previewText}</span>
+                    <span id="custom-boss-color-preview" style="display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.15);transition:all 0.15s ease;color:${activeColor || '#ffffff'};${activeColor ? `text-shadow:0 0 10px ${activeColor}99;` : ''}">${nameInput.value || (isTh ? 'ชื่อบอส' : 'Boss Name')}</span>
+                </div>
+            </div>
+            <div id="custom-boss-swatches-row" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
+            </div>
+            <input type="hidden" id="custom-boss-selected-color-val" value="${activeColor}">
+        `;
+
+        const swatchesRow = picker.querySelector('#custom-boss-swatches-row');
+        const previewEl = picker.querySelector('#custom-boss-color-preview');
+        const hiddenVal = picker.querySelector('#custom-boss-selected-color-val');
+
+        function updateSelectedColor(hex) {
+            activeColor = hex ? hex.trim() : '';
+            hiddenVal.value = activeColor;
+            previewEl.style.color = activeColor || '#ffffff';
+            previewEl.style.textShadow = activeColor ? `0 0 10px ${activeColor}aa` : '';
+
+            swatchesRow.querySelectorAll('.boss-color-swatch').forEach(btn => {
+                const btnColor = btn.getAttribute('data-color') || '';
+                const isMatch = btnColor.toLowerCase() === activeColor.toLowerCase();
+                btn.style.boxShadow = isMatch ? `0 0 10px ${btnColor || '#ffffff'}, 0 0 0 2px #ffffff` : 'none';
+                btn.style.transform = isMatch ? 'scale(1.15)' : 'scale(1)';
+                btn.style.zIndex = isMatch ? '2' : '1';
+            });
+        }
+
+        for (const item of PRESET_BOSS_COLORS) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'boss-color-swatch';
+            btn.setAttribute('data-color', item.color);
+            const label = isTh ? item.label_th : item.label_en;
+            btn.setAttribute('data-unified-tooltip', label);
+            btn.setAttribute('aria-label', label);
+            const isMatch = item.color.toLowerCase() === activeColor.toLowerCase();
+
+            btn.style.cssText = `
+                width: 24px;
+                height: 24px;
+                border-radius: 5px;
+                border: 2px solid ${item.border};
+                background: ${item.bg};
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.15s ease;
+                box-shadow: ${isMatch ? `0 0 10px ${item.border}, 0 0 0 2px #ffffff` : 'none'};
+                transform: ${isMatch ? 'scale(1.15)' : 'scale(1)'};
+                position: relative;
+            `;
+
+            if (item.color === '') {
+                btn.innerHTML = `<span style="font-size:10px;color:#ffffff;font-weight:700;">⚪</span>`;
+            } else {
+                btn.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${item.dot};"></span>`;
+            }
+
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                updateSelectedColor(item.color);
+            });
+
+            swatchesRow.appendChild(btn);
+        }
+
+        const customPickerLabel = document.createElement('label');
+        customPickerLabel.className = 'boss-color-swatch-custom';
+        customPickerLabel.setAttribute('data-unified-tooltip', isTh ? 'เลือกสีกำหนดเอง' : 'Custom Color');
+        customPickerLabel.setAttribute('aria-label', isTh ? 'เลือกสีกำหนดเอง' : 'Custom Color');
+        customPickerLabel.style.cssText = `
+            position: relative;
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            border: 2px dashed rgba(255,255,255,0.4);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: rgba(255,255,255,0.08);
+            font-size: 11px;
+            transition: all 0.15s ease;
+        `;
+        customPickerLabel.innerHTML = `
+            <span>🌈</span>
+            <input type="color" id="custom-boss-color-input-field" value="${activeColor || '#ffffff'}" style="position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer;">
+        `;
+        const colorInput = customPickerLabel.querySelector('input');
+        colorInput.addEventListener('input', (e) => {
+            updateSelectedColor(e.target.value);
+        });
+        swatchesRow.appendChild(customPickerLabel);
+
+        nameInput.addEventListener('input', () => {
+            if (previewEl) previewEl.textContent = nameInput.value.trim() || (isTh ? 'ชื่อบอส' : 'Boss Name');
+        });
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn && submitBtn.parentElement) {
+            submitBtn.parentElement.parentElement.insertBefore(picker, submitBtn.parentElement);
+        } else {
+            form.appendChild(picker);
+        }
+
+        const triggerSaveColor = async () => {
+            const finalColor = hiddenVal.value ? hiddenVal.value.trim() : null;
+            if (isEdit) {
+                const targetName = nameInput.value.trim();
+                const targetBoss = Array.from(state.bosses.values()).find(b => b.name.toLowerCase() === targetName.toLowerCase()) || currentBoss;
+                if (targetBoss && targetBoss.id) {
+                    targetBoss.color = finalColor;
+                    reconcileBossRows();
+                    try {
+                        await fetch(`/bosses/${targetBoss.id}/color`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ color: finalColor })
+                        });
+                    } catch (err) {
+                        console.error('Failed to update boss color:', err);
+                    }
+                }
+            } else {
+                const newName = nameInput.value.trim();
+                if (newName) {
+                    sessionStorage.setItem(`pending_new_boss_color_${newName.toLowerCase()}`, finalColor || '');
+                }
+            }
+        };
+
+        if (submitBtn) {
+            submitBtn.addEventListener('click', triggerSaveColor, { capture: true });
+        }
+        form.addEventListener('submit', triggerSaveColor, { capture: true });
+    }
 
     function enhanceUi() {
         for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
@@ -1292,6 +1554,7 @@
         if (window.attachAdminSettingsToReactDialog && document.querySelector('[role="dialog"]')) {
             window.attachAdminSettingsToReactDialog();
         }
+        attachBossColorPickerToDialog();
         translateVisibleTooltips();
         translateVisibleUi();
     }
