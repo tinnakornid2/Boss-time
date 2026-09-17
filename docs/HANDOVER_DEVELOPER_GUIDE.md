@@ -1,4 +1,4 @@
-# 🧭 คู่มือการส่งต่องานสำหรับผู้พัฒนาและ AI (Developer Handover Guide) - v1.3.26
+# 🧭 คู่มือการส่งต่องานสำหรับผู้พัฒนาและ AI (Developer Handover Guide) - v1.3.27
 
 > **สำหรับผู้พัฒนาและ AI ที่เข้ามารับช่วงต่อ:** เอกสารนี้สรุปโครงสร้าง สถาปัตยกรรม และจุดสำคัญทั้งหมดของระบบ เพื่อให้คุณเข้าใจและทำงานต่อได้ทันที **โดยไม่ต้องเสียเวลาอ่านโค้ดทีละบรรทัดทั้งโปรเจกต์**
 
@@ -7,7 +7,7 @@
 ## 📌 1. ภาพรวมระบบ (High-Level Architecture)
 
 - **โปรดักชัน URL:** https://boss-time-eloni.vercel.app/
-- **จุดกู้คืนหลัก (Stable Tag):** `stable-v1.3.26` (Recovery points: `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
+- **จุดกู้คืนหลัก (Stable Tag):** `stable-v1.3.27` (Recovery points: `stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
 - **ระบบ Cloud หลัก:** Firebase Realtime Database (RTDB) โปรเจกต์ `boss-timel2m`
 - **ระบบ Cloud สำรองคู่ขนาน:** Google Sheets + Google Apps Script Web App (Parallel Mirror & Instant Failover)
 
@@ -103,7 +103,7 @@ flowchart TD
 ```bash
 npm test
 ```
-*(ต้องผ่านครบทั้ง 18 เทสเสมอ)*
+*(ต้องผ่านครบทั้ง 19 เทสเสมอ)*
 
 ### 4.4 ต้องการสำรองข้อมูลก่อนแก้ไขงานใหญ่
 ```bash
@@ -118,5 +118,5 @@ npm run backup
 1. ❌ **ห้ามคอมมิตไฟล์ `server/data/store.json` หรือรหัสผ่านลง Git**
 2. ❌ **ห้ามยิง Request ไป Firebase หรือ Google Sheets ทุกวินาที** (ต้องใช้ Local Timer เสมอ)
 3. ❌ **ห้ามแปลชื่อบอส** (เช่น ห้ามแปล Antharas, Baium เป็นภาษาไทย)
-4. ❌ **ห้ามลบ Recovery Tags** (`stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
+4. ❌ **ห้ามลบ Recovery Tags** (`stable-v1.3.27`, `stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
 

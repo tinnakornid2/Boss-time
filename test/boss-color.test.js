@@ -2,6 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const db = require('../server/db');
 const { _test } = require('../server/db');
+const googleSheets = require('../server/google-sheets');
+
+const origConfig = googleSheets.getConfig();
+googleSheets.saveLocalConfig({ ...origConfig, enabled: false });
 
 test('Boss color: createBoss saves color property', async () => {
     const created = await db.createBoss({
@@ -96,3 +100,44 @@ test('Boss color: Client realtime alerts bridge and Color Picker architecture co
     assert.ok(gasSrc.includes("b.color || ''"));
     assert.ok(gasSrc.includes("boss.color || ''"));
 });
+
+test('Boss color: handles multiple bosses with same name (e.g. Invasion vs Normal Valefar) independently', async () => {
+    // Create Normal Boss
+    const normalBoss = await db.createBoss({
+        name: 'Valefar Test',
+        location: 'Morgue',
+        interval: 210,
+        is_invasion: false,
+        color: null
+    });
+
+    // Create Invasion Boss with identical name and location
+    const invasionBoss = await db.createBoss({
+        name: 'Valefar Test',
+        location: 'Morgue',
+        interval: 210,
+        is_invasion: true,
+        color: null
+    });
+
+    assert.notEqual(normalBoss.id, invasionBoss.id);
+
+    // Update normal boss color to #3e91fe
+    await db.updateBoss(normalBoss.id, { color: '#3e91fe' });
+
+    // Normal boss has #3e91fe, invasion boss remains null
+    assert.equal(db.getBoss(normalBoss.id).color, '#3e91fe');
+    assert.equal(db.getBoss(invasionBoss.id).color, null);
+
+    // Update invasion boss color to #ef4444
+    await db.updateBoss(invasionBoss.id, { color: '#ef4444' });
+
+    // Both retain their respective colors independently
+    assert.equal(db.getBoss(normalBoss.id).color, '#3e91fe');
+    assert.equal(db.getBoss(invasionBoss.id).color, '#ef4444');
+
+    // Clean up
+    await db.deleteBoss(normalBoss.id);
+    await db.deleteBoss(invasionBoss.id);
+});
+

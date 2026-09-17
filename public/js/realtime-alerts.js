@@ -761,9 +761,16 @@
 
     function bossRows(boss) {
         if (!boss?.name) return [];
+        if (boss.id) {
+            const byId = document.querySelectorAll(`tr[data-boss-id="${boss.id}"]`);
+            if (byId.length > 0) return Array.from(byId);
+        }
         return Array.from(document.querySelectorAll('tr')).filter(row => {
             const text = row.textContent || '';
-            return text.includes(boss.name) && (!boss.location || text.includes(boss.location));
+            if (!text.includes(boss.name)) return false;
+            const hasInvBadge = text.includes('INV') || text.includes('L3') || Boolean(row.querySelector('.bg-purple-900\\/50, .border-purple-500\\/50'));
+            if (boss.is_invasion) return hasInvBadge;
+            return !hasInvBadge;
         });
     }
 
@@ -786,9 +793,9 @@
                         }
                         sp.style.setProperty('color', color, 'important');
                         if (color !== '#ffffff' && color !== '#f4f4f5') {
-                            sp.style.textShadow = `0 0 10px ${color}80`;
+                            sp.style.setProperty('text-shadow', `0 0 10px ${color}80`, 'important');
                         } else {
-                            sp.style.textShadow = '';
+                            sp.style.removeProperty('text-shadow');
                         }
                     }
                 } else if (td.hasAttribute('data-boss-custom-color')) {
@@ -797,7 +804,7 @@
                     const spans = td.querySelectorAll('span');
                     for (const sp of spans) {
                         sp.style.removeProperty('color');
-                        sp.style.textShadow = '';
+                        sp.style.removeProperty('text-shadow');
                     }
                 }
                 break;
@@ -1356,23 +1363,36 @@
 
         const isEdit = Boolean(editNameInput);
         const bossName = nameInput.value.trim();
+        const formBossId = form.getAttribute('data-boss-id');
+        const isInv = form.querySelector('#shared-edit-inv')?.checked;
         const currentBoss = isEdit
-            ? (Array.from(state.bosses.values()).find(b => b.name.toLowerCase() === bossName.toLowerCase()) || null)
+            ? ((formBossId && state.bosses.get(Number(formBossId))) ||
+               Array.from(state.bosses.values()).find(b =>
+                   b.name.toLowerCase() === bossName.toLowerCase() &&
+                   (isInv === undefined || Boolean(b.is_invasion) === Boolean(isInv))
+               ) || null)
             : null;
 
+        const bossKeyId = currentBoss?.id ? String(currentBoss.id) : (bossName || 'new');
         let picker = form.querySelector('#custom-boss-color-picker-container');
         if (picker) {
-            const preview = picker.querySelector('#custom-boss-color-preview');
-            if (preview && nameInput.value && preview.textContent !== nameInput.value) {
-                preview.textContent = nameInput.value;
+            if (picker.getAttribute('data-for-boss-id') !== bossKeyId) {
+                picker.remove();
+                picker = null;
+            } else {
+                const preview = picker.querySelector('#custom-boss-color-preview');
+                if (preview && nameInput.value && preview.textContent !== nameInput.value) {
+                    preview.textContent = nameInput.value;
+                }
+                return;
             }
-            return;
         }
 
         let activeColor = (currentBoss?.color ? String(currentBoss.color).trim() : '');
 
         picker = document.createElement('div');
         picker.id = 'custom-boss-color-picker-container';
+        picker.setAttribute('data-for-boss-id', bossKeyId);
         picker.style.cssText = 'margin-top: 6px; margin-bottom: 4px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12);';
 
         const isTh = getLanguage() === 'th';
@@ -1412,6 +1432,11 @@
                 btn.style.transform = isMatch ? 'scale(1.15)' : 'scale(1)';
                 btn.style.zIndex = isMatch ? '2' : '1';
             });
+
+            if (currentBoss) {
+                currentBoss.color = activeColor || null;
+                reconcileBossRows();
+            }
         }
 
         for (const item of PRESET_BOSS_COLORS) {
@@ -1498,7 +1523,13 @@
             const finalColor = hiddenVal.value ? hiddenVal.value.trim() : null;
             if (isEdit) {
                 const targetName = nameInput.value.trim();
-                const targetBoss = Array.from(state.bosses.values()).find(b => b.name.toLowerCase() === targetName.toLowerCase()) || currentBoss;
+                const formBossId = form.getAttribute('data-boss-id');
+                const isInv = form.querySelector('#shared-edit-inv')?.checked;
+                const targetBoss = (formBossId && state.bosses.get(Number(formBossId))) ||
+                    Array.from(state.bosses.values()).find(b =>
+                        b.name.toLowerCase() === targetName.toLowerCase() &&
+                        (isInv === undefined || Boolean(b.is_invasion) === Boolean(isInv))
+                    ) || currentBoss;
                 if (targetBoss && targetBoss.id) {
                     targetBoss.color = finalColor;
                     reconcileBossRows();
