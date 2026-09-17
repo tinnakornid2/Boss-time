@@ -63,6 +63,281 @@
         return SOUND_FILES[key] || (String(key).startsWith('/') ? key : fallback);
     }
 
+    const I18N = {
+        en: {
+            lang_code: 'EN',
+            lang_toggle_title: 'Language: English (Click to switch to Thai)',
+            search_placeholder: 'Search...',
+            bosses_tab: 'Bosses',
+            invasion_tab: 'Invasion',
+            events_tab: 'Events',
+            show_muted: 'Show Muted',
+            hide_muted: 'Hide Muted',
+            settings: 'Settings',
+            audio_status_connected: 'Realtime Audio Connected',
+            audio_status_fallback: 'Polling Audio (Fallback)',
+            audio_status_connecting: 'Audio Connecting...',
+            audio_status_blocked: 'Audio Blocked — Click again to enable',
+            audio_status_enable: 'Enable Audio',
+            tz_title: 'Time Zone GMT+{offset} (Click to switch)',
+            tz_notice: '🕐 Time Zone GMT+{offset}',
+            guest_badge_title: 'Guest Access — Temporary session',
+            spawn_soon_notice: '🔔 Spawn Soon — {name} will spawn in {min} min',
+            spawned_notice: '🔥 Spawned — {name} has spawned!',
+            offline_notice: '⚠️ Offline — Connection lost',
+            lang_switched: '🌐 Language changed to English',
+            tooltip_kill_now: 'Kill Now (2 Clicks)',
+            tooltip_confirm_kill: 'Confirm Kill Now',
+            tooltip_still_alive_2x: 'Still Alive (2 Clicks)',
+            tooltip_spawn_5m: 'Spawn in 5 Minutes (2 Clicks)',
+            tooltip_spawn_1m: 'Spawn in 1 Minute (2 Clicks)',
+            tooltip_not_spawned: 'Not Spawned (2 Clicks)',
+            tooltip_event_done: 'Mark Event Done (2 Clicks)',
+            tooltip_skip_today: 'Skip Today (2 Clicks)',
+            tooltip_pin_still_alive: 'Pin Still Alive (2 Clicks)',
+            tooltip_confirm_2nd: 'Confirm with Second Click',
+            tooltip_pre_spawn_notify: 'Double-click to notify members',
+            tooltip_pre_spawn_clear: 'Double-click to clear pre-spawn alert',
+            tooltip_edit_boss: 'Edit Boss',
+            tooltip_delete_boss: 'Delete Boss',
+            tooltip_delete: 'Delete',
+            tooltip_custom_kill: 'Custom Kill Time',
+            tooltip_more_options: 'More Options',
+            tooltip_advance_cycle: 'Advance Cycle',
+            tooltip_unpin: 'Unpin',
+            tooltip_pin: 'Pin',
+            tooltip_unmute: 'Unmute Alert',
+            tooltip_mute: 'Mute Alert',
+            tooltip_update_spawn: 'Update Spawn',
+            tooltip_reset_time: 'Reset Time',
+            tooltip_undo: 'Undo',
+            tooltip_close: 'Close',
+            tooltip_save: 'Save',
+            tooltip_cancel: 'Cancel',
+            tooltip_passwords: 'Manage Passwords',
+            tab_display: 'Display',
+            tab_audio: 'Audio',
+            tab_invasion: 'Invasion',
+            tab_events: 'Events',
+            tab_admin: 'Admin',
+            system_label: 'System:',
+            tab_passwords: 'System Passwords',
+            tab_guest: 'Guest Access',
+            tab_sheets: 'Google Sheets',
+            pre_spawn_toast: '⚠️ Boss Alert — {name} is about to spawn!',
+            verify_admin_title: '🛡️ Admin Verification',
+            verify_admin_desc: 'Currently in Member/Guest mode. Please enter Admin password to unlock:',
+            verify_admin_ph: 'Current Admin password',
+            verify_btn_title: 'Verify Admin',
+            verify_btn: '🔓 Verify',
+            admin_pwd_label: '🛡️ Admin Password',
+            admin_badge: 'System Control',
+            admin_pwd_ph: 'New password (min 8 chars)',
+            admin_pwd_hint: 'For Admin mode: record boss kill times, add/delete bosses, manage events',
+            member_pwd_label: '👥 Member Password',
+            member_badge: 'View Access',
+            member_pwd_ph: 'New password (min 8 chars)',
+            member_pwd_hint: 'For clan members: view boss timetable, countdown timers, and audio alerts',
+            pwd_cloud_notice: 'Changes will sync to Firebase Cloud automatically',
+            cancel_btn: 'Cancel',
+            save_pwd_btn: '💾 Save Passwords',
+            guest_section_title: 'Generate Temporary Passwords (Guest Access)',
+            guest_label_field: 'Name / Note',
+            guest_label_ph: 'e.g. Guest #1 / Friend',
+            guest_duration_field: 'Expiration Duration',
+            guest_dur_1: '1 Hour (1 hr)',
+            guest_dur_6: '6 Hours (6 hrs)',
+            guest_dur_12: '12 Hours (12 hrs)',
+            guest_dur_24: '1 Day (24 hrs)',
+            guest_dur_72: '3 Days (72 hrs)',
+            guest_dur_168: '7 Days (1 week)',
+            guest_pwd_field: 'Guest Password (or generate random)',
+            guest_pwd_ph: 'Type password or generate random',
+            guest_random_btn: '🎲 Random',
+            guest_create_btn: '➕ Create',
+            guest_table_title: '📋 All Temporary Passwords',
+            guest_refresh_btn: '🔄 Refresh',
+            guest_col_name: 'Name / Note',
+            guest_col_pwd: 'Password',
+            guest_col_expires: 'Expires',
+            guest_col_status: 'Status',
+            guest_col_action: 'Actions',
+            guest_loading: 'Loading...',
+            sheets_lock_title: 'Protected Configuration Area',
+            sheets_lock_desc: 'Parallel Google Sheets database settings are protected. Enter password to access:',
+            sheets_lock_ph: 'Enter password...',
+            sheets_unlock_btn: '🔓 Unlock',
+            sheets_unlocked_badge: '🔓 Unlocked',
+            sheets_lock_btn: '🔒 Lock',
+            sheets_url_label: '🌐 Google Apps Script Web App URL',
+            sheets_url_hint: 'Web app URL from Google Sheets Deployment (must end with /exec)',
+            sheets_token_label: '🔑 Secret Token',
+            sheets_token_hint: 'Must match SECRET_TOKEN in Code.gs',
+            sheets_mirror_label: 'Enable Parallel Mirror',
+            sheets_mirror_hint: 'Sync bosses and events to Google Sheets in background on every update',
+            sheets_failover_label: 'Enable Auto Failover',
+            sheets_failover_hint: 'Serve data from Google Sheets if Firebase is offline or quota exceeded',
+            sheets_test_btn: '⚡ Test Connection',
+            sheets_sync_btn: '🔄 Sync All Now',
+            sheets_save_btn: '💾 Save Settings',
+            sheets_script_guide: '📖 <b>Script file:</b> located at <code>google_apps_script/Code.gs</code> with guide in <code>google_apps_script/README.md</code>'
+        },
+        th: {
+            lang_code: 'TH',
+            lang_toggle_title: 'ภาษา: ไทย (กดเพื่อเปลี่ยนเป็น English)',
+            search_placeholder: 'ค้นหา...',
+            bosses_tab: 'บอส',
+            invasion_tab: 'สงครามบุกรุก',
+            events_tab: 'กิจกรรม',
+            show_muted: 'แสดงรายการปิดเสียง',
+            hide_muted: 'ซ่อนรายการปิดเสียง',
+            settings: 'ตั้งค่า',
+            audio_status_connected: 'เสียงเรียลไทม์เชื่อมต่อแล้ว',
+            audio_status_fallback: 'เสียงเชื่อมต่อสำรอง',
+            audio_status_connecting: 'กำลังเชื่อมต่อเสียง...',
+            audio_status_blocked: 'เบราว์เซอร์บล็อกเสียง กรุณากดอีกครั้ง',
+            audio_status_enable: 'เปิดเสียงแจ้งเตือน',
+            tz_title: 'เขตเวลา GMT+{offset} (กดเพื่อสลับ)',
+            tz_notice: '🕐 เปลี่ยนเขตเวลาเป็น GMT+{offset}',
+            guest_badge_title: 'เข้าใช้งานด้วยรหัสชั่วคราว',
+            spawn_soon_notice: '🔔 บอสใกล้เกิด — {name} จะเกิดใน {min} นาที',
+            spawned_notice: '🔥 บอสเกิดแล้ว — {name} เกิดแล้ว!',
+            offline_notice: '⚠️ ออฟไลน์ — การเชื่อมต่อขาดหาย',
+            lang_switched: '🌐 เปลี่ยนภาษาเป็น ภาษาไทย เรียบร้อย',
+            tooltip_kill_now: 'บันทึกเวลาตายตอนนี้ (คลิก 2 ครั้ง)',
+            tooltip_confirm_kill: 'คลิกครั้งที่ 2 เพื่อยืนยันเวลาตาย',
+            tooltip_still_alive_2x: 'บอสยังไม่ตาย (คลิก 2 ครั้ง)',
+            tooltip_spawn_5m: 'บอสเกิดใน 5 นาที (คลิก 2 ครั้ง)',
+            tooltip_spawn_1m: 'บอสเกิดใน 1 นาที (คลิก 2 ครั้ง)',
+            tooltip_not_spawned: 'บอสยังไม่เกิด (คลิก 2 ครั้ง)',
+            tooltip_event_done: 'กิจกรรมเสร็จแล้ว (กด 2 ครั้ง)',
+            tooltip_skip_today: 'ข้ามกิจกรรมวันนี้ (กด 2 ครั้ง)',
+            tooltip_pin_still_alive: 'ปักหมุดว่ายังไม่จบ (กด 2 ครั้ง)',
+            tooltip_confirm_2nd: 'กดครั้งที่ 2 เพื่อยืนยัน',
+            tooltip_pre_spawn_notify: 'ดับเบิลคลิกชื่อบอสเพื่อแจ้งเตือนสมาชิก',
+            tooltip_pre_spawn_clear: 'ดับเบิลคลิกชื่อบอสเพื่อยกเลิกการแจ้งเตือน',
+            tooltip_edit_boss: 'แก้ไขบอส',
+            tooltip_delete_boss: 'ลบบอส',
+            tooltip_delete: 'ลบ',
+            tooltip_custom_kill: 'กำหนดเวลาตายเอง',
+            tooltip_more_options: 'ตัวเลือกเพิ่มเติม',
+            tooltip_advance_cycle: 'ข้ามรอบ',
+            tooltip_unpin: 'ยกเลิกปักหมุด',
+            tooltip_pin: 'ปักหมุด',
+            tooltip_unmute: 'เปิดเสียงแจ้งเตือน',
+            tooltip_mute: 'ปิดเสียงแจ้งเตือน',
+            tooltip_update_spawn: 'อัปเดตเวลาเกิด',
+            tooltip_reset_time: 'รีเซ็ตเวลา',
+            tooltip_undo: 'ย้อนกลับ',
+            tooltip_close: 'ปิด',
+            tooltip_save: 'บันทึก',
+            tooltip_cancel: 'ยกเลิก',
+            tooltip_passwords: 'จัดการรหัสผ่าน',
+            tab_display: 'การแสดงผล',
+            tab_audio: 'เสียงแจ้งเตือน',
+            tab_invasion: 'สงครามบุกรุก',
+            tab_events: 'กิจกรรม',
+            tab_admin: 'ผู้ดูแลระบบ',
+            system_label: 'ระบบ:',
+            tab_passwords: 'รหัสผ่านระบบ',
+            tab_guest: 'ไอดีชั่วคราว (Guest)',
+            tab_sheets: 'Google Sheets',
+            pre_spawn_toast: '⚠️ แจ้งเตือนบอส — {name} กำลังจะเกิด!',
+            verify_admin_title: '🛡️ ยืนยันตัวตนผู้ดูแลระบบ',
+            verify_admin_desc: 'ปัจจุบันอยู่ในโหมด สมาชิก/ผู้เยี่ยมชม กรุณากรอกรหัสผ่าน Admin เพื่อปลดล็อก:',
+            verify_admin_ph: 'รหัสผ่าน Admin ปัจจุบัน',
+            verify_btn_title: 'ยืนยัน Admin',
+            verify_btn: '🔓 ยืนยัน',
+            admin_pwd_label: '🛡️ รหัสผ่าน Admin',
+            admin_badge: 'ควบคุมระบบ',
+            admin_pwd_ph: 'รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษร)',
+            admin_pwd_hint: 'สำหรับโหมด Admin: บันทึกเวลาตาย เพิ่ม/ลบบอส และจัดการกิจกรรม',
+            member_pwd_label: '👥 รหัสผ่าน Member',
+            member_badge: 'ดูข้อมูล',
+            member_pwd_ph: 'รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษร)',
+            member_pwd_hint: 'สำหรับสมาชิกแคลน: ดูตารางเวลาบอส นับถอยหลัง และรับเสียงแจ้งเตือน',
+            pwd_cloud_notice: 'การเปลี่ยนแปลงจะซิงค์ไปยัง Firebase Cloud อัตโนมัติ',
+            cancel_btn: 'ยกเลิก',
+            save_pwd_btn: '💾 บันทึกรหัสผ่าน',
+            guest_section_title: 'สร้างรหัสผ่านชั่วคราว (Guest Access)',
+            guest_label_field: 'ชื่อผู้ใช้ / บันทึกช่วยจำ',
+            guest_label_ph: 'เช่น Guest #1 / เพื่อน',
+            guest_duration_field: 'ระยะเวลาหมดอายุ',
+            guest_dur_1: '1 ชั่วโมง (1 ชม.)',
+            guest_dur_6: '6 ชั่วโมง (6 ชม.)',
+            guest_dur_12: '12 ชั่วโมง (12 ชม.)',
+            guest_dur_24: '1 วัน (24 ชม.)',
+            guest_dur_72: '3 วัน (72 ชม.)',
+            guest_dur_168: '7 วัน (1 สัปดาห์)',
+            guest_pwd_field: 'รหัสผ่าน Guest (หรือสุ่มอัตโนมัติ)',
+            guest_pwd_ph: 'พิมพ์รหัสผ่าน หรือกดสุ่ม',
+            guest_random_btn: '🎲 สุ่ม',
+            guest_create_btn: '➕ สร้าง',
+            guest_table_title: '📋 รายการรหัสผ่านชั่วคราวทั้งหมด',
+            guest_refresh_btn: '🔄 รีเฟรช',
+            guest_col_name: 'ชื่อ / หมายเหตุ',
+            guest_col_pwd: 'รหัสผ่าน',
+            guest_col_expires: 'หมดอายุ',
+            guest_col_status: 'สถานะ',
+            guest_col_action: 'การกระทำ',
+            guest_loading: 'กำลังโหลด...',
+            sheets_lock_title: 'พื้นที่ตั้งค่าที่มีการป้องกัน',
+            sheets_lock_desc: 'การตั้งค่าฐานข้อมูลคู่ขนาน Google Sheets ถูกป้องกัน กรุณากรอกรหัสผ่านเพื่อเข้าใช้งาน:',
+            sheets_lock_ph: 'กรอกรหัสผ่าน...',
+            sheets_unlock_btn: '🔓 ปลดล็อก',
+            sheets_unlocked_badge: '🔓 ปลดล็อกแล้ว',
+            sheets_lock_btn: '🔒 ล็อก',
+            sheets_url_label: '🌐 Google Apps Script Web App URL',
+            sheets_url_hint: 'URL เว็บแอปจากการ Deploy ใน Google Sheets (ต้องลงท้ายด้วย /exec)',
+            sheets_token_label: '🔑 Secret Token',
+            sheets_token_hint: 'ต้องตรงกับ SECRET_TOKEN ใน Code.gs',
+            sheets_mirror_label: 'เปิดการคัดลอกฐานข้อมูลคู่ขนาน',
+            sheets_mirror_hint: 'ซิงค์บอสและกิจกรรมไปยัง Google Sheets ในเบื้องหลังทุกครั้งที่มีการอัปเดต',
+            sheets_failover_label: 'เปิดการสลับสายข้อมูลอัตโนมัติ (Auto Failover)',
+            sheets_failover_hint: 'ดึงข้อมูลจาก Google Sheets หาก Firebase ออฟไลน์หรือโควตาเต็ม',
+            sheets_test_btn: '⚡ ทดสอบการเชื่อมต่อ',
+            sheets_sync_btn: '🔄 ซิงค์ข้อมูลทั้งหมดเดี๋ยวนี้',
+            sheets_save_btn: '💾 บันทึกการตั้งค่า',
+            sheets_script_guide: '📖 <b>ไฟล์สคริปต์:</b> อยู่ที่ <code>google_apps_script/Code.gs</code> พร้อมคู่มือใน <code>google_apps_script/README.md</code>'
+        }
+    };
+
+    function getLanguage() {
+        const stored = localStorage.getItem('tracker_lang');
+        if (stored === 'th' || stored === 'en') return stored;
+        return 'en';
+    }
+
+    function setLanguage(lang) {
+        if (lang !== 'en' && lang !== 'th') lang = 'en';
+        localStorage.setItem('tracker_lang', lang);
+        document.documentElement.lang = lang;
+        updateLanguageButton();
+        updateTimezoneButton();
+        updateStatus();
+        if (typeof window.updateFbBadge === 'function') window.updateFbBadge();
+        if (window.attachAdminSettingsToReactDialog && document.querySelector('[role="dialog"]')) {
+            window.attachAdminSettingsToReactDialog();
+        }
+        translateVisibleUi();
+        enhanceUi();
+    }
+
+    function t(key, params) {
+        const lang = getLanguage();
+        let str = (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key;
+        if (params) {
+            for (const [k, v] of Object.entries(params)) {
+                str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+            }
+        }
+        return str;
+    }
+
+    window.getLanguage = getLanguage;
+    window.setLanguage = setLanguage;
+    window.t = t;
+
     function ensureStatusButton() {
         if (document.getElementById('realtime-audio-status')) return;
         const style = document.createElement('style');
@@ -77,12 +352,12 @@
                 align-items: center;
                 gap: 3px;
                 min-width: 0;
-                max-width: min(100%, 330px);
                 margin-left: 2px;
                 padding-left: 3px;
                 border-left: 1px solid rgba(255,255,255,.08);
-                overflow: hidden;
+                overflow: visible !important;
                 white-space: nowrap;
+                flex-shrink: 0 !important;
             }
             #compact-system-controls .compact-system-control {
                 position: relative !important;
@@ -114,10 +389,11 @@
             #compact-system-controls .compact-system-control[hidden] { display: none !important; }
             #compact-system-controls #header-firebase-status-badge,
             #compact-system-controls #header-version-control,
-            #compact-system-controls #header-timezone-control {
+            #compact-system-controls #header-timezone-control,
+            #compact-system-controls #header-language-control {
                 width: auto !important;
                 min-width: 0 !important;
-                max-width: 112px !important;
+                max-width: none !important;
                 height: 22px !important;
                 padding: 0 6px !important;
                 gap: 4px !important;
@@ -126,17 +402,31 @@
                 background: rgba(255,255,255,.055) !important;
                 font: 600 9px/1 system-ui !important;
                 letter-spacing: 0 !important;
-                flex: 0 1 auto;
+                flex: 0 0 auto !important;
+            }
+            #compact-system-controls #header-language-control {
+                color: #38bdf8 !important;
+                font-weight: 700 !important;
+                min-width: 44px !important;
+                cursor: pointer;
+            }
+            #compact-system-controls #header-language-control:hover {
+                background: rgba(56, 189, 248, 0.16) !important;
+                border-color: rgba(56, 189, 248, 0.35) !important;
+                color: #7dd3fc !important;
             }
             #compact-system-controls #header-firebase-status-badge .system-badge-label,
             #compact-system-controls #header-version-control .system-badge-label,
-            #compact-system-controls #header-timezone-control .system-badge-label {
+            #compact-system-controls #header-timezone-control .system-badge-label,
+            #compact-system-controls #header-language-control .system-badge-label {
                 display: block;
                 min-width: 0;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
             #compact-system-controls #header-firebase-status-badge[data-status="connected"] { color: #34d399 !important; }
+            #compact-system-controls #header-firebase-status-badge[data-status="google_sheets"] { color: #34d399 !important; border-color: rgba(52, 211, 153, 0.45) !important; }
+            #compact-system-controls #header-firebase-status-badge[data-status="local"] { color: #fbbf24 !important; border-color: rgba(251, 191, 36, 0.45) !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="connecting"] { color: #60a5fa !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="stale"] { color: #fbbf24 !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="quota_exceeded"],
@@ -155,26 +445,81 @@
             }
             #compact-system-controls #pwd-pill-label { display: none !important; }
             #admin-pwd-floating-bar, #top-floating-status-bar { display: none !important; }
+
+            /* Style #1 Universal Balloon Tooltip */
+            #custom-unified-tooltip {
+                position: fixed;
+                z-index: 999999;
+                pointer-events: none;
+                background: #d97706;
+                color: #09090b;
+                font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.01em;
+                line-height: 1.2;
+                padding: 4px 8px;
+                border-radius: 6px;
+                box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
+                white-space: nowrap;
+                opacity: 0;
+                transform: scale(0.96);
+                transition: opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+                display: none;
+                max-width: 320px;
+            }
+            #custom-unified-tooltip.active {
+                display: block;
+                opacity: 1;
+                transform: scale(1);
+            }
+            #custom-unified-tooltip .custom-unified-tooltip-arrow {
+                position: absolute;
+                width: 8px;
+                height: 8px;
+                background: #d97706;
+                transform: rotate(45deg);
+            }
+            #custom-unified-tooltip[data-side="top"] .custom-unified-tooltip-arrow {
+                bottom: -4px;
+            }
+            #custom-unified-tooltip[data-side="bottom"] .custom-unified-tooltip-arrow {
+                top: -4px;
+            }
+
             @media (max-width: 430px) {
-                #compact-system-controls { gap: 2px; max-width: 240px; }
+                #compact-system-controls { gap: 2px; }
                 #compact-system-controls #header-firebase-status-badge,
                 #compact-system-controls #header-version-control,
-                #compact-system-controls #header-timezone-control { padding-inline: 4px !important; font-size: 8px !important; }
-                #compact-system-controls #header-firebase-status-badge { max-width: 72px !important; }
+                #compact-system-controls #header-timezone-control,
+                #compact-system-controls #header-language-control { padding-inline: 4px !important; font-size: 8px !important; }
             }
         `;
         document.head.appendChild(style);
+        ensureUnifiedTooltip();
         const button = document.createElement('button');
         button.id = 'realtime-audio-status';
         button.type = 'button';
         button.textContent = '🔇';
-        button.title = 'Enable Audio — เปิดเสียงแจ้งเตือน';
-        button.setAttribute('aria-label', button.title);
+        button.setAttribute('data-unified-tooltip', t('audio_status_enable'));
+        button.setAttribute('aria-label', t('audio_status_enable'));
         button.className = 'compact-system-control';
         button.addEventListener('click', unlockAudio);
         document.body.appendChild(button);
         ensureTimezoneButton();
+        ensureLanguageButton();
         updateStatus();
+    }
+
+    function ensureUnifiedTooltip() {
+        if (document.getElementById('custom-unified-tooltip')) return;
+        const tooltip = document.createElement('div');
+        tooltip.id = 'custom-unified-tooltip';
+        tooltip.className = 'custom-unified-tooltip';
+        tooltip.setAttribute('role', 'tooltip');
+        tooltip.setAttribute('aria-hidden', 'true');
+        tooltip.innerHTML = '<span class="custom-unified-tooltip-arrow"></span><span class="custom-unified-tooltip-text"></span>';
+        document.body.appendChild(tooltip);
     }
 
     function selectedTimezoneOffset() {
@@ -192,7 +537,7 @@
             localStorage.setItem('dashboard.timeZoneOffset', String(next));
             updateTimezoneButton();
             applyTimezoneDisplay(true);
-            showNotice(`🕐 Time Zone GMT+${next} — เปลี่ยนเขตเวลาเป็น GMT+${next}`, false);
+            showNotice(t('tz_notice', { offset: next }), false);
         });
         document.body.appendChild(button);
         updateTimezoneButton();
@@ -203,8 +548,40 @@
         if (!button) return;
         const offset = selectedTimezoneOffset();
         button.innerHTML = `<span aria-hidden="true">🕐</span><span class="system-badge-label">GMT+${offset}</span>`;
-        button.title = `Time Zone GMT+${offset} — เขตเวลา GMT+${offset} (กดเพื่อสลับ)`;
-        button.setAttribute('aria-label', button.title);
+        const titleText = t('tz_title', { offset });
+        button.setAttribute('data-unified-tooltip', titleText);
+        button.setAttribute('aria-label', titleText);
+        button.removeAttribute('title');
+    }
+
+    function ensureLanguageButton() {
+        if (document.getElementById('header-language-control')) return;
+        const button = document.createElement('button');
+        button.id = 'header-language-control';
+        button.type = 'button';
+        button.className = 'compact-system-control no-drag';
+        button.addEventListener('click', () => {
+            const next = getLanguage() === 'en' ? 'th' : 'en';
+            setLanguage(next);
+            showNotice(t('lang_switched'), false);
+        });
+        document.body.appendChild(button);
+        updateLanguageButton();
+    }
+
+    function updateLanguageButton() {
+        const button = document.getElementById('header-language-control');
+        if (!button) return;
+        const current = getLanguage();
+        if (current === 'th') {
+            button.innerHTML = '<span class="system-badge-label" style="font-weight:700; color:#38bdf8;">🌐 TH</span>';
+        } else {
+            button.innerHTML = '<span class="system-badge-label" style="font-weight:700; color:#38bdf8;">🌐 EN</span>';
+        }
+        const titleText = t('lang_toggle_title');
+        button.setAttribute('data-unified-tooltip', titleText);
+        button.setAttribute('aria-label', titleText);
+        button.removeAttribute('title');
     }
 
     function shiftClockText(text, deltaMinutes) {
@@ -241,18 +618,27 @@
         if (!button) return;
         if (message) {
             button.textContent = '⚠️';
-            button.title = message;
+            button.setAttribute('data-unified-tooltip', message);
             button.setAttribute('aria-label', message);
+            button.removeAttribute('title');
         }
         else if (state.audioUnlocked) {
             button.textContent = state.streamConnected ? '🔊' : state.streamFailed ? '📡' : '🔉';
-            button.title = state.streamConnected
-                ? 'Realtime Audio — เสียงเรียลไทม์เชื่อมต่อแล้ว'
+            const title = state.streamConnected
+                ? t('audio_status_connected')
                 : state.streamFailed
-                    ? 'Polling Audio — เสียงเชื่อมต่อสำรอง'
-                    : 'Audio Connecting — กำลังเชื่อมต่อเสียง';
-            button.setAttribute('aria-label', button.title);
+                    ? t('audio_status_fallback')
+                    : t('audio_status_connecting');
+            button.setAttribute('data-unified-tooltip', title);
+            button.setAttribute('aria-label', title);
+            button.removeAttribute('title');
             button.style.borderColor = state.streamConnected ? '#22c55e' : '#f59e0b';
+        } else {
+            button.textContent = '🔇';
+            const title = t('audio_status_enable');
+            button.setAttribute('data-unified-tooltip', title);
+            button.setAttribute('aria-label', title);
+            button.removeAttribute('title');
         }
     }
 
@@ -271,16 +657,38 @@
             leftControls.appendChild(controls);
         }
 
-        const password = document.getElementById('header-password-control');
         const firebase = document.getElementById('header-firebase-status-badge');
         const version = document.getElementById('header-version-control');
         const timezone = document.getElementById('header-timezone-control');
+        const langBtn = document.getElementById('header-language-control');
         const audio = document.getElementById('realtime-audio-status');
-        for (const element of [password, firebase, version, timezone, audio]) {
+        for (const element of [firebase, version, timezone, langBtn, audio]) {
             if (!element) continue;
             element.classList.add('compact-system-control', 'no-drag');
             if (element.parentElement !== controls) controls.appendChild(element);
         }
+
+        // Display Guest badge if current user is temporary guest
+        try {
+            const root = document.getElementById('app');
+            const page = JSON.parse(root?.getAttribute('data-page') || '{}');
+            if (page.props?.auth?.user?.role === 'guest') {
+                let guestBadge = document.getElementById('header-guest-badge');
+                if (!guestBadge) {
+                    guestBadge = document.createElement('span');
+                    guestBadge.id = 'header-guest-badge';
+                    guestBadge.className = 'compact-system-control no-drag';
+                    guestBadge.style.cssText = 'width:auto!important; padding:0 6px!important; background:rgba(168,85,247,0.18)!important; border:1px solid rgba(168,85,247,0.45)!important; border-radius:6px!important; color:#c084fc!important; font-size:9.5px!important; font-weight:700!important;';
+                    guestBadge.textContent = '🎟️ GUEST';
+                    controls.appendChild(guestBadge);
+                }
+                const guestTitle = t('guest_badge_title');
+                guestBadge.setAttribute('data-unified-tooltip', guestTitle);
+                guestBadge.setAttribute('aria-label', guestTitle);
+                guestBadge.removeAttribute('title');
+            }
+        } catch (_) {}
+
         return true;
     }
 
@@ -296,7 +704,7 @@
             updateStatus();
         } catch (_) {
             state.audioUnlocked = false;
-            updateStatus('Audio Blocked — เบราว์เซอร์บล็อกเสียง กรุณากดอีกครั้ง');
+            updateStatus(t('audio_status_blocked'));
         }
     }
 
@@ -313,7 +721,7 @@
             return true;
         } catch (_) {
             state.audioUnlocked = false;
-            updateStatus('Audio Blocked — เสียงถูกบล็อก คลิกเพื่อเปิด');
+            updateStatus(t('audio_status_blocked'));
             return false;
         }
     }
@@ -379,7 +787,7 @@
             if (!initial && fresh && document.visibilityState !== 'visible' && !isMuted(event.bossId, 'boss')) {
                 const key = setting('preSpawnSound', 'pop2');
                 playSound(soundPath(key, '/pop2.mp3'));
-                showNotice(`⚠️ Boss Alert — ${event.bossName} กำลังจะเกิด`, true);
+                showNotice(t('pre_spawn_toast', { name: event.bossName }), true);
             }
         } else if (event.type === 'boss_pre_spawn_cleared') {
             if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
@@ -488,133 +896,404 @@
         } catch (_) {}
     }
 
-    const TOOLTIP_TRANSLATIONS = [
-        [/search/i, 'Search — ค้นหา'],
-        [/show muted/i, 'Show Muted — แสดงรายการปิดเสียง'],
-        [/hide muted/i, 'Hide Muted — ซ่อนรายการปิดเสียง'],
-        [/still alive/i, 'Still Alive — บอสยังไม่ตาย'],
-        [/unset/i, 'Unset Time — ล้างเวลาบอส'],
-        [/edit/i, 'Edit — แก้ไข'],
-        [/delete/i, 'Delete — ลบ'],
-        [/mute/i, 'Mute Alert — ปิดเสียงแจ้งเตือน'],
-        [/settings/i, 'Settings — ตั้งค่า'],
-        [/reset/i, 'Reset Time — รีเซ็ตเวลา'],
-        [/notify|pre-spawn/i, 'Notify Members — แจ้งเตือนสมาชิก'],
-        [/more|menu/i, 'More Options — ตัวเลือกเพิ่มเติม'],
-        [/pin/i, 'Pin — ปักหมุด'],
-        [/close/i, 'Close — ปิด'],
-        [/save/i, 'Save — บันทึก'],
-        [/cancel/i, 'Cancel — ยกเลิก'],
-        [/password/i, 'Manage Passwords — จัดการรหัสผ่าน'],
-        [/volume|audio|sound/i, 'Audio Settings — ตั้งค่าเสียง']
-    ];
-
-    const ICON_TOOLTIP_TRANSLATIONS = [
-        [/lucide-zap\b/, 'Kill Now (2 Clicks) — บันทึกเวลาตายตอนนี้ (คลิก 2 ครั้ง)'],
-        [/lucide-skull\b/, 'Custom Kill Time — กำหนดเวลาตายเอง'],
-        [/lucide-ellipsis(?:-vertical)?\b|lucide-more-vertical\b/, 'More Options — ตัวเลือกเพิ่มเติม'],
-        [/lucide-search\b/, 'Search — ค้นหา'],
-        [/lucide-settings\b|lucide-cog\b/, 'Settings — ตั้งค่า'],
-        [/lucide-pencil\b|lucide-edit\b/, 'Edit — แก้ไข'],
-        [/lucide-trash(?:-2)?\b/, 'Delete — ลบ'],
-        [/lucide-pin-off\b/, 'Unpin — ยกเลิกปักหมุด'],
-        [/lucide-pin\b/, 'Pin — ปักหมุด'],
-        [/lucide-bell-off\b|lucide-volume-x\b/, 'Unmute Alert — เปิดเสียงแจ้งเตือน'],
-        [/lucide-bell\b|lucide-volume-2\b/, 'Mute Alert — ปิดเสียงแจ้งเตือน'],
-        [/lucide-clock\b/, 'Update Time — อัปเดตเวลา'],
-        [/lucide-rotate-ccw\b|lucide-refresh-ccw\b/, 'Reset Time — รีเซ็ตเวลา'],
-        [/lucide-chevrons-right\b|lucide-skip-forward\b/, 'Advance Cycle — ข้ามรอบ'],
-        [/lucide-check\b/, 'Confirm — ยืนยัน'],
-        [/lucide-x\b/, 'Close — ปิด'],
-        [/lucide-key-round\b|lucide-key\b/, 'Manage Passwords — จัดการรหัสผ่าน']
-    ];
-
-    const TOOLTIP_TEXT = {
-        'Search': 'Search — ค้นหา',
-        'Kill now (click 2x)': 'Kill Now (2 Clicks) — บันทึกเวลาตายตอนนี้ (คลิก 2 ครั้ง)',
-        'Click again to confirm kill now': 'Confirm Kill Now — คลิกครั้งที่ 2 เพื่อยืนยันเวลาตาย',
-        'Still alive (click 2x)': 'Still Alive (2 Clicks) — บอสยังไม่ตาย (คลิก 2 ครั้ง)',
-        'Spawn in 5 min (click 2x)': 'Spawn in 5 Minutes (2 Clicks) — บอสเกิดใน 5 นาที (คลิก 2 ครั้ง)',
-        'Spawn in 1 min (click 2x)': 'Spawn in 1 Minute (2 Clicks) — บอสเกิดใน 1 นาที (คลิก 2 ครั้ง)',
-        'Not spawned (click 2x)': 'Not Spawned (2 Clicks) — บอสยังไม่เกิด (คลิก 2 ครั้ง)',
-        'Mark event done (click 2x)': 'Mark Event Done (2 Clicks) — กิจกรรมเสร็จแล้ว (กด 2 ครั้ง)',
-        'Skip today (click 2x)': 'Skip Today (2 Clicks) — ข้ามกิจกรรมวันนี้ (กด 2 ครั้ง)',
-        'Pin still alive (click 2x)': 'Pin Still Alive (2 Clicks) — ปักหมุดว่ายังไม่จบ (กด 2 ครั้ง)',
-        'Click again to confirm': 'Confirm with Second Click — กดครั้งที่ 2 เพื่อยืนยัน',
-        'Double-click to mark as pre-spawned': 'Double-click Boss Name — ดับเบิลคลิกชื่อบอสเพื่อแจ้งเตือนสมาชิก',
-        'Double-click to clear pre-spawned': 'Double-click Boss Name — ดับเบิลคลิกชื่อบอสเพื่อยกเลิกการแจ้งเตือน',
-        'Show muted': 'Show Muted — แสดงรายการปิดเสียง',
-        'Hide muted': 'Hide Muted — ซ่อนรายการปิดเสียง',
-        'Settings': 'Settings — ตั้งค่า',
-        'Edit Boss': 'Edit Boss — แก้ไขบอส',
-        'Delete Boss': 'Delete Boss — ลบบอส',
-        'Delete': 'Delete — ลบ',
-        'Still alive': 'Still Alive — บอสยังไม่ตาย',
-        'Still alive — pinned': 'Still Alive — ยืนยันว่าบอสยังไม่ตาย',
-        'Not spawned': 'Not Spawned — บอสยังไม่เกิด',
-        'Pre-spawning': 'Notify Members — แจ้งเตือนสมาชิก',
-        'Update spawn': 'Update Spawn — อัปเดตเวลาเกิด',
-        'Reset Boss Time': 'Reset Boss Time — รีเซ็ตเวลาบอส',
-        'Post Maintenance Mode': 'Maintenance Mode — โหมดหลังปิดปรับปรุง',
-        'Resend alert sound': 'Resend Alert — ส่งเสียงแจ้งเตือนอีกครั้ง',
-        'Force all users to reload their page': 'Force Reload — ให้ทุกเครื่องโหลดใหม่',
-        'Undo': 'Undo — ย้อนกลับ',
-        'Alert before spawn': 'Alert Before Spawn — แจ้งก่อนบอสเกิด',
-        'Boss alert sound': 'Boss Alert Sound — เสียงแจ้งเตือนบอส',
-        'Just-spawned sound': 'Spawn Sound — เสียงเมื่อบอสเกิด',
-        'Pre-spawn alert': 'Pre-spawn Alert — เสียงแจ้งก่อนเกิด',
-        'Next spawn time': 'Next Spawn — เวลาเกิดครั้งถัดไป',
-        'Last Kill Time': 'Last Kill Time — เวลาตายล่าสุด',
-        'Location': 'Location — สถานที่',
-        'Chance (%)': 'Chance — โอกาสเกิด',
-        'Spawn in 1 min': 'Spawn +1 Minute — เพิ่มเวลาเกิด 1 นาที',
-        'Spawn in 5 min': 'Spawn +5 Minutes — เพิ่มเวลาเกิด 5 นาที',
-        'Show tooltips when hovering action buttons': 'Tooltips — แสดงคำอธิบายเมื่อชี้ปุ่ม',
-        'Hides row buttons until you hover the row': 'Hover Actions — ซ่อนปุ่มจนกว่าจะชี้แถว',
-        'Replaces kill buttons with status shortcuts': 'Status Buttons — ใช้ปุ่มสถานะแบบย่อ',
-        'Split spawn status buttons': 'Split Buttons — แยกปุ่มสถานะบอส'
+    const TOOLTIP_KEYS = {
+        'Search': 'search_placeholder',
+        'Search...': 'search_placeholder',
+        'ค้นหา...': 'search_placeholder',
+        'Kill now (click 2x)': 'tooltip_kill_now',
+        'Click again to confirm kill now': 'tooltip_confirm_kill',
+        'Still alive (click 2x)': 'tooltip_still_alive_2x',
+        'Spawn in 5 min (click 2x)': 'tooltip_spawn_5m',
+        'Spawn in 1 min (click 2x)': 'tooltip_spawn_1m',
+        'Not spawned (click 2x)': 'tooltip_not_spawned',
+        'Mark event done (click 2x)': 'tooltip_event_done',
+        'Skip today (click 2x)': 'tooltip_skip_today',
+        'Pin still alive (click 2x)': 'tooltip_pin_still_alive',
+        'Click again to confirm': 'tooltip_confirm_2nd',
+        'Double-click to mark as pre-spawned': 'tooltip_pre_spawn_notify',
+        'Double-click to clear pre-spawned': 'tooltip_pre_spawn_clear',
+        'Show muted': 'show_muted',
+        'Hide muted': 'hide_muted',
+        'Settings': 'settings',
+        'Edit Boss': 'tooltip_edit_boss',
+        'Delete Boss': 'tooltip_delete_boss',
+        'Delete': 'tooltip_delete',
+        'Still alive': 'tooltip_still_alive_2x',
+        'Pre-spawning': 'tooltip_pre_spawn_notify',
+        'Update spawn': 'tooltip_update_spawn',
+        'Reset Boss Time': 'tooltip_reset_time',
+        'Reset Time': 'tooltip_reset_time',
+        'Undo': 'tooltip_undo',
+        'Close': 'tooltip_close',
+        'Save': 'tooltip_save',
+        'Cancel': 'tooltip_cancel',
+        'Manage Passwords': 'tooltip_passwords'
     };
+
+    const TOOLTIP_PATTERNS = [
+        [/search|ค้นหา/i, 'search_placeholder'],
+        [/show muted|แสดงรายการปิดเสียง/i, 'show_muted'],
+        [/hide muted|ซ่อนรายการปิดเสียง/i, 'hide_muted'],
+        [/still alive|ยังไม่ตาย/i, 'tooltip_still_alive_2x'],
+        [/unset/i, 'tooltip_reset_time'],
+        [/edit|แก้ไข/i, 'tooltip_edit_boss'],
+        [/delete|ลบ/i, 'tooltip_delete'],
+        [/unmute|เปิดเสียง/i, 'tooltip_unmute'],
+        [/mute|ปิดเสียง/i, 'tooltip_mute'],
+        [/settings|ตั้งค่า/i, 'settings'],
+        [/reset/i, 'tooltip_reset_time'],
+        [/notify|pre-spawn|แจ้งเตือน/i, 'tooltip_pre_spawn_notify'],
+        [/more|menu|ตัวเลือก/i, 'tooltip_more_options'],
+        [/unpin|ยกเลิกปักหมุด/i, 'tooltip_unpin'],
+        [/pin|ปักหมุด/i, 'tooltip_pin'],
+        [/close|ปิด/i, 'tooltip_close'],
+        [/save|บันทึก/i, 'tooltip_save'],
+        [/cancel|ยกเลิก/i, 'tooltip_cancel'],
+        [/password|รหัสผ่าน/i, 'tooltip_passwords'],
+        [/advance cycle|ข้ามรอบ/i, 'tooltip_advance_cycle']
+    ];
+
+    const ICON_TOOLTIP_PATTERNS = [
+        [/lucide-zap\b/, 'tooltip_kill_now'],
+        [/lucide-skull\b/, 'tooltip_custom_kill'],
+        [/lucide-ellipsis(?:-vertical)?\b|lucide-more-vertical\b/, 'tooltip_more_options'],
+        [/lucide-search\b/, 'search_placeholder'],
+        [/lucide-settings\b|lucide-cog\b/, 'settings'],
+        [/lucide-pencil\b|lucide-edit\b/, 'tooltip_edit_boss'],
+        [/lucide-trash(?:-2)?\b/, 'tooltip_delete_boss'],
+        [/lucide-pin-off\b/, 'tooltip_unpin'],
+        [/lucide-pin\b/, 'tooltip_pin'],
+        [/lucide-bell-off\b|lucide-volume-x\b/, 'tooltip_unmute'],
+        [/lucide-bell\b|lucide-volume-2\b/, 'tooltip_mute'],
+        [/lucide-clock\b/, 'tooltip_update_spawn'],
+        [/lucide-rotate-ccw\b|lucide-refresh-ccw\b/, 'tooltip_reset_time'],
+        [/lucide-chevrons-right\b|lucide-skip-forward\b/, 'tooltip_advance_cycle'],
+        [/lucide-check\b/, 'tooltip_confirm_2nd'],
+        [/lucide-x\b/, 'tooltip_close'],
+        [/lucide-key-round\b|lucide-key\b/, 'tooltip_passwords']
+    ];
 
     function bilingualTooltip(source) {
         const clean = String(source || '').trim();
         if (!clean) return '';
-        if (clean.includes('—') && /[ก-๙]/.test(clean)) return clean;
-        const direct = TOOLTIP_TEXT[clean];
-        if (direct) return direct;
-        const match = TOOLTIP_TRANSLATIONS.find(([pattern]) => pattern.test(clean));
-        return match ? match[1] : '';
+        const directKey = TOOLTIP_KEYS[clean];
+        if (directKey) return t(directKey);
+        const match = TOOLTIP_PATTERNS.find(([pattern]) => pattern.test(clean));
+        if (match) return t(match[1]);
+        return '';
     }
 
     function tooltipFromIcon(element) {
         const svg = element.querySelector('svg');
         if (!svg) return '';
         const className = typeof svg.className === 'string' ? svg.className : (svg.className?.baseVal || '');
-        const match = ICON_TOOLTIP_TRANSLATIONS.find(([pattern]) => pattern.test(className));
-        return match ? match[1] : '';
+        const match = ICON_TOOLTIP_PATTERNS.find(([pattern]) => pattern.test(className));
+        return match ? t(match[1]) : '';
     }
 
     function translateVisibleTooltips() {
         for (const element of document.querySelectorAll('[role="tooltip"], [role="tooltip"] *')) {
             if (element.children.length > 0) continue;
             const original = (element.textContent || '').trim();
-            const direct = bilingualTooltip(original);
-            const updateSpawn = original.startsWith('Update spawn —') ? 'Update Spawn — อัปเดตเวลาเกิด' : null;
-            const translated = direct || updateSpawn;
+            const translated = bilingualTooltip(original);
             if (translated && original !== translated) element.textContent = translated;
         }
     }
 
-    function enhanceUi() {
-        for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
-        for (const element of document.querySelectorAll('button, [role="button"], a, [title]')) {
-            const source = element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent || '';
-            const translated = bilingualTooltip(source) || tooltipFromIcon(element);
-            if (translated) {
-                element.setAttribute('title', translated);
-                element.setAttribute('aria-label', translated);
+    let customTooltipActiveEl = null;
+
+    function getTooltipText(interactive) {
+        if (!interactive) return '';
+        let text = interactive.getAttribute('data-unified-tooltip');
+        if (!text && interactive.getAttribute('data-i18n-title')) {
+            text = t(interactive.getAttribute('data-i18n-title'));
+        }
+        if (!text && interactive.getAttribute('title')) {
+            text = interactive.getAttribute('title');
+        }
+        if (!text) {
+            const aria = interactive.getAttribute('aria-label');
+            const tr = bilingualTooltip(aria || interactive.textContent) || tooltipFromIcon(interactive);
+            text = tr || aria || '';
+        }
+        return (text || '').trim();
+    }
+
+    function showCustomTooltip(target) {
+        ensureUnifiedTooltip();
+        const tooltipEl = document.getElementById('custom-unified-tooltip');
+        if (!tooltipEl || !target) return;
+
+        // Strip native title immediately so browser never shows the native OS white box
+        if (target.hasAttribute && target.hasAttribute('title')) {
+            const val = target.getAttribute('title');
+            if (val && !target.getAttribute('data-unified-tooltip')) {
+                target.setAttribute('data-unified-tooltip', val);
+            }
+            target.removeAttribute('title');
+        }
+
+        // If target is inside a Radix Tooltip trigger, Radix renders its own balloon
+        if (target.closest('[data-slot="tooltip-trigger"]')) {
+            hideCustomTooltip();
+            return;
+        }
+
+        const text = getTooltipText(target);
+        if (!text) {
+            hideCustomTooltip();
+            return;
+        }
+
+        customTooltipActiveEl = target;
+        const textEl = tooltipEl.querySelector('.custom-unified-tooltip-text');
+        if (textEl) textEl.textContent = text;
+
+        tooltipEl.style.display = 'block';
+        tooltipEl.classList.add('active');
+
+        const rect = target.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) {
+            hideCustomTooltip();
+            return;
+        }
+
+        const tipRect = tooltipEl.getBoundingClientRect();
+        let left = rect.left + (rect.width / 2) - (tipRect.width / 2);
+        const padding = 8;
+        const maxLeft = window.innerWidth - tipRect.width - padding;
+        left = Math.max(padding, Math.min(maxLeft, left));
+
+        const arrowEl = tooltipEl.querySelector('.custom-unified-tooltip-arrow');
+        if (arrowEl) {
+            const targetCenterX = rect.left + (rect.width / 2);
+            const arrowX = Math.max(8, Math.min(tipRect.width - 16, targetCenterX - left - 4));
+            arrowEl.style.left = arrowX + 'px';
+        }
+
+        let top;
+        if (rect.top >= tipRect.height + 8) {
+            top = rect.top - tipRect.height - 6;
+            tooltipEl.setAttribute('data-side', 'top');
+        } else {
+            top = rect.bottom + 6;
+            tooltipEl.setAttribute('data-side', 'bottom');
+        }
+
+        tooltipEl.style.left = Math.round(left) + 'px';
+        tooltipEl.style.top = Math.round(top) + 'px';
+    }
+
+    function hideCustomTooltip() {
+        customTooltipActiveEl = null;
+        const tooltipEl = document.getElementById('custom-unified-tooltip');
+        if (tooltipEl) {
+            tooltipEl.classList.remove('active');
+            tooltipEl.style.display = 'none';
+        }
+    }
+
+    // Global capturing listeners to strip native title and show Style #1 custom tooltip
+    document.addEventListener('mouseover', (e) => {
+        const el = e.target;
+        if (!el || el.nodeType !== 1) return;
+        if (el.hasAttribute && el.hasAttribute('title')) {
+            const tVal = el.getAttribute('title');
+            if (tVal && !el.getAttribute('data-unified-tooltip')) el.setAttribute('data-unified-tooltip', tVal);
+            el.removeAttribute('title');
+        }
+    }, true);
+
+    document.addEventListener('pointerenter', (e) => {
+        const target = e.target;
+        if (!target || target.nodeType !== 1) return;
+        if (target.hasAttribute && target.hasAttribute('title')) {
+            const tVal = target.getAttribute('title');
+            if (tVal && !target.getAttribute('data-unified-tooltip')) target.setAttribute('data-unified-tooltip', tVal);
+            target.removeAttribute('title');
+        }
+        const interactive = target.closest('button, a, [role="button"], [data-unified-tooltip], [data-i18n-title], .compact-system-control, .app-version-badge, .firebase-mini-badge');
+        if (interactive) {
+            showCustomTooltip(interactive);
+        } else if (customTooltipActiveEl && !customTooltipActiveEl.contains(target)) {
+            hideCustomTooltip();
+        }
+    }, true);
+
+    document.addEventListener('pointerleave', (e) => {
+        if (customTooltipActiveEl && (!e.relatedTarget || !customTooltipActiveEl.contains(e.relatedTarget))) {
+            hideCustomTooltip();
+        }
+    }, true);
+
+    document.addEventListener('pointerdown', hideCustomTooltip, true);
+    window.addEventListener('scroll', hideCustomTooltip, true);
+
+    function translateVisibleUi() {
+        // 1. Search inputs
+        for (const input of document.querySelectorAll('input[type="search"], input[frimousse-search]')) {
+            const ph = t('search_placeholder');
+            if (input.placeholder !== ph) input.placeholder = ph;
+        }
+
+        // 2. Main section headers & tabs (Bosses, Invasion, Events, Muted filters)
+        // IMPORTANT: Never mutate boss names! Boss names stay strictly in original English.
+        for (const el of document.querySelectorAll('button, [role="tab"], span')) {
+            if (el.children.length > 0) continue;
+            const text = (el.textContent || '').trim();
+            if (text === 'Bosses' || text === 'บอส') {
+                const next = t('bosses_tab');
+                if (el.textContent !== next) el.textContent = next;
+            } else if (text === 'Invasion' || text === 'สงครามบุกรุก') {
+                const next = t('invasion_tab');
+                if (el.textContent !== next) el.textContent = next;
+            } else if (text === 'Events' || text === 'กิจกรรม') {
+                const next = t('events_tab');
+                if (el.textContent !== next) el.textContent = next;
+            } else if (text === 'Show Muted' || text === 'แสดงรายการปิดเสียง' || text === 'Show muted') {
+                const next = t('show_muted');
+                if (el.textContent !== next) el.textContent = next;
+            } else if (text === 'Hide Muted' || text === 'ซ่อนรายการปิดเสียง' || text === 'Hide muted') {
+                const next = t('hide_muted');
+                if (el.textContent !== next) el.textContent = next;
             }
         }
+
+        // 3. Settings modal tabs (Display, Audio, Invasion, Events, Admin)
+        const dialog = document.querySelector('[role="dialog"]');
+        if (dialog) {
+            const nativeTabs = dialog.querySelectorAll('.flex.gap-1.overflow-x-auto > button, .overflow-x-auto > button');
+            const tabMap = {
+                'Display': 'tab_display',
+                'การแสดงผล': 'tab_display',
+                'Audio': 'tab_audio',
+                'เสียงแจ้งเตือน': 'tab_audio',
+                'Invasion': 'tab_invasion',
+                'สงครามบุกรุก': 'tab_invasion',
+                'Events': 'tab_events',
+                'กิจกรรม': 'tab_events',
+                'Admin': 'tab_admin',
+                'ผู้ดูแลระบบ': 'tab_admin'
+            };
+            nativeTabs.forEach(btn => {
+                const span = btn.querySelector('span');
+                if (span) {
+                    const current = (span.textContent || '').trim();
+                    if (tabMap[current]) {
+                        const next = t(tabMap[current]);
+                        if (span.textContent !== next) span.textContent = next;
+                    }
+                }
+            });
+        }
+
+        // 4. Custom Sub-Bar in Settings Dialog
+        const subbar = document.getElementById('custom-admin-tabs-subbar');
+        if (subbar) {
+            const sysLabel = subbar.querySelector('.select-none span:last-child');
+            const nextSys = t('system_label');
+            if (sysLabel && sysLabel.textContent !== nextSys) sysLabel.textContent = nextSys;
+
+            const updateTab = (tabId, key) => {
+                const btn = subbar.querySelector(`[data-tab-id="${tabId}"]`);
+                if (!btn) return;
+                const txt = t(key);
+                if (btn.getAttribute('data-unified-tooltip') !== txt) {
+                    btn.setAttribute('data-unified-tooltip', txt);
+                    btn.setAttribute('aria-label', txt);
+                    btn.removeAttribute('title');
+                }
+                const span = btn.querySelector('span:last-child');
+                if (span && span.textContent !== txt) span.textContent = txt;
+            };
+
+            updateTab('passwords', 'tab_passwords');
+            updateTab('guest', 'tab_guest');
+            updateTab('sheets', 'tab_sheets');
+        }
+
+        // 5. Embedded Admin Panel
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (key) {
+                const val = t(key);
+                if (/<[a-z][\s\S]*>/i.test(val)) {
+                    if (el.innerHTML !== val) el.innerHTML = val;
+                } else {
+                    if (el.textContent !== val) el.textContent = val;
+                }
+            }
+        });
+        document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+            const key = el.getAttribute('data-i18n-ph');
+            if (key) {
+                const val = t(key);
+                if (el.placeholder !== val) el.placeholder = val;
+            }
+        });
+        document.querySelectorAll('[data-i18n-title]').forEach(el => {
+            const key = el.getAttribute('data-i18n-title');
+            if (key) {
+                const val = t(key);
+                if (el.getAttribute('data-unified-tooltip') !== val) {
+                    el.setAttribute('data-unified-tooltip', val);
+                    el.setAttribute('aria-label', val);
+                    el.removeAttribute('title');
+                }
+            }
+        });
+
+        // 6. Header Badges: Version and Guest
+        const verBadge = document.getElementById('header-version-control');
+        if (verBadge) {
+            const vText = verBadge.querySelector('.system-badge-label')?.textContent || '';
+            const vTitle = getLanguage() === 'th' ? `เวอร์ชัน ${vText}` : `Version ${vText}`;
+            if (verBadge.getAttribute('data-unified-tooltip') !== vTitle) {
+                verBadge.setAttribute('data-unified-tooltip', vTitle);
+                verBadge.setAttribute('aria-label', vTitle);
+                verBadge.removeAttribute('title');
+            }
+        }
+        const guestBadge = document.getElementById('header-guest-badge');
+        if (guestBadge) {
+            const gTitle = t('guest_badge_title');
+            if (guestBadge.getAttribute('data-unified-tooltip') !== gTitle) {
+                guestBadge.setAttribute('data-unified-tooltip', gTitle);
+                guestBadge.setAttribute('aria-label', gTitle);
+                guestBadge.removeAttribute('title');
+            }
+        }
+    }
+
+    window.translateVisibleUi = translateVisibleUi;
+
+    function enhanceUi() {
+        for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
+        for (const element of document.querySelectorAll('button, [role="button"], a, [title], [data-unified-tooltip], [data-i18n-title]')) {
+            const existingTitle = element.getAttribute('title');
+            if (existingTitle) {
+                element.setAttribute('data-unified-tooltip', existingTitle);
+                element.removeAttribute('title');
+            }
+            const source = element.getAttribute('data-unified-tooltip') || element.getAttribute('aria-label') || element.textContent || '';
+            const translated = bilingualTooltip(source) || tooltipFromIcon(element);
+            if (translated) {
+                if (element.getAttribute('data-unified-tooltip') !== translated) {
+                    element.setAttribute('data-unified-tooltip', translated);
+                }
+                if (element.getAttribute('aria-label') !== translated) {
+                    element.setAttribute('aria-label', translated);
+                }
+            }
+            if (element.hasAttribute('title')) {
+                element.removeAttribute('title');
+            }
+        }
+        if (window.attachAdminSettingsToReactDialog && document.querySelector('[role="dialog"]')) {
+            window.attachAdminSettingsToReactDialog();
+        }
         translateVisibleTooltips();
+        translateVisibleUi();
     }
 
     function checkScheduledAlerts() {
@@ -639,14 +1318,15 @@
             if (!handledByDashboard && diff <= threshold && diff > -30000 && !state.alerted.has(preKey)) {
                 state.alerted.add(preKey);
                 playSound(soundPath(setting('alertSound', 'alert'), '/alert.mp3'));
-                showNotice(`🔔 Spawn Soon — ${item.name} จะเกิดใน ${Math.max(0, Math.ceil(diff / 60000))} นาที`, false);
+                const minLeft = Math.max(0, Math.ceil(diff / 60000));
+                showNotice(t('spawn_soon_notice', { name: item.name, min: minLeft }), false);
             }
             if (!handledByDashboard && diff <= 0 && diff > -90000 && !state.alerted.has(spawnKey)) {
                 state.alerted.add(spawnKey);
                 const selected = setting('justSpawnedSound', 'default');
                 const path = selected === 'default' ? '/just-spawned.mp3' : soundPath(selected, '/just-spawned.mp3');
                 playSound(path);
-                showNotice(`🔥 Spawned — ${item.name} เกิดแล้ว`, true);
+                showNotice(t('spawned_notice', { name: item.name }), true);
             }
         }
     }
@@ -654,7 +1334,9 @@
     document.addEventListener('DOMContentLoaded', () => {
         readInitialData();
         ensureStatusButton();
+        ensureLanguageButton();
         mountCompactHeaderControls();
+        translateVisibleUi();
         enhanceUi();
         reconcileBossRows();
         applyTimezoneDisplay(false);
@@ -668,7 +1350,7 @@
         setInterval(checkScheduledAlerts, 1000);
         setInterval(pollLiveEventFallback, 5000);
         setInterval(reconcileBossRows, 1000);
-        window.addEventListener('offline', () => updateStatus('⚠️ Offline — การเชื่อมต่อขาดหาย'));
+        window.addEventListener('offline', () => updateStatus(t('offline_notice')));
         window.addEventListener('online', () => updateStatus());
         let uiRefreshPending = false;
         new MutationObserver(() => {

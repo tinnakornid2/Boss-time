@@ -4,8 +4,8 @@ Read this file completely before changing the project. This is a production boss
 
 ## Stable recovery point
 
-- Primary stable release: `stable-v1.3.24`
-- Previous recovery releases: `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` (keep unchanged for historical rollback)
+- Primary stable release: `stable-v1.3.25`
+- Previous recovery releases: `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` (keep unchanged for historical rollback)
 - Stable commit is recorded by the annotated Git tag on GitHub.
 - Production URL: `https://boss-time-eloni.vercel.app/`
 - Firebase RTDB project: `boss-timel2m`
@@ -84,16 +84,32 @@ Before production deployment:
 2. Run `npm test`; the Unset, five-minute NOW, Still Alive, and catch-up tests must pass.
 3. Review the staged file list and exclude `server/data/store.json` and secrets.
 4. Deploy through GitHub/Vercel and verify the production version, authentication boundary, Firebase readiness, browser console, and relevant user flow.
-5. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` unchanged; use `stable-v1.3.24` as the primary recovery point.
+5. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` unchanged; use `stable-v1.3.25` as the primary recovery point.
+
+## Parallel Google Sheets Mirror & Failover
+
+- Parallel mirroring: Every boss/event/settings mutation is asynchronously mirrored to Google Sheets via `server/google-sheets.js` and `google_apps_script/Code.gs`.
+- Zero Countdown Traffic: Never mirror countdown ticks or second-level loops to Google Sheets.
+- Auto-Failover: If Firebase suffers quota exhaustion or service outage, `db.getActiveSource()` resolves to `'google-sheets'`, and the backend dynamically serves/fetches store snapshots from Google Sheets.
+- Active Source Indicator: `/poll` returns dynamic `source`. Top-bar badge visually renders `☁️ Firebase Live`, `📊 Google Sheets`, or `💾 Local Mode`.
+- PIN Security: Google Sheets configuration in settings requires PIN verification (`0386231334`).
+
+## Temporary Guest Access & Dual Language
+
+- Temporary Guest: Admin can issue time-limited guest access with auto-expiration (`expiresAt`), isolated to Member permissions only with a distinct purple `🎟️ GUEST` badge.
+- Dual-Language System: English is default (`en`), toggleable to Thai (`th`) via header button. Boss names must NEVER be translated.
+- Unified Tooltips: Style #1 amber balloon with arrow (`#custom-unified-tooltip`) unifies all interactive tooltips.
 
 ## Files that define the system
 
 - `server/server.js`: authentication, roles, routes, dashboard data, cold-start handling.
-- `server/db.js`: cache, boss/event logic, five-minute NOW auto-advance, Firebase readiness.
+- `server/db.js`: cache, boss/event logic, five-minute NOW auto-advance, active data source resolution.
 - `server/firebase.js`: Firebase initialization and atomic revisioned writes.
-- `public/js/realtime-alerts.js`: client revision guard, clock offset, audio, realtime events, tooltips.
-- `test/boss-timer.test.js`: required timer behavior tests.
+- `server/google-sheets.js`: parallel database adapter, async queue, and failover fetcher.
+- `google_apps_script/Code.gs`: Google Apps Script Web App implementation.
+- `public/js/realtime-alerts.js`: client revision guard, clock offset, audio, tooltips, and dynamic language switcher.
+- `docs/HANDOVER_DEVELOPER_GUIDE.md`: fast onboarding and architecture handover guide for future developers/agents.
+- `test/boss-timer.test.js` & `test/parallel-sheets-and-guest.test.js`: regression and behavioral test suites.
 - `server/data/store.json`: user-owned local data; never treat it as current production truth.
-- `docs/GOOGLE_SHEETS_FAILOVER_PLAN.md`: approved planning notes for the future Google Sheets fallback; it is not implemented in the current stable release.
 
 If the requested change conflicts with this document, stop and ask the owner before implementing it.

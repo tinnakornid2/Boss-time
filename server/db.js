@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const firebase = require('./firebase');
+const googleSheets = require('./google-sheets');
 
 const dataFile = path.join(__dirname, 'data', 'store.json');
 let cache = null;
@@ -268,6 +269,40 @@ module.exports = {
     calculateBossAutoAdvance,
     initFirebase,
 
+    getActiveSource() {
+        const store = load();
+        const health = firebase.getHealthStatus();
+        const sheetsStatus = googleSheets.getStatus(store.settings);
+
+        // If Firebase is failing with fatal quota, permission, or configuration errors:
+        const isFirebaseFailing = health.lastErrorCode === 'quota_exceeded' ||
+            health.lastErrorCode === 'configuration_error' ||
+            health.lastErrorCode === 'permission_denied' ||
+            (!health.connected && !health.initialized);
+
+        if (isFirebaseFailing && sheetsStatus.configured && sheetsStatus.enabled && sheetsStatus.autoFailover) {
+            return 'google-sheets';
+        }
+
+        if (health.connected) {
+            return 'firebase';
+        }
+
+        if (health.initialized && hasCloudSnapshot && !health.lastErrorCode) {
+            return 'firebase';
+        }
+
+        if (sheetsStatus.configured && sheetsStatus.enabled && sheetsStatus.autoFailover) {
+            return 'google-sheets';
+        }
+
+        if (hasCloudSnapshot) {
+            return 'firebase';
+        }
+
+        return 'local';
+    },
+
     getFirebaseStatus() {
         const store = load();
         const config = firebase.getConfig();
@@ -282,6 +317,8 @@ module.exports = {
             connected: health.connected,
             initialized: health.initialized,
             status,
+            activeSource: this.getActiveSource(),
+            googleSheets: googleSheets.getStatus(store.settings),
             lastErrorCode: health.lastErrorCode,
             lastErrorAt: health.lastErrorAt,
             lastSuccessfulOperationAt: health.lastSuccessfulOperationAt,
@@ -307,8 +344,26 @@ module.exports = {
         return hasCloudSnapshot;
     },
 
+    async refreshFromGoogleSheets() {
+        try {
+            const store = load();
+            const remoteStore = await googleSheets.fetchStore(store.settings);
+            if (remoteStore?.bosses) {
+                applyRemoteStore(remoteStore);
+                return true;
+            }
+        } catch (_) {}
+        return false;
+    },
+
     async ensureCloudDataReady() {
         if (hasCloudSnapshot) return true;
+        if (this.getActiveSource() === 'google-sheets') {
+            try {
+                const remoteStore = await googleSheets.fetchStore(load().settings);
+                if (remoteStore?.bosses && applyRemoteStore(remoteStore)) return true;
+            } catch (_) {}
+        }
         if (!firebase.isReady()) return false;
         if (cloudRefreshPromise) return cloudRefreshPromise;
 
@@ -379,6 +434,7 @@ module.exports = {
         store.bosses.push(newBoss);
         save();
         await firebase.syncBoss(store.bosses.length - 1, newBoss);
+        googleSheets.mirrorMutation('update_boss', { boss: newBoss }, store.meta?.dataRevision, store.settings);
         return newBoss;
     },
 
@@ -414,6 +470,7 @@ module.exports = {
         store.recentLiveEvents = [...(store.recentLiveEvents || []), liveEvent].slice(-20);
         save();
         await firebase.syncBossAndLiveEvent(idx, store.bosses[idx], liveEvent, store.recentLiveEvents);
+        googleSheets.mirrorMutation('update_boss', { boss: store.bosses[idx] }, store.meta?.dataRevision, store.settings);
         return store.bosses[idx];
     },
 
@@ -425,6 +482,7 @@ module.exports = {
         store.bosses.splice(idx, 1);
         save();
         await firebase.syncAllBosses(store.bosses);
+        googleSheets.mirrorMutation('sync_full', { store }, store.meta?.dataRevision, store.settings);
         return true;
     },
 
@@ -447,6 +505,7 @@ module.exports = {
         if (changed) {
             save();
             await firebase.syncBossUpdates(firebaseChanges);
+            googleSheets.mirrorMutation('batch_update_bosses', { bosses: firebaseChanges }, store.meta?.dataRevision, store.settings);
         }
         return store.bosses;
     },
@@ -537,6 +596,7 @@ module.exports = {
         store.allEvents.push(newEvent);
         save();
         await firebase.syncAllEvents(store.allEvents);
+        googleSheets.mirrorMutation('update_events', { events: store.allEvents }, store.meta?.dataRevision, store.settings);
         return newEvent;
     },
 
@@ -556,6 +616,7 @@ module.exports = {
         store.allEvents[idx] = merged;
         save();
         await firebase.syncAllEvents(store.allEvents);
+        googleSheets.mirrorMutation('update_events', { events: store.allEvents }, store.meta?.dataRevision, store.settings);
         return store.allEvents[idx];
     },
 
@@ -568,6 +629,7 @@ module.exports = {
         store.allEvents.splice(idx, 1);
         save();
         await firebase.syncAllEvents(store.allEvents);
+        googleSheets.mirrorMutation('update_events', { events: store.allEvents }, store.meta?.dataRevision, store.settings);
         return true;
     },
 
@@ -580,6 +642,7 @@ module.exports = {
         store.resetTimeConfigs = { ...store.resetTimeConfigs, ...configs };
         save();
         await firebase.syncResetConfigs(store.resetTimeConfigs);
+        googleSheets.mirrorMutation('update_settings', { settings: store.settings, resetTimeConfigs: store.resetTimeConfigs }, store.meta?.dataRevision, store.settings);
         return store.resetTimeConfigs;
     },
 
@@ -616,8 +679,84 @@ module.exports = {
             ...updates
         };
         save();
+        if (updates.googleSheets) {
+            googleSheets.saveLocalConfig(updates.googleSheets);
+        }
         await firebase.syncSettings(store.settings);
+        googleSheets.mirrorMutation('update_settings', { settings: store.settings }, store.meta?.dataRevision, store.settings);
         return store.settings;
+    },
+
+    getGoogleSheetsStatus() {
+        return googleSheets.getStatus(load().settings);
+    },
+
+    async testGoogleSheets(url, token) {
+        return await googleSheets.testConnection(url, token);
+    },
+
+    async syncGoogleSheetsFull() {
+        const store = load();
+        return await googleSheets.syncFullStore(store, store.settings);
+    },
+
+    getTemporaryPasswords() {
+        const store = load();
+        const list = store.settings?.temporaryPasswords || [];
+        const now = Date.now();
+        return list.map(item => ({
+            ...item,
+            isExpired: new Date(item.expiresAt).getTime() <= now,
+            remainingMinutes: Math.max(0, Math.round((new Date(item.expiresAt).getTime() - now) / 60000))
+        }));
+    },
+
+    async createTemporaryPassword({ label, password, durationHours = 24, expiresAt = null }) {
+        const store = load();
+        const crypto = require('crypto');
+        if (!store.settings) store.settings = {};
+        if (!store.settings.temporaryPasswords) store.settings.temporaryPasswords = [];
+
+        const now = Date.now();
+        let expiryDate;
+        if (expiresAt) {
+            expiryDate = new Date(expiresAt);
+        } else {
+            expiryDate = new Date(now + Number(durationHours) * 3600 * 1000);
+        }
+
+        const rawPassword = (password || '').trim() || `g-${Math.random().toString(36).slice(2, 8)}`;
+        const salt = crypto.randomBytes(16).toString('hex');
+        const hash = `scrypt$${salt}$${crypto.scryptSync(rawPassword, salt, 64).toString('hex')}`;
+
+        const newEntry = {
+            id: `guest_${now}_${Math.random().toString(36).slice(2, 6)}`,
+            label: label || `Guest ${new Date(now).toLocaleDateString('th-TH')}`,
+            password: rawPassword,
+            passwordHash: hash,
+            durationHours: Number(durationHours) || 24,
+            createdAt: new Date(now).toISOString(),
+            expiresAt: expiryDate.toISOString(),
+            usedCount: 0,
+            lastUsedAt: null,
+            active: true
+        };
+
+        store.settings.temporaryPasswords.push(newEntry);
+        await this.updateSettings({ temporaryPasswords: store.settings.temporaryPasswords });
+        return newEntry;
+    },
+
+    async deleteTemporaryPassword(id) {
+        const store = load();
+        if (!store.settings?.temporaryPasswords) return false;
+        const beforeLen = store.settings.temporaryPasswords.length;
+        store.settings.temporaryPasswords = store.settings.temporaryPasswords.filter(p => p.id !== id);
+        if (store.settings.temporaryPasswords.length !== beforeLen) {
+            await this.updateSettings({ temporaryPasswords: store.settings.temporaryPasswords });
+            return true;
+        }
+        return false;
     },
 
     getSavedMaintenanceEndTime() {

@@ -1,4 +1,4 @@
-# ⚔️ Lineage 2 Boss Tracker (#Kain7 Edition) `v1.3.24`
+# ⚔️ Lineage 2 Boss Tracker (#Kain7 Edition) `v1.3.25`
 
 ระบบติดตามเวลาเกิดบอสและอีเวนต์แคลนแบบเรียลไทม์ (Real-Time Boss & Event Spawn Tracker) สำหรับเกม Lineage 2 ถอดแบบโครงสร้างลอจิกและฟีเจอร์ทั้งหมดจาก `boss.kain7.com`
 
@@ -63,10 +63,10 @@
 
 ## ✅ เวอร์ชันสมบูรณ์และการกู้คืน
 
-- จุดกู้คืนหลักที่ยืนยันแล้ว: Git tag `stable-v1.3.24`
-- จุดกู้คืนเดิมที่ยังเก็บไว้: Git tags `stable-v1.3.23`, `stable-v1.3.22` และ `stable-v1.3.13`
-- คู่มือสำหรับผู้พัฒนาและ AI: `AGENTS.md`
-- แผนอัปเกรดฐานข้อมูลสำรองในอนาคต: `docs/GOOGLE_SHEETS_FAILOVER_PLAN.md`
+- จุดกู้คืนหลักที่ยืนยันแล้ว: Git tag `stable-v1.3.25`
+- จุดกู้คืนเดิมที่ยังเก็บไว้: Git tags `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22` และ `stable-v1.3.13`
+- คู่มือเริ่มต้นด่วนสำหรับผู้พัฒนาและ AI ไม่ต้องไล่อ่านโค้ด: `docs/HANDOVER_DEVELOPER_GUIDE.md`
+- สัญญาข้อตกลงการพัฒนา (Maintenance Contract): `AGENTS.md`
 - การกู้คืนโค้ดต้องไม่เขียน `server/data/store.json` ทับข้อมูล Firebase
 
 ---

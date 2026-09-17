@@ -2,6 +2,11 @@ const http = require('http');
 const path = require('path');
 const express = require('express');
 const crypto = require('crypto');
+const dns = require('dns');
+
+try {
+    dns.setDefaultResultOrder('ipv4first');
+} catch (_) {}
 const db = require('./db');
 
 const app = express();
@@ -47,8 +52,9 @@ function sessionSecret() {
     return cachedSessionSecret;
 }
 
-function createSession(role) {
-    const payload = Buffer.from(JSON.stringify({ role, exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000 })).toString('base64url');
+function createSession(role, maxAgeSeconds = SESSION_MAX_AGE_SECONDS) {
+    const effectiveAge = Math.max(60, Number(maxAgeSeconds) || SESSION_MAX_AGE_SECONDS);
+    const payload = Buffer.from(JSON.stringify({ role, exp: Date.now() + effectiveAge * 1000 })).toString('base64url');
     const signature = crypto.createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
     return `${payload}.${signature}`;
 }
@@ -60,7 +66,7 @@ function readSession(value) {
     if (!signature || signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
     try {
         const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-        if (!['admin', 'member'].includes(data.role) || Number(data.exp) <= Date.now()) return null;
+        if (!['admin', 'member', 'guest'].includes(data.role) || Number(data.exp) <= Date.now()) return null;
         return data;
     } catch (_) {
         return null;
@@ -173,16 +179,61 @@ function escapeHtml(str) {
 function renderLoginHtml(pageData, title) {
     const error = escapeHtml(String(pageData?.props?.errors?.password || ''));
     return `<!DOCTYPE html>
-<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Log in - ${escapeHtml(title)}</title><link rel="icon" href="/favicon.png" type="image/png">
 <style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#070708;color:#fff;font-family:system-ui,sans-serif}.login{width:min(360px,calc(100vw - 32px));padding:26px;border:1px solid #3f3f46;border-radius:18px;background:#101012;box-shadow:0 24px 70px #000}.brand{text-align:center;color:#d97706;font-weight:800;margin-bottom:22px}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:18px}.tabs label{padding:9px;text-align:center;border-radius:8px;background:#18181b;cursor:pointer;font-size:12px;font-weight:700}.tabs input{position:absolute;opacity:0}.tabs label:has(input:checked){background:#78350f;color:#fcd34d}.field{display:block;margin-bottom:7px;color:#a1a1aa;font-size:11px;font-weight:700}.password{width:100%;padding:12px;border:1px solid #52525b;border-radius:9px;background:#09090b;color:#fff;font-size:16px}.submit{width:100%;margin-top:16px;padding:12px;border:0;border-radius:9px;background:#d97706;color:#fff;font-weight:800;cursor:pointer}.submit:disabled{opacity:.55}.error{margin:12px 0 0;color:#f87171;font-size:13px}.note{margin-top:14px;color:#71717a;text-align:center;font-size:11px}
-</style></head><body><main class="login"><div class="brand">#madebyelon</div>
-<form method="post" action="/login" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Signing in — กำลังเข้าสู่ระบบ'">
-<div class="tabs"><label><input type="radio" name="name" value="kain7" checked>MEMBER — สมาชิก</label><label><input type="radio" name="name" value="admin">ADMIN — ผู้ดูแล</label></div>
-<label class="field" for="password">PASSWORD — รหัสผ่าน</label><input class="password" id="password" name="password" type="password" required autocomplete="current-password" autofocus onkeydown="if(event.key==='Enter'){event.preventDefault();this.form.requestSubmit()}">
-${error ? `<p class="error">${error}</p>` : ''}<button class="submit" type="submit">SIGN IN — เข้าสู่ระบบ</button>
-</form><div class="note">Boss Tracker ${APP_VERSION}</div></main></body></html>`;
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#070708;color:#fff;font-family:system-ui,sans-serif}
+.login{position:relative;width:min(360px,calc(100vw - 32px));padding:26px;border:1px solid #3f3f46;border-radius:18px;background:#101012;box-shadow:0 24px 70px #000}
+.lang-toggle{position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);color:#38bdf8;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s}
+.lang-toggle:hover{background:rgba(56,189,248,0.15);border-color:rgba(56,189,248,0.35);color:#7dd3fc}
+.brand{text-align:center;color:#d97706;font-weight:800;margin-bottom:22px}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:18px}
+.tabs label{padding:9px;text-align:center;border-radius:8px;background:#18181b;cursor:pointer;font-size:12px;font-weight:700}
+.tabs input{position:absolute;opacity:0}
+.tabs label:has(input:checked){background:#78350f;color:#fcd34d}
+.field{display:block;margin-bottom:7px;color:#a1a1aa;font-size:11px;font-weight:700}
+.password{width:100%;padding:12px;border:1px solid #52525b;border-radius:9px;background:#09090b;color:#fff;font-size:16px}
+.submit{width:100%;margin-top:16px;padding:12px;border:0;border-radius:9px;background:#d97706;color:#fff;font-weight:800;cursor:pointer}
+.submit:disabled{opacity:.55}
+.error{margin:12px 0 0;color:#f87171;font-size:13px}
+.note{margin-top:14px;color:#71717a;text-align:center;font-size:11px}
+</style></head><body><main class="login">
+<button type="button" class="lang-toggle" id="login-lang-btn" onclick="toggleLoginLang()">🌐 EN</button>
+<div class="brand">#madebyelon</div>
+<form method="post" action="/login" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent=window.loginLang==='th'?'กำลังเข้าสู่ระบบ...':'Signing in...'">
+<div class="tabs"><label><input type="radio" name="name" value="kain7" checked>MEMBER</label><label><input type="radio" name="name" value="guest">GUEST</label><label><input type="radio" name="name" value="admin">ADMIN</label></div>
+<label class="field" id="label-pwd" for="password">PASSWORD</label>
+<input class="password" id="password" name="password" type="password" required autocomplete="current-password" placeholder="Enter password" autofocus onkeydown="if(event.key==='Enter'){event.preventDefault();this.form.requestSubmit()}">
+${error ? `<p class="error">${error}</p>` : ''}
+<button class="submit" id="btn-submit" type="submit">SIGN IN</button>
+</form><div class="note" id="login-footer-note">Boss Tracker ${APP_VERSION}</div></main>
+<script>
+window.loginLang = localStorage.getItem('tracker_lang') === 'th' ? 'th' : 'en';
+function updateLoginLangUi() {
+    const isTh = window.loginLang === 'th';
+    document.documentElement.lang = window.loginLang;
+    const btn = document.getElementById('login-lang-btn');
+    if (btn) {
+        btn.textContent = isTh ? '🌐 TH' : '🌐 EN';
+        btn.title = isTh ? 'ภาษา: ไทย (กดเพื่อเปลี่ยนเป็น English)' : 'Language: English (Click to switch to Thai)';
+    }
+    const lbl = document.getElementById('label-pwd');
+    if (lbl) lbl.textContent = isTh ? 'รหัสผ่าน (PASSWORD)' : 'PASSWORD';
+    const pwdInput = document.getElementById('password');
+    if (pwdInput) pwdInput.placeholder = isTh ? 'กรอกรหัสผ่าน' : 'Enter password';
+    const subBtn = document.getElementById('btn-submit');
+    if (subBtn && !subBtn.disabled) subBtn.textContent = isTh ? 'เข้าสู่ระบบ' : 'SIGN IN';
+    const note = document.getElementById('login-footer-note');
+    if (note) note.textContent = isTh ? 'ระบบติดตามบอส ${APP_VERSION}' : 'Boss Tracker ${APP_VERSION}';
+}
+function toggleLoginLang() {
+    window.loginLang = window.loginLang === 'th' ? 'en' : 'th';
+    localStorage.setItem('tracker_lang', window.loginLang);
+    updateLoginLangUi();
+}
+updateLoginLangUi();
+</script>
+</body></html>`;
 }
 
 // Helper: HTML page wrapper matching boss.kain7.com exactly
@@ -193,94 +244,99 @@ function renderHtml(pageData, title = '#Kain7') {
     const userRole = (pageData && pageData.props && pageData.props.auth && pageData.props.auth.user && pageData.props.auth.user.role) || 'guest';
     const isAdmin = userRole === 'admin';
 
-    const adminPasswordSnippet = `
-    <!-- Admin Password Management Modal & Permanent Button Script -->
+    const adminPasswordSnippet = isAdmin ? `
     <style>
-        #admin-pwd-modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 999999;
-            background: rgba(0, 0, 0, 0.82);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-            font-family: inherit;
+        /* Ensure Settings Dialog has comfortable width and does not clip or overflow */
+        div[role="dialog"] {
+            max-width: 520px !important;
+            width: min(520px, calc(100vw - 24px)) !important;
         }
-        #admin-pwd-modal.active {
-            display: flex !important;
-        }
-        .pwd-card {
-            position: relative;
-            width: 100%;
-            max-width: 450px;
-            background: linear-gradient(145deg, #18181b, #09090b);
-            border: 1px solid rgba(245, 158, 11, 0.4);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.9), 0 0 30px rgba(245,158,11,0.2);
-            color: #fff;
-            box-sizing: border-box;
-            animation: pwdModalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @keyframes pwdModalPop {
-            0% { opacity: 0; transform: scale(0.95) translateY(10px); }
-            100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .pwd-header {
+
+        /* Dedicated System Settings Sub-Bar placed neatly below React top tabs */
+        #custom-admin-tabs-subbar {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            justify-content: space-between;
+            gap: 6px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.45);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 14px;
-            margin-bottom: 18px;
+            box-sizing: border-box;
+            width: 100%;
         }
-        .pwd-title {
-            display: flex;
+
+        .custom-admin-tab-btn {
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-        }
-        .pwd-title-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
-            background: rgba(245, 158, 11, 0.15);
-            border: 1px solid rgba(245, 158, 11, 0.35);
-            font-size: 18px;
-        }
-        .pwd-title-text h3 {
-            margin: 0;
-            font-size: 15px;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: -0.01em;
-        }
-        .pwd-title-text p {
-            margin: 2px 0 0 0;
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.5);
-        }
-        .pwd-close-btn {
-            background: none;
-            border: none;
-            color: rgba(255, 255, 255, 0.4);
-            font-size: 18px;
-            cursor: pointer;
-            padding: 4px 8px;
+            gap: 5px;
+            padding: 4px 10px;
             border-radius: 6px;
-            transition: all 0.15s;
+            font-size: 11px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.75);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            white-space: nowrap;
         }
-        .pwd-close-btn:hover {
+
+        .custom-admin-tab-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
             color: #fff;
-            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .custom-admin-tab-btn.active {
+            background: rgba(245, 158, 11, 0.22) !important;
+            color: #fbbf24 !important;
+            border-color: #f59e0b !important;
+            font-weight: 700 !important;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.25) !important;
+        }
+
+        /* Embedded Admin Settings Panel inside main React Settings Modal */
+        .admin-embedded-panel {
+            width: 100%;
+            max-height: 65vh;
+            overflow-y: auto;
+            padding: 14px 18px 24px 18px;
+            box-sizing: border-box;
+            color: #fff;
+            animation: fadeInAdminPanel 0.15s ease;
+        }
+        @keyframes fadeInAdminPanel {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .admin-embedded-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        .admin-embedded-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .admin-embedded-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 9999px;
+        }
+        .admin-embedded-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .settings-tab-pane {
+            display: none;
+            animation: fadeInAdminPane 0.15s ease;
+        }
+        .settings-tab-pane.active {
+            display: block;
+        }
+        @keyframes fadeInAdminPane {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         .pwd-group {
-            margin-bottom: 16px;
+            margin-bottom: 14px;
         }
         .pwd-label-row {
             display: flex;
@@ -313,7 +369,7 @@ function renderHtml(pageData, title = '#Kain7') {
             background: #09090b;
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 8px;
-            padding: 10px 42px 10px 12px;
+            padding: 9px 42px 9px 12px;
             font-size: 13px;
             color: #fff;
             box-sizing: border-box;
@@ -339,21 +395,19 @@ function renderHtml(pageData, title = '#Kain7') {
             justify-content: center;
             transition: color 0.15s;
         }
-        .pwd-toggle-eye:hover {
-            color: #fff;
-        }
+        .pwd-toggle-eye:hover { color: #fff; }
         .pwd-subhint {
             margin: 5px 0 0 0;
-            font-size: 10px;
+            font-size: 10.5px;
             color: rgba(255, 255, 255, 0.4);
             line-height: 1.4;
         }
         .pwd-alert {
             display: none;
-            padding: 10px 12px;
+            padding: 9px 12px;
             border-radius: 8px;
             font-size: 11px;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
             line-height: 1.4;
         }
         .pwd-alert.success {
@@ -378,7 +432,7 @@ function renderHtml(pageData, title = '#Kain7') {
             padding: 8px 12px;
             font-size: 11px;
             color: #7dd3fc;
-            margin-top: 16px;
+            margin-top: 14px;
         }
         .pwd-footer {
             display: flex;
@@ -386,8 +440,9 @@ function renderHtml(pageData, title = '#Kain7') {
             align-items: center;
             gap: 10px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding-top: 16px;
-            margin-top: 20px;
+            padding-top: 14px;
+            margin-top: 16px;
+            flex-shrink: 0;
         }
         .pwd-btn-cancel {
             background: none;
@@ -395,7 +450,7 @@ function renderHtml(pageData, title = '#Kain7') {
             color: rgba(255, 255, 255, 0.6);
             font-size: 12px;
             font-weight: 500;
-            padding: 8px 16px;
+            padding: 7px 14px;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.15s;
@@ -412,7 +467,7 @@ function renderHtml(pageData, title = '#Kain7') {
             color: #09090b;
             font-size: 12px;
             font-weight: 700;
-            padding: 8px 20px;
+            padding: 7px 18px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
@@ -423,168 +478,475 @@ function renderHtml(pageData, title = '#Kain7') {
             filter: brightness(1.1);
             transform: translateY(-1px);
         }
-
-        /* Floating Key Button Trigger Bar */
-        #admin-pwd-floating-bar {
-            position: fixed;
-            bottom: 12px;
-            left: 14px;
-            z-index: 999999;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            pointer-events: auto;
-        }
-        .pwd-trigger-pill {
+        .pwd-btn-secondary {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 5px 14px;
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(217, 119, 6, 0.25));
-            border: 1.5px solid #f59e0b;
-            border-radius: 9999px;
-            color: #fbbf24;
-            font-family: inherit;
-            font-size: 11px;
-            font-weight: 700;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 12px rgba(245, 158, 11, 0.35);
-            transition: all 0.2s ease;
-            user-select: none;
-            animation: pwdPulseGlow 3s ease-in-out infinite;
-        }
-        @keyframes pwdPulseGlow {
-            0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 10px rgba(245, 158, 11, 0.3); }
-            50% { box-shadow: 0 4px 22px rgba(0,0,0,0.8), 0 0 20px rgba(245, 158, 11, 0.65); }
-        }
-        .pwd-trigger-pill:hover {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.55), rgba(217, 119, 6, 0.4));
-            border-color: #fbbf24;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             color: #fff;
-            transform: translateY(-1px) scale(1.03);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
         }
-        .header-pwd-btn {
+        .pwd-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+
+        /* Guest table styling */
+        .guest-table-wrap {
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        .guest-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            text-align: left;
+        }
+        .guest-table th {
+            background: #18181b;
+            padding: 8px 10px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.6);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+        }
+        .guest-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.85);
+        }
+        .guest-status-badge {
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 2px 8px;
-            background: rgba(245, 158, 11, 0.15);
-            border: 1px solid rgba(245, 158, 11, 0.4);
-            border-radius: 5px;
-            color: #fbbf24;
-            font-family: inherit;
-            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9.5px;
             font-weight: 600;
-            cursor: pointer;
-            margin: 0 4px;
-            transition: all 0.2s ease;
-            backdrop-filter: blur(4px);
         }
-        .header-pwd-btn:hover {
-            background: rgba(245, 158, 11, 0.3);
-            border-color: #f59e0b;
-            color: #fff;
+        .guest-status-badge.active {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
         }
+        .guest-status-badge.expired {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* PIN Lock Box */
+        .pin-lock-card {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            margin: 10px 0;
+        }
+
     </style>
 
-    <div id="admin-pwd-floating-bar" style="${isAdmin ? '' : 'display:none;'}">
-        <button type="button" id="header-password-control" class="pwd-trigger-pill" ${isAdmin ? '' : 'hidden'} onclick="openAdminPwdModal()" title="Manage Passwords — จัดการรหัสผ่าน" aria-label="Manage Passwords — จัดการรหัสผ่าน">
-            <span aria-hidden="true">🔑</span>
-            <span id="pwd-pill-label">Manage Passwords</span>
-        </button>
-    </div>
-
-    <div id="admin-pwd-modal">
-        <div class="pwd-card" onclick="event.stopPropagation()">
-            <div class="pwd-header">
-                <div class="pwd-title">
-                    <div class="pwd-title-icon">🔑</div>
-                    <div class="pwd-title-text">
-                        <h3>จัดการรหัสผ่านระบบ</h3>
-                        <p>ตั้งค่ารหัสผ่าน Admin & Member</p>
-                    </div>
-                </div>
-                <button type="button" class="pwd-close-btn" onclick="closeAdminPwdModal()" title="Close — ปิด" aria-label="Close — ปิด">✕</button>
-            </div>
-
-            <div id="pwd-alert-box" class="pwd-alert"></div>
+    <div id="admin-settings-embedded-panel" class="admin-embedded-panel" style="display:none;">
+        <div id="pwd-alert-box" class="pwd-alert"></div>
 
             <!-- Member Unlock Form if not yet authenticated as Admin -->
             <div id="pwd-verify-admin-section" style="${isAdmin ? 'display:none;' : 'display:block;'}">
                 <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
-                    <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 700; color: #fbbf24;">🛡️ ยืนยันสิทธิ์ Admin</p>
-                    <p style="margin: 0 0 12px 0; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.5;">
-                        ปัจจุบันคุณกำลังเปิดในสถานะ <b>Member</b> กรุณากรอกรหัสผ่าน Admin ปัจจุบันเพื่อปลดล็อก:
+                    <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 700; color: #fbbf24;" data-i18n="verify_admin_title">🛡️ Admin Verification</p>
+                    <p style="margin: 0 0 12px 0; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.5;" data-i18n="verify_admin_desc">
+                        Currently in Member/Guest mode. Please enter Admin password to unlock:
                     </p>
                     <div style="display:flex; gap:8px;">
-                        <input type="password" id="modal-input-verify-admin" placeholder="รหัสผ่าน Admin ปัจจุบัน" class="pwd-input" style="flex:1;">
-                        <button type="button" class="pwd-btn-save" style="padding: 8px 16px; white-space: nowrap;" onclick="verifyAdminAndUnlock()" title="Verify Admin — ยืนยันสิทธิ์ผู้ดูแล" aria-label="Verify Admin — ยืนยันสิทธิ์ผู้ดูแล">🔓 ยืนยัน</button>
+                        <input type="password" id="modal-input-verify-admin" placeholder="Current Admin password" data-i18n-ph="verify_admin_ph" class="pwd-input" style="flex:1;">
+                        <button type="button" class="pwd-btn-save" style="padding: 8px 16px; white-space: nowrap;" onclick="verifyAdminAndUnlock()" title="Verify Admin" data-i18n-title="verify_btn_title" data-i18n="verify_btn">🔓 Verify</button>
                     </div>
                     <div id="pwd-verify-error" style="color: #f87171; font-size: 11px; margin-top: 8px; display: none;"></div>
                 </div>
             </div>
 
-            <!-- Password Editing Fields -->
-            <div id="pwd-edit-fields-section" style="${isAdmin ? 'display:block;' : 'display:none;'}">
+            <!-- TAB 1: SYSTEM PASSWORDS -->
+            <div id="tab-pane-passwords" class="settings-tab-pane active" style="${isAdmin ? '' : 'display:none;'}">
                 <div class="pwd-group">
                     <div class="pwd-label-row">
-                        <span class="pwd-label" style="color: #fbbf24;">🛡️ รหัสผ่าน Admin (ผู้ดูแล)</span>
-                        <span class="pwd-badge">สิทธิ์จัดการระบบ</span>
+                        <span class="pwd-label" style="color: #fbbf24;" data-i18n="admin_pwd_label">🛡️ Admin Password</span>
+                        <span class="pwd-badge" data-i18n="admin_badge">System Control</span>
                     </div>
                     <div class="pwd-input-wrap">
-                        <input type="password" id="modal-input-admin-pwd" class="pwd-input" placeholder="รหัสผ่านใหม่" autocomplete="off">
-                        <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-admin-pwd', this)" title="Show or Hide Password — แสดงหรือซ่อนรหัสผ่าน" aria-label="Show or Hide Password — แสดงหรือซ่อนรหัสผ่าน">👁️</button>
+                        <input type="password" id="modal-input-admin-pwd" class="pwd-input" placeholder="New password (min 8 chars)" data-i18n-ph="admin_pwd_ph" autocomplete="off">
+                        <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-admin-pwd', this)" title="Show/Hide">👁️</button>
                     </div>
-                    <p class="pwd-subhint">สำหรับเข้าสู่โหมด Admin: บันทึกเวลาเกิดบอส, เพิ่ม/ลบบอส, จัดการอีเวนต์</p>
+                    <p class="pwd-subhint" data-i18n="admin_pwd_hint">For Admin mode: record boss kill times, add/delete bosses, manage events</p>
                 </div>
 
                 <div class="pwd-group" style="margin-top: 14px;">
                     <div class="pwd-label-row">
-                        <span class="pwd-label" style="color: #38bdf8;">👥 รหัสผ่าน Member (สมาชิกแคลน)</span>
-                        <span class="pwd-badge">สิทธิ์ดูตาราง</span>
+                        <span class="pwd-label" style="color: #38bdf8;" data-i18n="member_pwd_label">👥 Member Password</span>
+                        <span class="pwd-badge" data-i18n="member_badge">View Access</span>
                     </div>
                     <div class="pwd-input-wrap">
-                        <input type="password" id="modal-input-member-pwd" class="pwd-input" placeholder="รหัสผ่านใหม่" autocomplete="off">
-                        <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-member-pwd', this)" title="Show or Hide Password — แสดงหรือซ่อนรหัสผ่าน" aria-label="Show or Hide Password — แสดงหรือซ่อนรหัสผ่าน">👁️</button>
+                        <input type="password" id="modal-input-member-pwd" class="pwd-input" placeholder="New password (min 8 chars)" data-i18n-ph="member_pwd_ph" autocomplete="off">
+                        <button type="button" class="pwd-toggle-eye" onclick="togglePwdVisibility('modal-input-member-pwd', this)" title="Show/Hide">👁️</button>
                     </div>
-                    <p class="pwd-subhint">สำหรับแจกคนในแคลน: เปิดดูตารางเวลาบอส, เวลานับถอยหลัง และเสียงเตือน</p>
+                    <p class="pwd-subhint" data-i18n="member_pwd_hint">For clan members: view boss timetable, countdown timers, and audio alerts</p>
                 </div>
 
                 <div class="pwd-cloud-notice">
                     <span>☁️</span>
-                    <span>เมื่อบันทึกแล้ว ข้อมูลจะซิงค์ไปยัง Firebase Cloud อัตโนมัติ</span>
+                    <span data-i18n="pwd_cloud_notice">Changes will sync to Firebase Cloud automatically</span>
                 </div>
 
-                <div class="pwd-footer" id="pwd-footer-save">
-                    <button type="button" class="pwd-btn-cancel" onclick="closeAdminPwdModal()">ยกเลิก</button>
-                    <button type="button" id="btn-modal-save-pwd" class="pwd-btn-save" onclick="submitAdminPasswords()" title="Save Passwords — บันทึกรหัสผ่าน" aria-label="Save Passwords — บันทึกรหัสผ่าน">
-                        <span>💾 บันทึกรหัสผ่านใหม่</span>
+                <div class="pwd-footer">
+                    <button type="button" class="pwd-btn-cancel" onclick="closeAdminPwdModal()" data-i18n="cancel_btn">Cancel</button>
+                    <button type="button" id="btn-modal-save-pwd" class="pwd-btn-save" onclick="submitAdminPasswords()">
+                        <span data-i18n="save_pwd_btn">💾 Save Passwords</span>
                     </button>
                 </div>
             </div>
-        </div>
+
+            <!-- TAB 2: GUEST ACCESS -->
+            <div id="tab-pane-guest" class="settings-tab-pane">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; margin-bottom: 14px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #a855f7; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                        <span>🎟️</span><span data-i18n="guest_section_title">Generate Temporary Passwords (Guest Access)</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                        <div>
+                            <label style="display:block; font-size:10.5px; color:#a1a1aa; margin-bottom:4px;" data-i18n="guest_label_field">Name / Note</label>
+                            <input type="text" id="guest-input-label" class="pwd-input" placeholder="e.g. Guest #1 / Friend" data-i18n-ph="guest_label_ph" style="padding-right:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:10.5px; color:#a1a1aa; margin-bottom:4px;" data-i18n="guest_duration_field">Expiration Duration</label>
+                            <select id="guest-input-duration" class="pwd-input" style="padding-right:12px; cursor:pointer;">
+                                <option value="1" data-i18n="guest_dur_1">1 Hour (1 hr)</option>
+                                <option value="6" data-i18n="guest_dur_6">6 Hours (6 hrs)</option>
+                                <option value="12" data-i18n="guest_dur_12">12 Hours (12 hrs)</option>
+                                <option value="24" data-i18n="guest_dur_24" selected>1 Day (24 hrs)</option>
+                                <option value="72" data-i18n="guest_dur_72">3 Days (72 hrs)</option>
+                                <option value="168" data-i18n="guest_dur_168">7 Days (1 week)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:10.5px; color:#a1a1aa; margin-bottom:4px;" data-i18n="guest_pwd_field">Guest Password (or generate random)</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" id="guest-input-pwd" class="pwd-input" placeholder="Type password or generate random" data-i18n-ph="guest_pwd_ph" style="flex:1;">
+                            <button type="button" class="pwd-btn-secondary" onclick="generateRandomGuestPassword()" data-i18n="guest_random_btn" title="Generate Random">🎲 Random</button>
+                            <button type="button" class="pwd-btn-save" onclick="createGuestPassword()" style="white-space:nowrap;" data-i18n="guest_create_btn">➕ Create</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,0.7); margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <span data-i18n="guest_table_title">📋 All Temporary Passwords</span>
+                    <button type="button" class="pwd-btn-secondary" style="padding: 3px 8px; font-size: 10px;" onclick="fetchGuestPasswords()" data-i18n="guest_refresh_btn">🔄 Refresh</button>
+                </div>
+                <div class="guest-table-wrap">
+                    <table class="guest-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="guest_col_name">Name / Note</th>
+                                <th data-i18n="guest_col_pwd">Password</th>
+                                <th data-i18n="guest_col_expires">Expires</th>
+                                <th data-i18n="guest_col_status">Status</th>
+                                <th style="text-align:right;" data-i18n="guest_col_action">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="guest-table-body">
+                            <tr><td colspan="5" style="text-align:center; padding:16px; color:#71717a;" data-i18n="guest_loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 3: GOOGLE SHEETS (PROTECTED ACCESS) -->
+            <div id="tab-pane-sheets" class="settings-tab-pane">
+                <!-- Lock screen -->
+                <div id="sheets-locked-view" class="pin-lock-card">
+                    <div style="font-size: 32px; margin-bottom: 8px;">🔒</div>
+                    <div style="font-size: 14px; font-weight: 700; color: #fbbf24; margin-bottom: 6px;" data-i18n="sheets_lock_title">Protected Configuration Area</div>
+                    <p style="font-size: 11px; color: rgba(255,255,255,0.7); margin: 0 0 14px 0; line-height: 1.5;" data-i18n="sheets_lock_desc">
+                        Parallel Google Sheets database settings are protected. Enter password to access:
+                    </p>
+                    <div style="display:flex; gap:8px; max-width: 320px; margin: 0 auto;">
+                        <input type="password" id="input-sheets-pin" class="pwd-input" placeholder="Enter password..." data-i18n-ph="sheets_lock_ph" style="text-align:center;" onkeydown="if(event.key==='Enter')verifySheetsPin()">
+                        <button type="button" id="btn-verify-sheets-pin" class="pwd-btn-save" onclick="verifySheetsPin()" style="white-space:nowrap;" data-i18n="sheets_unlock_btn">🔓 Unlock</button>
+                    </div>
+                    <div id="sheets-pin-error" style="color: #f87171; font-size: 11px; margin-top: 8px; display: none;"></div>
+                </div>
+
+                <!-- Unlocked Configuration Form -->
+                <div id="sheets-unlocked-view" style="display: none;">
+                    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 11px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <span style="color: #34d399; font-weight: 700;" data-i18n="sheets_unlocked_badge">🔓 Unlocked</span>
+                            <span id="sheets-live-status" style="margin-left: 8px; color: rgba(255,255,255,0.7);">Checking status...</span>
+                        </div>
+                        <button type="button" class="pwd-btn-secondary" style="padding: 2px 8px; font-size: 9.5px;" onclick="lockSheetsView()" data-i18n="sheets_lock_btn">🔒 Lock</button>
+                    </div>
+
+                    <div class="pwd-group">
+                        <label class="pwd-label" style="color:#34d399;" data-i18n="sheets_url_label">🌐 Google Apps Script Web App URL</label>
+                        <input type="text" id="sheets-input-url" class="pwd-input" placeholder="https://script.google.com/macros/s/.../exec" style="font-size:11px; font-family:monospace;">
+                        <p class="pwd-subhint" data-i18n="sheets_url_hint">Web app URL from Google Sheets Deployment (must end with /exec)</p>
+                    </div>
+
+                    <div class="pwd-group">
+                        <label class="pwd-label" style="color:#fbbf24;" data-i18n="sheets_token_label">🔑 Secret Token</label>
+                        <input type="text" id="sheets-input-token" class="pwd-input" placeholder="boss-parallel-secret-777999" value="boss-parallel-secret-777999" style="font-size:12px;">
+                        <p class="pwd-subhint" data-i18n="sheets_token_hint">Must match SECRET_TOKEN in Code.gs</p>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-size:11.5px; cursor:pointer; margin-bottom:6px;">
+                            <input type="checkbox" id="sheets-toggle-enabled" checked style="accent-color:#f59e0b; width:15px; height:15px;">
+                            <span><b data-i18n="sheets_mirror_label">Enable Parallel Mirror</b></span>
+                        </label>
+                        <p class="pwd-subhint" style="margin-left:23px;" data-i18n="sheets_mirror_hint">Sync bosses and events to Google Sheets in background on every update</p>
+
+                        <label style="display:flex; align-items:center; gap:8px; font-size:11.5px; cursor:pointer; margin-top:10px; margin-bottom:6px;">
+                            <input type="checkbox" id="sheets-toggle-failover" style="accent-color:#10b981; width:15px; height:15px;">
+                            <span><b data-i18n="sheets_failover_label">Enable Auto Failover</b></span>
+                        </label>
+                        <p class="pwd-subhint" style="margin-left:23px;" data-i18n="sheets_failover_hint">Serve data from Google Sheets if Firebase is offline or quota exceeded</p>
+                    </div>
+
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top: 14px; justify-content:flex-end;">
+                        <button type="button" class="pwd-btn-secondary" onclick="testSheetsConnection()" id="btn-test-sheets" data-i18n="sheets_test_btn">⚡ Test Connection</button>
+                        <button type="button" class="pwd-btn-secondary" onclick="syncSheetsNow()" id="btn-sync-sheets" data-i18n="sheets_sync_btn">🔄 Sync All Now</button>
+                        <button type="button" class="pwd-btn-save" onclick="saveSheetsConfig()" id="btn-save-sheets" data-i18n="sheets_save_btn">💾 Save Settings</button>
+                    </div>
+
+                    <div style="margin-top: 14px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 10.5px; color: #a1a1aa; line-height: 1.5;" data-i18n="sheets_script_guide">
+                        📖 <b>Script file:</b> located at <code>google_apps_script/Code.gs</code> with guide in <code>google_apps_script/README.md</code>
+                    </div>
+                </div>
+            </div>
+
     </div>
 
     <script>
-        function openAdminPwdModal() {
-            const modal = document.getElementById('admin-pwd-modal');
-            if (!modal) return;
-            modal.classList.add('active');
-            const alertBox = document.getElementById('pwd-alert-box');
-            if (alertBox) {
-                alertBox.className = 'pwd-alert';
-                alertBox.textContent = '';
+        let currentSheetsPin = '';
+        let isSheetsUnlocked = false;
+        let activeCustomTab = null;
+        let persistentPanel = null;
+        let persistentSubbar = null;
+        let panelTemplateHtml = '';
+
+        function ensurePersistentPanel() {
+            if (!persistentPanel) {
+                persistentPanel = document.getElementById('admin-settings-embedded-panel');
+                if (persistentPanel && !panelTemplateHtml) {
+                    panelTemplateHtml = persistentPanel.outerHTML;
+                }
+            }
+            if (!persistentPanel && panelTemplateHtml) {
+                const holder = document.createElement('div');
+                holder.innerHTML = panelTemplateHtml;
+                persistentPanel = holder.firstElementChild;
+                document.body.appendChild(persistentPanel);
+            }
+            return persistentPanel;
+        }
+
+        function ensurePersistentSubbar() {
+            if (!persistentSubbar) {
+                persistentSubbar = document.getElementById('custom-admin-tabs-subbar');
+            }
+            if (!persistentSubbar) {
+                const subbar = document.createElement('div');
+                subbar.id = 'custom-admin-tabs-subbar';
+                const isTh = (window.getLanguage && window.getLanguage()) === 'th' || localStorage.getItem('tracker_lang') === 'th';
+                subbar.innerHTML = '<span class="text-[10px] font-bold text-amber-400/90 tracking-wider flex items-center gap-1 shrink-0 select-none mr-1">' +
+                        '<span>⚙️</span><span data-i18n="system_label">' + (isTh ? 'ระบบ:' : 'System:') + '</span>' +
+                    '</span>' +
+                    '<button type="button" class="custom-admin-tab-btn" data-tab-id="passwords" data-i18n-title="tab_passwords" data-unified-tooltip="' + (isTh ? 'รหัสผ่านระบบ' : 'System Passwords') + '">' +
+                        '<span>🔑</span><span data-i18n="tab_passwords">' + (isTh ? 'รหัสผ่านระบบ' : 'System Passwords') + '</span>' +
+                    '</button>' +
+                    '<button type="button" class="custom-admin-tab-btn" data-tab-id="guest" data-i18n-title="tab_guest" data-unified-tooltip="' + (isTh ? 'ไอดีชั่วคราว (Guest)' : 'Guest Access') + '">' +
+                        '<span>🎟️</span><span data-i18n="tab_guest">' + (isTh ? 'ไอดีชั่วคราว (Guest)' : 'Guest Access') + '</span>' +
+                    '</button>' +
+                    '<button type="button" class="custom-admin-tab-btn" data-tab-id="sheets" data-i18n-title="tab_sheets" data-unified-tooltip="Google Sheets">' +
+                        '<span>☁️</span><span data-i18n="tab_sheets">Google Sheets</span>' +
+                    '</button>';
+
+                subbar.querySelectorAll('.custom-admin-tab-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        activateCustomTab(btn.dataset.tabId);
+                    });
+                });
+                persistentSubbar = subbar;
+            }
+            return persistentSubbar;
+        }
+
+        function attachAdminSettingsToReactDialog() {
+            const dialog = document.querySelector('[role="dialog"]');
+            if (!dialog) return;
+
+            const tabBar = dialog.querySelector('.flex.gap-1.overflow-x-auto') || dialog.querySelector('.overflow-x-auto');
+            if (!tabBar) return;
+
+            const panel = ensurePersistentPanel();
+            const subbar = ensurePersistentSubbar();
+            if (!tabBar || !panel || !subbar) return;
+
+            // Always keep subbar mounted right after tabBar
+            if (tabBar.nextElementSibling !== subbar) {
+                tabBar.insertAdjacentElement('afterend', subbar);
+            }
+            subbar.style.display = 'flex';
+
+            // Ensure embedded panel is directly after subbar inside dialog
+            if (subbar.nextElementSibling !== panel) {
+                subbar.insertAdjacentElement('afterend', panel);
             }
 
-            // Fetch current passwords if already admin
-            fetchPasswords();
+            // Sync visibility based on activeCustomTab
+            const contentArea = dialog.querySelector('.settings-scroll');
+            if (activeCustomTab) {
+                if (contentArea) contentArea.style.display = 'none';
+                panel.style.display = 'block';
+            } else {
+                if (contentArea) contentArea.style.display = '';
+                panel.style.display = 'none';
+            }
+
+            // Listen for native React tab clicks to revert to standard settings
+            if (!tabBar.dataset.customListenerAttached) {
+                tabBar.dataset.customListenerAttached = 'true';
+                tabBar.addEventListener('click', (e) => {
+                    if (e.target.closest('.custom-admin-tab-btn')) return;
+                    deactivateCustomTabs();
+                });
+            }
+
+            if (window.translateVisibleUi) {
+                window.translateVisibleUi();
+            }
+        }
+
+        function activateCustomTab(tabId) {
+            const dialog = document.querySelector('[role="dialog"]');
+            if (!dialog) return;
+
+            const contentArea = dialog.querySelector('.settings-scroll');
+            const panel = document.getElementById('admin-settings-embedded-panel');
+            if (!panel) return;
+
+            activeCustomTab = tabId;
+
+            if (contentArea) contentArea.style.display = 'none';
+            panel.style.display = 'block';
+
+            // Reset native React tab highlights
+            const nativeBtns = dialog.querySelectorAll('.flex.gap-1.overflow-x-auto > button');
+            nativeBtns.forEach(b => {
+                b.classList.remove('bg-background', 'text-foreground', 'shadow-sm');
+                b.classList.add('text-muted-foreground');
+            });
+
+            // Update subbar tab button highlights
+            const customBtns = dialog.querySelectorAll('.custom-admin-tab-btn');
+            customBtns.forEach(b => {
+                if (b.dataset.tabId === tabId) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
+
+            // Switch visible pane
+            document.querySelectorAll('.settings-tab-pane').forEach(p => {
+                p.classList.remove('active');
+                p.style.display = 'none';
+            });
+            const targetPane = document.getElementById('tab-pane-' + tabId);
+            if (targetPane) {
+                targetPane.classList.add('active');
+                targetPane.style.display = 'block';
+            }
+
+            const alertBox = document.getElementById('pwd-alert-box');
+            if (alertBox) { alertBox.className = 'pwd-alert'; alertBox.textContent = ''; }
+
+            if (tabId === 'passwords') {
+                fetchPasswords();
+            } else if (tabId === 'guest') {
+                fetchGuestPasswords();
+            } else if (tabId === 'sheets' && isSheetsUnlocked) {
+                fetchSheetsConfig();
+            }
+        }
+
+        function deactivateCustomTabs() {
+            activeCustomTab = null;
+            const dialog = document.querySelector('[role="dialog"]');
+            const panel = document.getElementById('admin-settings-embedded-panel');
+            if (panel) panel.style.display = 'none';
+            if (dialog) {
+                const contentArea = dialog.querySelector('.settings-scroll');
+                if (contentArea) contentArea.style.display = '';
+
+                const customBtns = dialog.querySelectorAll('.custom-admin-tab-btn');
+                customBtns.forEach(b => {
+                    b.classList.remove('active');
+                });
+            }
+        }
+
+        function detachAdminSettings() {
+            activeCustomTab = null;
+            if (persistentPanel && persistentPanel.parentElement !== document.body) {
+                persistentPanel.style.display = 'none';
+                document.body.appendChild(persistentPanel);
+            }
+            if (persistentSubbar && persistentSubbar.parentElement !== document.body) {
+                persistentSubbar.style.display = 'none';
+                document.body.appendChild(persistentSubbar);
+            }
+        }
+
+        function switchSettingTab(tabName) {
+            activateCustomTab(tabName);
+        }
+
+        function openAdminPwdModal(initialTab = 'passwords') {
+            const dialog = document.querySelector('[role="dialog"]');
+            if (dialog) {
+                attachAdminSettingsToReactDialog();
+                activateCustomTab(initialTab);
+            } else {
+                const gearBtn = document.querySelector('button:has(svg.lucide-settings), button[title*="Settings"], button[aria-label*="Settings"]');
+                if (gearBtn) {
+                    gearBtn.click();
+                    setTimeout(() => {
+                        attachAdminSettingsToReactDialog();
+                        activateCustomTab(initialTab);
+                    }, 80);
+                }
+            }
         }
 
         function closeAdminPwdModal() {
-            const modal = document.getElementById('admin-pwd-modal');
-            if (modal) modal.classList.remove('active');
+            const dialog = document.querySelector('[role="dialog"]');
+            if (dialog) {
+                const closeBtn = dialog.querySelector('button:has(svg.lucide-x), button[aria-label*="Close"], button[title*="Close"]');
+                if (closeBtn) closeBtn.click();
+                else deactivateCustomTabs();
+            }
         }
 
         function togglePwdVisibility(inputId, btn) {
@@ -609,14 +971,17 @@ function renderHtml(pageData, title = '#Kain7') {
                         if (adminInput && data.adminPassword) adminInput.value = data.adminPassword;
                         if (memberInput && data.memberPassword) memberInput.value = data.memberPassword;
                         const verifySec = document.getElementById('pwd-verify-admin-section');
-                        const editSec = document.getElementById('pwd-edit-fields-section');
                         if (verifySec) verifySec.style.display = 'none';
-                        if (editSec) editSec.style.display = 'block';
-                        const pillLabel = document.getElementById('pwd-pill-label');
-                        if (pillLabel) pillLabel.textContent = '🛡️ Admin (รหัสผ่าน)';
+                        document.querySelectorAll('.settings-tab-pane').forEach(p => {
+                            if (p.id === 'tab-pane-passwords' && p.classList.contains('active')) p.style.display = 'block';
+                        });
                     }
                 })
-                .catch(e => console.log('Fetch passwords:', e));
+                .catch(e => console.log('Fetch passwords error:', e));
+        }
+
+        function isTh() {
+            return (window.getLanguage ? window.getLanguage() === 'th' : localStorage.getItem('tracker_lang') === 'th');
         }
 
         function verifyAdminAndUnlock() {
@@ -624,7 +989,7 @@ function renderHtml(pageData, title = '#Kain7') {
             const err = document.getElementById('pwd-verify-error');
             const val = input ? input.value.trim() : '';
             if (!val) {
-                if (err) { err.textContent = '❌ กรุณากรอกรหัสผ่าน Admin'; err.style.display = 'block'; }
+                if (err) { err.textContent = isTh() ? '❌ กรุณากรอกรหัสผ่าน Admin' : '❌ Please enter Admin password'; err.style.display = 'block'; }
                 return;
             }
 
@@ -637,15 +1002,14 @@ function renderHtml(pageData, title = '#Kain7') {
                 if (r.ok || r.redirected || r.status === 200 || r.status === 302) {
                     if (err) err.style.display = 'none';
                     document.getElementById('pwd-verify-admin-section').style.display = 'none';
-                    document.getElementById('pwd-edit-fields-section').style.display = 'block';
                     fetchPasswords();
-                    setTimeout(() => { window.location.reload(); }, 1500);
+                    setTimeout(() => { window.location.reload(); }, 1200);
                 } else {
-                    if (err) { err.textContent = '❌ รหัสผ่าน Admin ไม่ถูกต้อง'; err.style.display = 'block'; }
+                    if (err) { err.textContent = isTh() ? '❌ รหัสผ่าน Admin ไม่ถูกต้อง' : '❌ Incorrect Admin password'; err.style.display = 'block'; }
                 }
             })
             .catch(e => {
-                if (err) { err.textContent = '❌ รหัสผ่าน Admin ไม่ถูกต้อง'; err.style.display = 'block'; }
+                if (err) { err.textContent = isTh() ? '❌ รหัสผ่าน Admin ไม่ถูกต้อง' : '❌ Incorrect Admin password'; err.style.display = 'block'; }
             });
         }
 
@@ -657,61 +1021,373 @@ function renderHtml(pageData, title = '#Kain7') {
 
             if (adminVal.length < 8 || memberVal.length < 8) {
                 alertBox.className = 'pwd-alert error';
-                alertBox.textContent = '❌ รหัสผ่านทั้งสองต้องมีความยาวอย่างน้อย 8 ตัวอักษร';
+                alertBox.textContent = isTh() ? '❌ รหัสผ่านทั้งสองต้องมีความยาวอย่างน้อย 8 ตัวอักษร' : '❌ Both passwords must be at least 8 characters long';
                 return;
             }
 
             saveBtn.disabled = true;
-            saveBtn.innerHTML = '<span>⏳ กำลังบันทึก...</span>';
+            saveBtn.innerHTML = '<span>⏳ ' + (isTh() ? 'กำลังบันทึก...' : 'Saving...') + '</span>';
 
             fetch('/api/settings/passwords', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminPassword: adminVal, memberPassword: memberVal })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alertBox.className = 'pwd-alert success';
+                    alertBox.textContent = '✅ ' + (isTh() ? (data.message || 'บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว!') : 'New passwords saved successfully!');
+                    setTimeout(() => { closeAdminPwdModal(); }, 1200);
+                } else {
+                    alertBox.className = 'pwd-alert error';
+                    alertBox.textContent = '❌ ' + (isTh() ? (data.message || 'เกิดข้อผิดพลาดในการบันทึก') : (data.message || 'Error saving passwords'));
+                }
+            })
+            .catch(err => {
+                alertBox.className = 'pwd-alert error';
+                alertBox.textContent = '❌ ' + (isTh() ? 'การเชื่อมต่อล้มเหลว: ' : 'Connection failed: ') + err.message;
+            })
+            .finally(() => {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<span>💾 ' + (isTh() ? 'บันทึกรหัสผ่าน' : 'Save Passwords') + '</span>';
+            });
+        }
+
+        /* --- GUEST ACCESS FUNCTIONS --- */
+        function generateRandomGuestPassword() {
+            const chars = '23456789abcdefghjkmnpqrstuvwxyz';
+            let pwd = 'g-';
+            for (let i = 0; i < 6; i++) {
+                pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            const inp = document.getElementById('guest-input-pwd');
+            if (inp) inp.value = pwd;
+        }
+
+        function fetchGuestPasswords() {
+            const tbody = document.getElementById('guest-table-body');
+            if (!tbody) return;
+            fetch('/api/settings/guest-passwords')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success || !data.passwords || data.passwords.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#71717a;">' + (isTh() ? 'ยังไม่มีรหัสผ่านชั่วคราว กดสร้างด้านบนได้เลย' : 'No temporary passwords yet. Create one above.') + '</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = data.passwords.map(p => {
+                        const isExp = p.isExpired;
+                        const expDate = new Date(p.expiresAt);
+                        const expStr = expDate.toLocaleDateString(isTh() ? 'th-TH' : 'en-US') + ' ' + expDate.toLocaleTimeString(isTh() ? 'th-TH' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+                        const badge = isExp
+                            ? '<span class="guest-status-badge expired">🔴 ' + (isTh() ? 'หมดอายุ' : 'Expired') + '</span>'
+                            : '<span class="guest-status-badge active">🟢 ' + (isTh() ? 'ใช้ได้ (' : 'Active (') + (p.remainingMinutes > 60 ? Math.floor(p.remainingMinutes/60) + (isTh() ? ' ชม.' : 'h') : p.remainingMinutes + (isTh() ? ' นาที' : 'm')) + ')</span>';
+                        return '<tr>' +
+                            '<td><b>' + (p.label || 'Guest') + '</b><br><span style="font-size:9.5px; color:#71717a;">' + (isTh() ? 'ใช้แล้ว ' + (p.usedCount || 0) + ' ครั้ง' : 'Used ' + (p.usedCount || 0) + ' times') + '</span></td>' +
+                            '<td><code style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; color:#fbbf24;">' + p.password + '</code> ' +
+                            '<button type="button" class="pwd-btn-secondary" style="padding:2px 5px; font-size:9px;" onclick="copyGuestPassword(\\'' + p.password + '\\', this)">📋</button></td>' +
+                            '<td style="font-size:10px;">' + expStr + '</td>' +
+                            '<td>' + badge + '</td>' +
+                            '<td style="text-align:right;"><button type="button" class="pwd-btn-secondary" style="padding:2px 6px; color:#f87171; border-color:rgba(239,68,68,0.4);" onclick="deleteGuestPassword(\\'' + p.id + '\\')">🗑️</button></td>' +
+                            '</tr>';
+                    }).join('');
+                })
+                .catch(err => {
+                    tbody.innerHTML = '<tr><td colspan="5" style="color:#f87171; text-align:center;">' + (isTh() ? 'โหลดข้อมูลไม่สำเร็จ: ' : 'Failed to load: ') + err.message + '</td></tr>';
+                });
+        }
+
+        function createGuestPassword() {
+            const label = document.getElementById('guest-input-label').value.trim();
+            const password = document.getElementById('guest-input-pwd').value.trim();
+            const duration = document.getElementById('guest-input-duration').value;
+            const alertBox = document.getElementById('pwd-alert-box');
+
+            fetch('/api/settings/guest-passwords', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label, password, durationHours: Number(duration) })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alertBox.className = 'pwd-alert success';
+                    alertBox.textContent = '✅ ' + (isTh() ? 'สร้างรหัสผ่านชั่วคราวสำเร็จ: ' : 'Temporary password created: ') + data.password.password;
+                    document.getElementById('guest-input-label').value = '';
+                    document.getElementById('guest-input-pwd').value = '';
+                    fetchGuestPasswords();
+                } else {
+                    alertBox.className = 'pwd-alert error';
+                    alertBox.textContent = '❌ ' + (isTh() ? (data.message || 'สร้างรหัสไม่สำเร็จ') : (data.message || 'Failed to create password'));
+                }
+            })
+            .catch(err => {
+                alertBox.className = 'pwd-alert error';
+                alertBox.textContent = '❌ ' + (isTh() ? 'การเชื่อมต่อล้มเหลว: ' : 'Connection failed: ') + err.message;
+            });
+        }
+
+        function deleteGuestPassword(id) {
+            if (!confirm(isTh() ? 'ต้องการลบรหัสผ่านชั่วคราวนี้หรือไม่? สมาชิกที่ใช้รหัสนี้อยู่จะไม่สามารถเข้าใช้งานต่อได้' : 'Delete this temporary password? Members using this password will lose access.')) return;
+            fetch('/api/settings/guest-passwords/' + encodeURIComponent(id), { method: 'DELETE' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        fetchGuestPasswords();
+                    } else {
+                        alert(isTh() ? (data.message || 'ลบไม่สำเร็จ') : (data.message || 'Failed to delete'));
+                    }
+                });
+        }
+
+        function copyGuestPassword(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btn.textContent;
+                btn.textContent = '✅';
+                setTimeout(() => { btn.textContent = orig; }, 1200);
+            });
+        }
+
+        /* --- GOOGLE SHEETS FUNCTIONS (PROTECTED) --- */
+        function verifySheetsPin() {
+            const input = document.getElementById('input-sheets-pin');
+            const err = document.getElementById('sheets-pin-error');
+            const btn = document.getElementById('btn-verify-sheets-pin');
+            const val = input ? input.value.trim() : '';
+
+            if (!val) {
+                if (err) { err.textContent = isTh() ? '❌ กรุณากรอกรหัสผ่าน' : '❌ Please enter password'; err.style.display = 'block'; }
+                return;
+            }
+
+            if (btn) { btn.disabled = true; btn.textContent = isTh() ? '⏳ กำลังตรวจ...' : '⏳ Verifying...'; }
+
+            fetch('/api/settings/google-sheets/verify-pin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin: val })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    if (err) err.style.display = 'none';
+                    currentSheetsPin = val;
+                    isSheetsUnlocked = true;
+                    document.getElementById('sheets-locked-view').style.display = 'none';
+                    document.getElementById('sheets-unlocked-view').style.display = 'block';
+                    fetchSheetsConfig();
+                } else {
+                    if (err) { err.textContent = '❌ ' + (isTh() ? (data.message || 'รหัสผ่านไม่ถูกต้อง') : 'Incorrect password'); err.style.display = 'block'; }
+                }
+            })
+            .catch(e => {
+                if (err) { err.textContent = isTh() ? '❌ รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง' : '❌ Incorrect password, please try again'; err.style.display = 'block'; }
+            })
+            .finally(() => {
+                if (btn) { btn.disabled = false; btn.textContent = isTh() ? '🔓 ปลดล็อก' : '🔓 Unlock'; }
+            });
+        }
+
+        function lockSheetsView() {
+            isSheetsUnlocked = false;
+            currentSheetsPin = '';
+            document.getElementById('sheets-locked-view').style.display = 'block';
+            document.getElementById('sheets-unlocked-view').style.display = 'none';
+            const input = document.getElementById('input-sheets-pin');
+            if (input) input.value = '';
+        }
+
+        function fetchSheetsConfig() {
+            fetch('/api/settings/google-sheets')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const urlInp = document.getElementById('sheets-input-url');
+                        const tokenInp = document.getElementById('sheets-input-token');
+                        const enToggle = document.getElementById('sheets-toggle-enabled');
+                        const foToggle = document.getElementById('sheets-toggle-failover');
+                        const statusLabel = document.getElementById('sheets-live-status');
+
+                        if (urlInp && data.fullUrl) urlInp.value = data.fullUrl;
+                        if (enToggle) enToggle.checked = Boolean(data.enabled);
+                        if (foToggle) foToggle.checked = Boolean(data.autoFailover);
+
+                        const lastSyncStr = data.lastSyncAt ? new Date(data.lastSyncAt).toLocaleTimeString(isTh() ? 'th-TH' : 'en-US') : (isTh() ? 'ยังไม่เคยซิงค์' : 'Never synced');
+                        if (statusLabel) {
+                            if (isTh()) {
+                                statusLabel.textContent = 'สถานะ: ' + (data.state === 'synced' ? '🟢 เชื่อมต่อแล้ว (ซิงค์: ' + lastSyncStr + ')' : data.state === 'error' ? '🔴 ผิดพลาด' : '⚪ รอซิงค์');
+                            } else {
+                                statusLabel.textContent = 'Status: ' + (data.state === 'synced' ? '🟢 Connected (Synced: ' + lastSyncStr + ')' : data.state === 'error' ? '🔴 Error' : '⚪ Pending Sync');
+                            }
+                        }
+                    }
+                })
+                .catch(e => console.log('Fetch sheets config error:', e));
+        }
+
+        function saveSheetsConfig() {
+            const webAppUrl = document.getElementById('sheets-input-url').value.trim();
+            const secretToken = document.getElementById('sheets-input-token').value.trim();
+            const enabled = document.getElementById('sheets-toggle-enabled').checked;
+            const autoFailover = document.getElementById('sheets-toggle-failover').checked;
+            const alertBox = document.getElementById('pwd-alert-box');
+            const saveBtn = document.getElementById('btn-save-sheets');
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = isTh() ? '⏳ กำลังบันทึก...' : '⏳ Saving...';
+
+            fetch('/api/settings/google-sheets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    adminPassword: adminVal,
-                    memberPassword: memberVal
+                    pin: currentSheetsPin,
+                    webAppUrl,
+                    secretToken,
+                    enabled,
+                    autoFailover
                 })
             })
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
                     alertBox.className = 'pwd-alert success';
-                    alertBox.textContent = '✅ ' + (data.message || 'บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว!');
-                    setTimeout(() => {
-                        closeAdminPwdModal();
-                    }, 1200);
+                    alertBox.textContent = '✅ ' + (isTh() ? data.message : 'Settings saved successfully');
+                    fetchSheetsConfig();
                 } else {
                     alertBox.className = 'pwd-alert error';
-                    alertBox.textContent = '❌ ' + (data.message || 'เกิดข้อผิดพลาดในการบันทึก');
+                    alertBox.textContent = '❌ ' + (isTh() ? (data.message || 'บันทึกไม่สำเร็จ') : (data.message || 'Failed to save settings'));
                 }
             })
-            .catch(err => {
+            .catch(e => {
                 alertBox.className = 'pwd-alert error';
-                alertBox.textContent = '❌ การเชื่อมต่อล้มเหลว: ' + err.message;
+                alertBox.textContent = '❌ ' + (isTh() ? 'ข้อผิดพลาด: ' : 'Error: ') + e.message;
             })
             .finally(() => {
                 saveBtn.disabled = false;
-                saveBtn.innerHTML = '<span>💾 บันทึกรหัสผ่านใหม่</span>';
+                saveBtn.textContent = isTh() ? '💾 บันทึกการตั้งค่า' : '💾 Save Settings';
             });
         }
 
-        // Expose functions on window for React and global buttons
+        function testSheetsConnection() {
+            const webAppUrl = document.getElementById('sheets-input-url').value.trim();
+            const secretToken = document.getElementById('sheets-input-token').value.trim();
+            const alertBox = document.getElementById('pwd-alert-box');
+            const btn = document.getElementById('btn-test-sheets');
+
+            btn.disabled = true;
+            btn.textContent = isTh() ? '⏳ กำลังทดสอบ...' : '⏳ Testing...';
+
+            fetch('/api/settings/google-sheets/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin: currentSheetsPin, webAppUrl, secretToken })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alertBox.className = 'pwd-alert success';
+                    alertBox.textContent = '✅ ' + (isTh() ? data.message : 'Connection successful!');
+                } else {
+                    alertBox.className = 'pwd-alert error';
+                    alertBox.textContent = '❌ ' + (isTh() ? (data.message || 'ทดสอบล้มเหลว') : (data.message || 'Test failed'));
+                }
+            })
+            .catch(e => {
+                alertBox.className = 'pwd-alert error';
+                alertBox.textContent = '❌ ' + (isTh() ? 'เกิดข้อผิดพลาด: ' : 'Error: ') + e.message;
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = isTh() ? '⚡ ทดสอบการเชื่อมต่อ' : '⚡ Test Connection';
+            });
+        }
+
+        function syncSheetsNow() {
+            const alertBox = document.getElementById('pwd-alert-box');
+            const btn = document.getElementById('btn-sync-sheets');
+
+            btn.disabled = true;
+            btn.textContent = isTh() ? '⏳ กำลังซิงค์...' : '⏳ Syncing...';
+
+            fetch('/api/settings/google-sheets/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin: currentSheetsPin })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alertBox.className = 'pwd-alert success';
+                    alertBox.textContent = '✅ ' + (isTh() ? data.message : 'Sync completed successfully!');
+                    fetchSheetsConfig();
+                } else {
+                    alertBox.className = 'pwd-alert error';
+                    alertBox.textContent = '❌ ' + (isTh() ? (data.message || 'ซิงค์ไม่สำเร็จ') : (data.message || 'Sync failed'));
+                }
+            })
+            .catch(e => {
+                alertBox.className = 'pwd-alert error';
+                alertBox.textContent = '❌ ' + (isTh() ? 'เกิดข้อผิดพลาด: ' : 'Error: ') + e.message;
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = isTh() ? '🔄 ซิงค์ข้อมูลทั้งหมดเดี๋ยวนี้' : '🔄 Sync All Now';
+            });
+        }
+
+        // Global functions on window
         window.openAdminPwdModal = openAdminPwdModal;
         window.closeAdminPwdModal = closeAdminPwdModal;
+        window.switchSettingTab = switchSettingTab;
+        window.attachAdminSettingsToReactDialog = attachAdminSettingsToReactDialog;
+        window.activateCustomTab = activateCustomTab;
+        window.deactivateCustomTabs = deactivateCustomTabs;
+        window.detachAdminSettings = detachAdminSettings;
         window.togglePwdVisibility = togglePwdVisibility;
         window.verifyAdminAndUnlock = verifyAdminAndUnlock;
         window.submitAdminPasswords = submitAdminPasswords;
+        window.generateRandomGuestPassword = generateRandomGuestPassword;
+        window.createGuestPassword = createGuestPassword;
+        window.deleteGuestPassword = deleteGuestPassword;
+        window.copyGuestPassword = copyGuestPassword;
+        window.verifySheetsPin = verifySheetsPin;
+        window.lockSheetsView = lockSheetsView;
+        window.saveSheetsConfig = saveSheetsConfig;
+        window.testSheetsConnection = testSheetsConnection;
+        window.syncSheetsNow = syncSheetsNow;
 
-        // Close on clicking backdrop
-        document.addEventListener('click', function(e) {
-            const modal = document.getElementById('admin-pwd-modal');
-            if (modal && e.target === modal) closeAdminPwdModal();
+        // Observer to detect when the React Settings Dialog mounts or unmounts
+        const dialogObserver = new MutationObserver((mutations) => {
+            const dialog = document.querySelector('[role="dialog"]');
+            if (dialog) {
+                attachAdminSettingsToReactDialog();
+            } else {
+                for (const m of mutations) {
+                    for (const node of m.removedNodes) {
+                        if (node && node.nodeType === 1) {
+                            const foundPanel = node.querySelector?.('#admin-settings-embedded-panel') || (node.id === 'admin-settings-embedded-panel' ? node : null);
+                            const foundSubbar = node.querySelector?.('#custom-admin-tabs-subbar') || (node.id === 'custom-admin-tabs-subbar' ? node : null);
+                            if (foundPanel && foundPanel.parentElement !== document.body) {
+                                foundPanel.style.display = 'none';
+                                document.body.appendChild(foundPanel);
+                                persistentPanel = foundPanel;
+                            }
+                            if (foundSubbar && foundSubbar.parentElement !== document.body) {
+                                foundSubbar.style.display = 'none';
+                                document.body.appendChild(foundSubbar);
+                                persistentSubbar = foundSubbar;
+                            }
+                        }
+                    }
+                }
+                detachAdminSettings();
+            }
         });
+        dialogObserver.observe(document.body, { childList: true, subtree: true });
 
-        // Close on Escape
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeAdminPwdModal();
-        });
+        // Cache template and elements on load
+        ensurePersistentPanel();
+        ensurePersistentSubbar();
 
         // Auto-open if query param or path present
         function checkAutoOpen() {
@@ -725,7 +1401,7 @@ function renderHtml(pageData, title = '#Kain7') {
             checkAutoOpen();
         }
     </script>
-    `;
+    ` : '';
     return `<!DOCTYPE html>
 <html lang="en" class="">
     <head>
@@ -820,6 +1496,10 @@ function renderHtml(pageData, title = '#Kain7') {
         ${adminPasswordSnippet}
         <!-- App Top Status Bar: Firebase & Version -->
         <style>
+            div[role="dialog"] {
+                max-width: 520px !important;
+                width: min(520px, calc(100vw - 24px)) !important;
+            }
             #top-floating-status-bar {
                 position: fixed;
                 top: -9999px;
@@ -881,66 +1561,170 @@ function renderHtml(pageData, title = '#Kain7') {
                 border-color: rgba(16, 185, 129, 0.6);
                 background: rgba(16, 185, 129, 0.2);
             }
+            .firebase-mini-badge[data-status="google_sheets"] {
+                color: #34d399 !important;
+                border-color: rgba(52, 211, 153, 0.45) !important;
+            }
+            .firebase-mini-badge[data-status="local"] {
+                color: #fbbf24 !important;
+                border-color: rgba(251, 191, 36, 0.45) !important;
+            }
         </style>
         <div id="top-floating-status-bar">
-            <span id="header-firebase-status-badge" class="firebase-mini-badge" title="Firebase Connecting — กำลังเชื่อมต่อ Firebase" aria-label="Firebase Connecting — กำลังเชื่อมต่อ Firebase">
-                <span aria-hidden="true">☁️</span><span class="system-badge-label">Firebase…</span>
+            <span id="header-firebase-status-badge" class="firebase-mini-badge" title="Connecting…" aria-label="Connecting…">
+                <span aria-hidden="true">☁️</span><span class="system-badge-label">Connecting…</span>
             </span>
-            <span id="header-version-control" class="app-version-badge" title="Version ${APP_VERSION} — เวอร์ชัน ${APP_VERSION}" aria-label="Version ${APP_VERSION} — เวอร์ชัน ${APP_VERSION}">
+            <span id="header-version-control" class="app-version-badge" title="Version ${APP_VERSION}" aria-label="Version ${APP_VERSION}">
                 <span aria-hidden="true">ⓥ</span><span class="system-badge-label">${APP_VERSION}</span>
             </span>
         </div>
         <script>
             (function setupFirebaseBadge() {
                 let consecutiveFailures = 0;
-                const statusCopy = {
-                    connected: ['Firebase Live', 'Firebase Connected — เชื่อมต่อ Firebase แล้ว'],
-                    connecting: ['Firebase Connecting', 'Firebase Connecting — กำลังเชื่อมต่อ Firebase'],
-                    stale: ['Firebase Stale', 'Firebase Stale — ใช้ข้อมูลล่าสุดที่ซิงค์ไว้'],
-                    quota_exceeded: ['Firebase Limit', 'Firebase Quota Exceeded — Firebase เกินลิมิต'],
-                    configuration_error: ['Firebase Config', 'Firebase Configuration Error — การตั้งค่า Firebase ผิดพลาด'],
-                    offline: ['Firebase Offline', 'Firebase Offline — Firebase ออฟไลน์']
-                };
-                function displayStatus(st) {
-                    const reported = st.status || (st.connected ? 'connected' : 'offline');
+                let lastKnownStatus = null;
+                function isLangTh() {
+                    return (window.getLanguage ? window.getLanguage() === 'th' : localStorage.getItem('tracker_lang') === 'th');
+                }
+                function getStatusCopy(st) {
+                    const isTh = isLangTh();
+                    const active = st?.activeSource || (st?.connected ? 'firebase' : 'local');
+
+                    if (active === 'google-sheets') {
+                        return {
+                            label: 'Google Sheets',
+                            tooltip: isTh ? 'ดึงข้อมูลจาก Google Sheets (สายสำรองทำงาน)' : 'Data Source: Google Sheets (Failover Active)',
+                            icon: '📊',
+                            statusKey: 'google_sheets'
+                        };
+                    }
+
+                    if (active === 'local') {
+                        return {
+                            label: 'Local Mode',
+                            tooltip: isTh ? 'ทำงานแบบออฟไลน์ (Local Fallback)' : 'Local Mode (Offline Fallback)',
+                            icon: '💾',
+                            statusKey: 'local'
+                        };
+                    }
+
+                    const reported = st?.status || (st?.connected ? 'connected' : 'offline');
+                    let displaySt = reported;
                     if (reported === 'connected') {
                         consecutiveFailures = 0;
-                        return 'connected';
-                    }
-                    if (['connecting', 'stale', 'quota_exceeded', 'configuration_error'].includes(reported)) {
+                        displaySt = 'connected';
+                    } else if (['connecting', 'stale', 'quota_exceeded', 'configuration_error'].includes(reported)) {
                         if (reported !== 'stale') consecutiveFailures = 0;
-                        return reported;
+                        displaySt = reported;
+                    } else {
+                        consecutiveFailures += 1;
+                        displaySt = consecutiveFailures >= 3 ? 'offline' : 'connecting';
                     }
-                    consecutiveFailures += 1;
-                    return consecutiveFailures >= 3 ? 'offline' : 'connecting';
+
+                    const statusCopy = {
+                        connected: ['Firebase Live', isTh ? 'เชื่อมต่อ Firebase แล้ว (Cloud หลัก)' : 'Firebase Connected (Primary Cloud)', '☁️'],
+                        connecting: ['Firebase Connecting', isTh ? 'กำลังเชื่อมต่อ Firebase…' : 'Firebase Connecting…', '☁️'],
+                        stale: ['Firebase Stale', isTh ? 'ใช้ข้อมูลล่าสุดที่ซิงค์ไว้' : 'Firebase Stale — Using cached data', '☁️'],
+                        quota_exceeded: ['Firebase Limit', isTh ? 'Firebase เกินโควตา' : 'Firebase Quota Exceeded', '⚠️'],
+                        configuration_error: ['Firebase Config', isTh ? 'การตั้งค่า Firebase ผิดพลาด' : 'Firebase Configuration Error', '⚠️'],
+                        offline: ['Firebase Offline', isTh ? 'Firebase ออฟไลน์' : 'Firebase Offline', '☁️']
+                    };
+                    const entry = statusCopy[displaySt] || statusCopy.connecting;
+                    return {
+                        label: entry[0],
+                        tooltip: entry[1],
+                        icon: entry[2],
+                        statusKey: displaySt
+                    };
                 }
-                function renderFbBadge(fbBadge, status) {
-                    const copy = statusCopy[status] || statusCopy.connecting;
-                    fbBadge.innerHTML = '<span aria-hidden="true">☁️</span><span class="system-badge-label">' + copy[0] + '</span>';
-                    fbBadge.title = copy[1];
-                    fbBadge.setAttribute('aria-label', copy[1]);
-                    fbBadge.dataset.status = status;
+                function renderFbBadge(fbBadge, st) {
+                    const copy = getStatusCopy(st);
+                    fbBadge.innerHTML = '<span aria-hidden="true">' + copy.icon + '</span><span class="system-badge-label">' + copy.label + '</span>';
+                    fbBadge.setAttribute('data-unified-tooltip', copy.tooltip);
+                    fbBadge.setAttribute('aria-label', copy.tooltip);
+                    fbBadge.title = copy.tooltip;
+                    fbBadge.dataset.status = copy.statusKey;
                 }
                 function updateFbBadge() {
                     const fbBadge = document.getElementById('header-firebase-status-badge');
                     if (!fbBadge) return;
+                    if (lastKnownStatus) renderFbBadge(fbBadge, lastKnownStatus);
                     fetch('/api/firebase-status')
                         .then(r => r.ok ? r.json() : Promise.reject(new Error('Status request failed')))
-                        .then(st => renderFbBadge(fbBadge, displayStatus(st)))
-                        .catch(() => renderFbBadge(fbBadge, displayStatus({ status: 'offline' })));
+                        .then(st => {
+                            lastKnownStatus = st;
+                            renderFbBadge(fbBadge, st);
+                        })
+                        .catch(() => renderFbBadge(fbBadge, { status: 'offline', activeSource: 'local' }));
                 }
+                window.updateFbBadge = updateFbBadge;
                 const fbBadge = document.getElementById('header-firebase-status-badge');
                 if (fbBadge) {
                     fbBadge.onclick = function() {
+                        const isTh = isLangTh();
                         fetch('/api/firebase-status')
                             .then(r => r.json())
                             .then(st => {
-                                const status = displayStatus(st);
-                                const copy = statusCopy[status] || statusCopy.connecting;
-                                const icon = status === 'connected' ? '✅' : status === 'connecting' ? '🔄' : '⚠️';
-                                const lastSync = st.lastCloudSyncAt ? new Date(st.lastCloudSyncAt).toLocaleString() : 'Not available — ไม่มีข้อมูล';
-                                alert(icon + ' [Firebase Realtime Database]\\nStatus: ' + copy[1] + '\\n\\nProject ID: ' + st.projectId + '\\nCloud data ready: ' + (st.cloudDataReady ? 'Yes' : 'No') + '\\nLast cloud sync: ' + lastSync + '\\nTotal Bosses in Cloud: ' + st.totalBosses);
-                            }).catch(err => alert('Firebase Status Error — ตรวจสถานะ Firebase ไม่สำเร็จ\\n' + err.message));
+                                lastKnownStatus = st;
+                                renderFbBadge(fbBadge, st);
+                                const active = st.activeSource || (st.connected ? 'firebase' : 'local');
+                                const fbLastSync = st.lastCloudSyncAt ? new Date(st.lastCloudSyncAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : (isTh ? 'ยังไม่มีข้อมูล' : 'None');
+                                const gs = st.googleSheets || {};
+                                const gsLastSync = gs.lastSyncAt ? new Date(gs.lastSyncAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : (isTh ? 'ยังไม่มีข้อมูล' : 'None');
+
+                                let lines = [];
+                                if (isTh) {
+                                    lines.push('📡 แหล่งข้อมูลปัจจุบัน (Active Data Source):');
+                                    if (active === 'google-sheets') {
+                                        lines.push('  ▶ 📊 Google Sheets (สายสำรองทำงาน - Failover Active)');
+                                        lines.push('  (ตรวจพบปัญหาที่ Firebase จึงสลับมารับข้อมูลจาก Google Sheets อัตโนมัติ)');
+                                    } else if (active === 'firebase') {
+                                        lines.push('  ▶ ☁️ Firebase Realtime Database (Cloud หลัก)');
+                                    } else {
+                                        lines.push('  ▶ 💾 Local Mode (โหมดออฟไลน์)');
+                                    }
+                                    lines.push('');
+                                    lines.push('☁️ สถานะ Firebase:');
+                                    lines.push('  • การเชื่อมต่อ: ' + (st.connected ? 'เชื่อมต่อแล้ว (Connected)' : st.status === 'quota_exceeded' ? 'เกินโควตา (Quota Exceeded)' : 'ออฟไลน์ / ไม่ได้เชื่อมต่อ'));
+                                    lines.push('  • Project ID: ' + (st.projectId || '-'));
+                                    lines.push('  • ข้อมูล Cloud พร้อม: ' + (st.cloudDataReady ? 'ใช่' : 'ไม่ใช่'));
+                                    lines.push('  • ซิงค์ล่าสุด: ' + fbLastSync);
+                                    lines.push('  • จำนวนบอสใน Cloud: ' + (st.totalBosses || 0));
+                                    lines.push('');
+                                    lines.push('📊 สถานะ Google Sheets (สายสำรองคู่ขนาน):');
+                                    lines.push('  • การตั้งค่า: ' + (gs.configured ? 'กำหนดค่าแล้ว' : 'ยังไม่ได้ตั้งค่า'));
+                                    lines.push('  • การทำงานคู่ขนาน: ' + (gs.enabled ? 'เปิดใช้งาน (Mirror Active)' : 'ปิด'));
+                                    lines.push('  • สลับอัตโนมัติ (Auto-Failover): ' + (gs.autoFailover ? 'เปิด (สลับทันทีเมื่อ Firebase ล่ม)' : 'ปิด'));
+                                    lines.push('  • สถานะล่าสุด: ' + (gs.state === 'synced' ? 'ซิงค์สำเร็จ' : gs.state === 'error' ? 'พบข้อผิดพลาด' : (gs.state || '-')));
+                                    lines.push('  • ซิงค์ล่าสุด: ' + gsLastSync);
+                                    lines.push('  • บันทึกสะสม: ' + (gs.totalMutationsMirrored || 0) + ' ครั้ง');
+                                } else {
+                                    lines.push('📡 Active Data Source:');
+                                    if (active === 'google-sheets') {
+                                        lines.push('  ▶ 📊 Google Sheets (Failover Active)');
+                                        lines.push('  (Firebase is unavailable; automatically switched to Google Sheets backup)');
+                                    } else if (active === 'firebase') {
+                                        lines.push('  ▶ ☁️ Firebase Realtime Database (Primary Cloud)');
+                                    } else {
+                                        lines.push('  ▶ 💾 Local Mode (Offline Fallback)');
+                                    }
+                                    lines.push('');
+                                    lines.push('☁️ Firebase Status:');
+                                    lines.push('  • Connection: ' + (st.connected ? 'Connected' : st.status === 'quota_exceeded' ? 'Quota Exceeded' : 'Offline / Disconnected'));
+                                    lines.push('  • Project ID: ' + (st.projectId || '-'));
+                                    lines.push('  • Cloud Data Ready: ' + (st.cloudDataReady ? 'Yes' : 'No'));
+                                    lines.push('  • Last Cloud Sync: ' + fbLastSync);
+                                    lines.push('  • Total Bosses in Cloud: ' + (st.totalBosses || 0));
+                                    lines.push('');
+                                    lines.push('📊 Google Sheets Status (Parallel Backup):');
+                                    lines.push('  • Configured: ' + (gs.configured ? 'Configured' : 'Not configured'));
+                                    lines.push('  • Parallel Mirror: ' + (gs.enabled ? 'Active' : 'Disabled'));
+                                    lines.push('  • Auto-Failover: ' + (gs.autoFailover ? 'Enabled (Auto-fallback on Firebase failure)' : 'Disabled'));
+                                    lines.push('  • Last State: ' + (gs.state || '-'));
+                                    lines.push('  • Last Sync: ' + gsLastSync);
+                                    lines.push('  • Mirrored Mutations: ' + (gs.totalMutationsMirrored || 0));
+                                }
+                                alert(lines.join('\\n'));
+                            }).catch(err => alert(isTh ? ('เกิดข้อผิดพลาดในการตรวจสอบสถานะ Firebase\\n' + err.message) : ('Firebase Status Error\\n' + err.message)));
                     };
                 }
                 updateFbBadge();
@@ -1037,15 +1821,16 @@ function getDashboardProps(req) {
     const settings = db.getSettings();
     const role = getSessionRole(req);
     const isAdmin = role === 'admin';
+    const isGuest = role === 'guest';
 
     return {
         errors: {},
         name: settings.serverName || '#Kain7',
         auth: {
             user: {
-                id: isAdmin ? 1 : 2,
-                name: isAdmin ? 'admin' : 'kain7',
-                email: isAdmin ? 'admin@boss.local' : 'member@boss.local',
+                id: isAdmin ? 1 : isGuest ? 3 : 2,
+                name: isAdmin ? 'admin' : isGuest ? 'guest' : 'kain7',
+                email: isAdmin ? 'admin@boss.local' : isGuest ? 'guest@boss.local' : 'member@boss.local',
                 email_verified_at: '2026-03-11T22:46:43.000000Z',
                 role: role,
                 two_factor_secret: null,
@@ -1126,6 +1911,15 @@ app.post('/login', limitLogin, async (req, res) => {
 
     let sessionRole = null;
     let errorMessage = null;
+    let guestEntry = null;
+
+    const tempPasswords = settings.temporaryPasswords || [];
+    for (const t of tempPasswords) {
+        if (verifyPassword(pass, t.password, t.passwordHash)) {
+            guestEntry = t;
+            break;
+        }
+    }
 
     if (user === 'admin') {
         if (isAdminPass) {
@@ -1133,12 +1927,28 @@ app.post('/login', limitLogin, async (req, res) => {
         } else {
             errorMessage = 'รหัสผ่าน Admin ไม่ถูกต้อง';
         }
+    } else if (user === 'guest') {
+        if (guestEntry) {
+            if (new Date(guestEntry.expiresAt).getTime() <= Date.now()) {
+                errorMessage = 'รหัสผ่านชั่วคราวหมดอายุแล้ว (Guest Access Expired)';
+            } else {
+                sessionRole = 'guest';
+            }
+        } else {
+            errorMessage = 'รหัสผ่าน Guest ไม่ถูกต้อง';
+        }
     } else if (user === 'kain7' || user === 'member') {
         if (isMemberPass) {
             sessionRole = 'member';
         } else if (isAdminPass) {
             // Admin password also lets into admin mode even if on member tab
             sessionRole = 'admin';
+        } else if (guestEntry) {
+            if (new Date(guestEntry.expiresAt).getTime() <= Date.now()) {
+                errorMessage = 'รหัสผ่านชั่วคราวหมดอายุแล้ว (Guest Access Expired)';
+            } else {
+                sessionRole = 'guest';
+            }
         } else {
             errorMessage = 'รหัสผ่าน Member ไม่ถูกต้อง';
         }
@@ -1147,9 +1957,21 @@ app.post('/login', limitLogin, async (req, res) => {
             sessionRole = 'admin';
         } else if (isMemberPass) {
             sessionRole = 'member';
+        } else if (guestEntry) {
+            if (new Date(guestEntry.expiresAt).getTime() <= Date.now()) {
+                errorMessage = 'รหัสผ่านชั่วคราวหมดอายุแล้ว (Guest Access Expired)';
+            } else {
+                sessionRole = 'guest';
+            }
         } else {
             errorMessage = 'รหัสผ่านไม่ถูกต้อง';
         }
+    }
+
+    if (sessionRole === 'guest' && guestEntry) {
+        guestEntry.usedCount = (guestEntry.usedCount || 0) + 1;
+        guestEntry.lastUsedAt = new Date().toISOString();
+        db.updateSettings({ temporaryPasswords: tempPasswords }).catch(e => console.error('Guest stats update error:', e));
     }
 
     if (!sessionRole) {
@@ -1174,11 +1996,15 @@ app.post('/login', limitLogin, async (req, res) => {
         }, settings.serverName || '#Kain7'));
     }
 
-    const sessionVal = createSession(sessionRole);
+    const maxAgeSeconds = (sessionRole === 'guest' && guestEntry?.expiresAt)
+        ? Math.max(60, Math.floor((new Date(guestEntry.expiresAt).getTime() - Date.now()) / 1000))
+        : SESSION_MAX_AGE_SECONDS;
+
+    const sessionVal = createSession(sessionRole, maxAgeSeconds);
     const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader('Set-Cookie', [
-        `boss_session=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SECONDS}${secure}`,
-        `remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SECONDS}${secure}`
+        `boss_session=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure}`,
+        `remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure}`
     ]);
     return res.redirect(303, '/');
 });
@@ -1225,7 +2051,7 @@ app.get('/poll', async (req, res) => {
         recentLiveEvents: db.getRecentLiveEvents(),
         serverTime: Date.now(),
         dataRevision: db.getDataRevision(),
-        source: 'firebase',
+        source: db.getActiveSource(),
         stale: false
     });
 });
@@ -1238,8 +2064,8 @@ app.get('/live-event', (req, res) => {
         recentLiveEvents: db.getRecentLiveEvents(),
         serverTime: Date.now(),
         dataRevision: db.getDataRevision(),
-        source: db.isCloudDataReady() ? 'firebase' : 'local-fallback',
-        stale: !db.isCloudDataReady()
+        source: db.getActiveSource(),
+        stale: !db.isCloudDataReady() && db.getActiveSource() === 'local'
     });
 });
 
@@ -1773,6 +2599,9 @@ app.get('/api/v1/backup', requireAdmin, (req, res) => {
 
 // Settings page redirects (for standard Inertia links)
 app.get(['/admin', '/admin/passwords', '/admin/password', '/passwords'], (req, res) => {
+    if (getSessionRole(req) !== 'admin') {
+        return res.redirect('/');
+    }
     return res.redirect('/?openPwdModal=1');
 });
 app.all(['/settings/appearance', '/settings/password', '/settings/profile'], (req, res) => {

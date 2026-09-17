@@ -18,6 +18,8 @@ yarn-error.log*
 cloudflared.exe
 .DS_Store
 Thumbs.db
+backups/
+server/google-sheets-config.json
 
 # IDE & Editor files
 .vscode/
