@@ -787,7 +787,10 @@
                     for (const sp of spans) {
                         if (sp.classList.contains('pre-spawn-flash-label') ||
                             sp.classList.contains('bg-yellow-400/20') ||
+                            sp.classList.contains('tracking-wide') ||
+                            sp.classList.contains('text-[0.72em]') ||
                             sp.textContent.trim() === 'INV' ||
+                            sp.textContent.trim() === 'L3' ||
                             sp.textContent.trim() === 'Pre-spawning') {
                             continue;
                         }
