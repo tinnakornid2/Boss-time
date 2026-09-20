@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 const db = require('../server/db');
 const { _test } = require('../server/db');
 const googleSheets = require('../server/google-sheets');
@@ -139,5 +141,12 @@ test('Boss color: handles multiple bosses with same name (e.g. Invasion vs Norma
     // Clean up
     await db.deleteBoss(normalBoss.id);
     await db.deleteBoss(invasionBoss.id);
+});
+
+test('Boss color: Invasion boss font color dynamically derives from invasion settings when boss.color is null', () => {
+    const alertsSrc = fs.readFileSync(path.join(__dirname, '../public/js/realtime-alerts.js'), 'utf8');
+    assert.ok(alertsSrc.includes('getEffectiveBossColor'));
+    assert.ok(alertsSrc.includes('dashboard.invasionColor'));
+    assert.ok(alertsSrc.includes('boss.is_invasion'));
 });
 

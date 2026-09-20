@@ -774,9 +774,27 @@
         });
     }
 
+    function getEffectiveBossColor(boss) {
+        if (!boss) return '';
+        if (boss.color && String(boss.color).trim()) {
+            return String(boss.color).trim();
+        }
+        if (boss.is_invasion) {
+            try {
+                const invColor = localStorage.getItem('dashboard.invasionColor');
+                if (invColor && String(invColor).trim()) return String(invColor).trim();
+            } catch (_) {}
+            if (state.settings && state.settings.invasionColor) {
+                return String(state.settings.invasionColor).trim();
+            }
+            return '#facc15';
+        }
+        return '';
+    }
+
     function applyRowBossColor(row, boss) {
         if (!row || !boss) return;
-        const color = boss.color ? String(boss.color).trim() : '';
+        const color = getEffectiveBossColor(boss);
         const tds = row.querySelectorAll('td');
         for (const td of tds) {
             if (td.textContent && td.textContent.includes(boss.name)) {
@@ -1649,6 +1667,14 @@
         setInterval(reconcileBossRows, 1000);
         window.addEventListener('offline', () => updateStatus(t('offline_notice')));
         window.addEventListener('online', () => updateStatus());
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'dashboard.invasionColor') reconcileBossRows();
+        });
+        document.addEventListener('input', (e) => {
+            if (e.target && (e.target.type === 'color' || e.target.id === 'setting-invasion-color')) {
+                reconcileBossRows();
+            }
+        });
         let uiRefreshPending = false;
         new MutationObserver(() => {
             if (uiRefreshPending) return;
