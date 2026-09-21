@@ -4,8 +4,8 @@ Read this file completely before changing the project. This is a production boss
 
 ## Stable recovery point
 
-- Primary stable release: `stable-v1.3.29`
-- Previous recovery releases: `stable-v1.3.28`, `stable-v1.3.27`, `stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` (keep unchanged for historical rollback)
+- Primary stable release: `stable-v1.3.30`
+- Previous recovery releases: `stable-v1.3.29`, `stable-v1.3.28`, `stable-v1.3.27`, `stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` (keep unchanged for historical rollback)
 - Stable commit is recorded by the annotated Git tag on GitHub.
 - Production URL: `https://boss-time-eloni.vercel.app/`
 - Firebase RTDB project: `boss-timel2m`
@@ -100,12 +100,13 @@ Before production deployment:
 - Dual-Language System: English is default (`en`), toggleable to Thai (`th`) via header button. Boss names must NEVER be translated.
 - Unified Tooltips: Style #1 amber balloon with arrow (`#custom-unified-tooltip`) unifies all interactive tooltips.
 
-## Custom Boss Font Color System
+## Custom Boss & Event Font Color System
 
-- Per-Boss Font Color: Admin can customize font colors individually via the Edit Boss modal (`🎨 สีตัวอักษรบอส`).
-- Presets: White/Default, Gold, Orange, Red, Purple, Cyan, Emerald, Pink, Yellow, and Native Color Picker.
-- Live Realtime Sync: Saves via `PUT /bosses/:id/color`, updates Firebase RTDB with atomic revision bump, and mirrors to Google Sheets.
-- Client Reconcile: `reconcileBossRows()` automatically applies font color and text-shadow glow without reordering React DOM nodes.
+- Per-Boss & Per-Event Font Color: Admin can customize font colors individually via the Edit Boss / Edit Event modal (`🎨 สีตัวอักษรบอส` / `🎨 สีตัวอักษรกิจกรรม`).
+- Presets: 22-color palette + Native Color Picker.
+- Strict Event Isolation: Boss colors and Invasion colors never bleed into Event rows. Events maintain their distinct identity (`data-event-id`, `data-is-event`) and default cyan-sky gradient unless a custom color is specified.
+- Live Realtime Sync: Saves via `PUT /bosses/:id/color` and `PUT /events/:id/color`, updates Firebase RTDB with atomic revision bump, and mirrors to Google Sheets.
+- Client Reconcile: `reconcileBossRows()` and `reconcileEventRows()` automatically apply font colors and glowing text-shadows without reordering React DOM nodes.
 
 ## Files that define the system
 

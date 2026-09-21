@@ -276,7 +276,7 @@ function syncEvents(ss, events) {
   var sheet = getOrCreateSheet(ss, SHEET_EVENTS);
   sheet.clearContents();
 
-  var headers = ['ID', 'Name', 'Location', 'Event Time', 'Occurs On', 'Auto Done (Min)', 'Done On', 'Pinned Alive', 'Next Spawn'];
+  var headers = ['ID', 'Name', 'Location', 'Event Time', 'Occurs On', 'Auto Done (Min)', 'Done On', 'Pinned Alive', 'Next Spawn', 'Color'];
   formatHeader(sheet, headers);
 
   if (events && events.length > 0) {
@@ -291,7 +291,8 @@ function syncEvents(ss, events) {
         ev.auto_done_minutes || 10,
         ev.done_on || '',
         ev.pinned_alive ? 'YES' : 'NO',
-        ev.next_spawn || ''
+        ev.next_spawn || '',
+        ev.color || ''
       ];
     });
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
@@ -413,7 +414,8 @@ function readFullStore(ss) {
         auto_done_minutes: Number(erow[5]) || 10,
         done_on: erow[6] ? String(erow[6]) : null,
         pinned_alive: String(erow[7]) === 'YES',
-        next_spawn: erow[8] ? String(erow[8]) : null
+        next_spawn: erow[8] ? String(erow[8]) : null,
+        color: erow[9] ? String(erow[9]).trim() : null
       });
     }
     store.events = store.allEvents;

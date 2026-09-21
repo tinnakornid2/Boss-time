@@ -578,6 +578,7 @@ module.exports = {
             location: eventData.location || '',
             is_invasion: false,
             interval: 0,
+            color: eventData.color ? String(eventData.color).trim() : null,
             last_kill_time: null,
             auto_advanced: false,
             post_maintenance: false,
@@ -613,6 +614,9 @@ module.exports = {
             ...updates,
             updated_at: new Date().toISOString()
         };
+        if (updates.color !== undefined) {
+            merged.color = updates.color ? String(updates.color).trim() : null;
+        }
         merged.next_spawn = calculateNextEventSpawn(merged, new Date());
         store.allEvents[idx] = merged;
         save();

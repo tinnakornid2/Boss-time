@@ -2455,6 +2455,21 @@ app.post('/bosses/reset-maintenance-kill-times', requireAdmin, async (req, res) 
 // EVENT ACTIONS
 // ==========================================================
 
+// PUT /events/:id/color
+app.put('/events/:id/color', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    const event = db.getEvent(id);
+    if (!event) return respondInertiaOrRedirect(req, res, '/');
+
+    const color = req.body.color ? String(req.body.color).trim() : null;
+    await db.updateEvent(id, { color });
+
+    if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers['x-inertia']) {
+        return res.json({ success: true, color });
+    }
+    return respondInertiaOrRedirect(req, res, '/');
+});
+
 // PUT /events/:id
 app.put('/events/:id', requireAdmin, async (req, res) => {
     const id = Number(req.params.id);
@@ -2469,18 +2484,24 @@ app.put('/events/:id', requireAdmin, async (req, res) => {
         } else if (body.undo_exception) {
             await db.updateEvent(id, { done_on: null, pinned_alive: false });
         } else if (body.edit_occurrence) {
-            await db.updateEvent(id, {
+            const updates = {
                 event_time: body.occurrence_time || event.event_time,
                 name: body.occurrence_name || event.name
-            });
+            };
+            if (body.color !== undefined) updates.color = body.color ? String(body.color).trim() : null;
+            await db.updateEvent(id, updates);
         } else if (body.name) {
-            await db.updateEvent(id, {
+            const updates = {
                 name: body.name,
                 location: body.location || '',
                 event_time: body.event_time,
                 occurs_on: body.occurs_on,
                 auto_done_minutes: body.auto_done_minutes !== undefined ? Number(body.auto_done_minutes) : (event.auto_done_minutes || 10)
-            });
+            };
+            if (body.color !== undefined) updates.color = body.color ? String(body.color).trim() : null;
+            await db.updateEvent(id, updates);
+        } else if (body.color !== undefined) {
+            await db.updateEvent(id, { color: body.color ? String(body.color).trim() : null });
         }
     }
     return respondInertiaOrRedirect(req, res, '/');
@@ -2491,6 +2512,7 @@ app.post('/events', requireAdmin, async (req, res) => {
     await db.createEvent({
         name: req.body.name,
         location: req.body.location || '',
+        color: req.body.color ? String(req.body.color).trim() : null,
         event_time: req.body.event_time || '21:00',
         occurs_on: req.body.occurs_on || ['saturday', 'sunday'],
         auto_done_minutes: Number(req.body.auto_done_minutes) || 10

@@ -178,3 +178,52 @@ test('Boss color: Expanded 20+ colors palette and global invasion color synchron
     assert.ok(alertsSrc.includes('/settings/invasion-color'));
 });
 
+test('Event color: createEvent and updateEvent save color independently', async () => {
+    const created = await db.createEvent({
+        name: 'Test Event 1',
+        location: 'Event Zone',
+        event_time: '20:00',
+        occurs_on: ['saturday', 'sunday'],
+        color: '#38bdf8'
+    });
+
+    assert.ok(created);
+    assert.equal(created.name, 'Test Event 1');
+    assert.equal(created.color, '#38bdf8');
+
+    const fetched = db.getEvent(created.id);
+    assert.ok(fetched);
+    assert.equal(fetched.color, '#38bdf8');
+
+    // Update event color to emerald
+    const updated = await db.updateEvent(created.id, { color: '#10b981' });
+    assert.ok(updated);
+    assert.equal(updated.color, '#10b981');
+    assert.equal(db.getEvent(created.id).color, '#10b981');
+
+    // Clean up
+    await db.deleteEvent(created.id);
+});
+
+test('Event color: Event rows and Boss rows isolation contract (No color bleeding on substring names)', () => {
+    const alertsSrc = fs.readFileSync(path.join(__dirname, '../public/js/realtime-alerts.js'), 'utf8');
+    const serverSrc = fs.readFileSync(path.join(__dirname, '../server/server.js'), 'utf8');
+    const gasSrc = fs.readFileSync(path.join(__dirname, '../google_apps_script/Code.gs'), 'utf8');
+
+    // 1. isRowEvent and strict separation exist in realtime-alerts.js
+    assert.ok(alertsSrc.includes('isRowEvent'));
+    assert.ok(alertsSrc.includes('eventRows'));
+    assert.ok(alertsSrc.includes('applyRowEventColor'));
+    assert.ok(alertsSrc.includes('reconcileEventRows'));
+    assert.ok(alertsSrc.includes('attachEventColorPickerToDialog'));
+    assert.ok(alertsSrc.includes('data-event-custom-color'));
+
+    // 2. Server PUT /events/:id/color endpoint exists and requires admin
+    assert.ok(serverSrc.includes("app.put('/events/:id/color', requireAdmin"));
+
+    // 3. Google Sheets mirror maintains Event Color column
+    assert.ok(gasSrc.includes("ev.color || ''"));
+    assert.ok(gasSrc.includes("color: erow[9] ? String(erow[9]).trim() : null"));
+});
+
+

@@ -182,6 +182,7 @@
             sheets_save_btn: '💾 Save Settings',
             sheets_script_guide: '📖 <b>Script file:</b> located at <code>google_apps_script/Code.gs</code> with guide in <code>google_apps_script/README.md</code>',
             boss_font_color: 'Boss Font Color',
+            event_font_color: 'Event Font Color',
             color_preview: 'Preview',
             color_default: 'Default',
             color_custom: 'Custom Color',
@@ -199,6 +200,7 @@
             hide_muted: 'ซ่อนรายการปิดเสียง',
             settings: 'ตั้งค่า',
             boss_font_color: 'สีตัวอักษรบอส',
+            event_font_color: 'สีตัวอักษรกิจกรรม',
             color_preview: 'ตัวอย่าง',
             color_default: 'ค่าเริ่มต้น',
             color_custom: 'เลือกสีเอง',
@@ -763,13 +765,23 @@
         setTimeout(() => toast.remove(), 8000);
     }
 
+    function isRowEvent(row) {
+        if (!row) return false;
+        if (row.hasAttribute('data-event-id') || row.getAttribute('data-is-event') === 'true') return true;
+        if (row.hasAttribute('data-boss-id')) return false;
+        return Boolean(
+            row.querySelector('button[title*="Done"], button[title*="Skip"], button[title*="Undo"], svg.lucide-calendar-check, svg.lucide-calendar')
+        );
+    }
+
     function bossRows(boss) {
         if (!boss?.name) return [];
         if (boss.id) {
             const byId = document.querySelectorAll(`tr[data-boss-id="${boss.id}"]`);
-            if (byId.length > 0) return Array.from(byId);
+            if (byId.length > 0) return Array.from(byId).filter(row => !isRowEvent(row));
         }
         return Array.from(document.querySelectorAll('tr')).filter(row => {
+            if (isRowEvent(row)) return false;
             const text = row.textContent || '';
             if (!text.includes(boss.name)) return false;
             const invLabel = state.settings?.invasionLabel || '';
@@ -782,6 +794,19 @@
             );
             if (boss.is_invasion) return hasInvBadge;
             return !hasInvBadge;
+        });
+    }
+
+    function eventRows(event) {
+        if (!event?.name) return [];
+        if (event.id) {
+            const byId = document.querySelectorAll(`tr[data-event-id="${event.id}"]`);
+            if (byId.length > 0) return Array.from(byId);
+        }
+        return Array.from(document.querySelectorAll('tr')).filter(row => {
+            if (!isRowEvent(row)) return false;
+            const text = row.textContent || '';
+            return text.includes(event.name);
         });
     }
 
@@ -804,7 +829,7 @@
     }
 
     function applyRowBossColor(row, boss) {
-        if (!row || !boss) return;
+        if (!row || !boss || isRowEvent(row)) return;
         const color = getEffectiveBossColor(boss);
         const tds = row.querySelectorAll('td');
         const invLabel = (state.settings?.invasionLabel || '').trim();
@@ -852,6 +877,46 @@
         }
     }
 
+    function applyRowEventColor(row, event) {
+        if (!row || !event) return;
+        const color = (event.color && String(event.color).trim()) || '';
+        const tds = row.querySelectorAll('td');
+        for (const td of tds) {
+            if (td.textContent && td.textContent.includes(event.name)) {
+                if (color) {
+                    td.style.setProperty('color', color, 'important');
+                    td.setAttribute('data-event-custom-color', color);
+                    const spans = td.querySelectorAll('span');
+                    for (const sp of spans) {
+                        sp.style.setProperty('color', color, 'important');
+                        if (color !== '#ffffff' && color !== '#f4f4f5') {
+                            sp.style.setProperty('text-shadow', `0 0 10px ${color}80`, 'important');
+                        } else {
+                            sp.style.removeProperty('text-shadow');
+                        }
+                    }
+                } else if (td.hasAttribute('data-event-custom-color')) {
+                    td.removeAttribute('data-event-custom-color');
+                    td.style.removeProperty('color');
+                    const spans = td.querySelectorAll('span');
+                    for (const sp of spans) {
+                        sp.style.removeProperty('color');
+                        sp.style.removeProperty('text-shadow');
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    function reconcileEventRows() {
+        for (const event of state.events.values()) {
+            for (const row of eventRows(event)) {
+                applyRowEventColor(row, event);
+            }
+        }
+    }
+
     function reconcileBossRows() {
         const now = Date.now() + state.serverOffset;
         for (const row of document.querySelectorAll('tr.realtime-pre-spawn-flash')) {
@@ -865,6 +930,7 @@
                 applyRowBossColor(row, boss);
             }
         }
+        reconcileEventRows();
     }
 
     function consumeLiveEvent(event, initial) {
@@ -1632,6 +1698,197 @@
         form.addEventListener('submit', triggerSaveColor, { capture: true });
     }
 
+    function attachEventColorPickerToDialog() {
+        const dialog = document.querySelector('[role="dialog"]');
+        if (!dialog) return;
+
+        const dialogTitle = dialog.querySelector('h2, [data-slot="dialog-title"]')?.textContent || '';
+        const isEventDialog = dialogTitle.includes('Edit Event') || dialogTitle.includes('Event Series') || dialogTitle.includes('Occurrence') || dialogTitle.includes('กิจกรรม');
+        if (!isEventDialog) return;
+
+        const form = dialog.querySelector('form');
+        if (!form) return;
+
+        const nameInput = form.querySelector('input[type="text"]');
+        if (!nameInput) return;
+
+        const eventName = nameInput.value.trim();
+        const currentEvent = Array.from(state.events.values()).find(e =>
+            (e.name || '').toLowerCase() === eventName.toLowerCase()
+        ) || null;
+
+        const eventKeyId = currentEvent?.id ? String(currentEvent.id) : (eventName || 'event_edit');
+        let picker = form.querySelector('#custom-event-color-picker-container');
+        if (picker) {
+            if (picker.getAttribute('data-for-event-id') !== eventKeyId) {
+                picker.remove();
+                picker = null;
+            } else {
+                const preview = picker.querySelector('#custom-event-color-preview');
+                if (preview && nameInput.value && preview.textContent !== nameInput.value) {
+                    preview.textContent = nameInput.value;
+                }
+                return;
+            }
+        }
+
+        let activeColor = (currentEvent?.color ? String(currentEvent.color).trim() : '');
+
+        picker = document.createElement('div');
+        picker.id = 'custom-event-color-picker-container';
+        picker.setAttribute('data-for-event-id', eventKeyId);
+        picker.style.cssText = 'margin-top: 6px; margin-bottom: 4px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12);';
+
+        const isTh = getLanguage() === 'th';
+        const titleText = isTh ? 'สีตัวอักษรกิจกรรม (Event Font Color)' : 'Event Font Color';
+        const previewText = isTh ? 'ตัวอย่าง:' : 'Preview:';
+
+        picker.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+                <label style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.9);display:flex;align-items:center;gap:5px;">
+                    <span>🎨</span>
+                    <span>${titleText}</span>
+                </label>
+                <div style="font-size:11px;color:rgba(255,255,255,0.55);display:flex;align-items:center;gap:5px;">
+                    <span>${previewText}</span>
+                    <span id="custom-event-color-preview" style="display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.15);transition:all 0.15s ease;color:${activeColor || '#38bdf8'};${activeColor ? `text-shadow:0 0 10px ${activeColor}99;` : ''}">${nameInput.value || (isTh ? 'ชื่อกิจกรรม' : 'Event Name')}</span>
+                </div>
+            </div>
+            <div id="custom-event-swatches-row" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
+            </div>
+            <input type="hidden" id="custom-event-selected-color-val" value="${activeColor}">
+        `;
+
+        const swatchesRow = picker.querySelector('#custom-event-swatches-row');
+        const previewEl = picker.querySelector('#custom-event-color-preview');
+        const hiddenVal = picker.querySelector('#custom-event-selected-color-val');
+
+        function updateSelectedColor(hex) {
+            activeColor = hex ? hex.trim() : '';
+            hiddenVal.value = activeColor;
+            previewEl.style.color = activeColor || '#38bdf8';
+            previewEl.style.textShadow = activeColor ? `0 0 10px ${activeColor}aa` : '';
+
+            swatchesRow.querySelectorAll('.event-color-swatch').forEach(btn => {
+                const btnColor = btn.getAttribute('data-color') || '';
+                const isMatch = btnColor.toLowerCase() === activeColor.toLowerCase();
+                btn.style.boxShadow = isMatch ? `0 0 10px ${btnColor || '#ffffff'}, 0 0 0 2px #ffffff` : 'none';
+                btn.style.transform = isMatch ? 'scale(1.15)' : 'scale(1)';
+                btn.style.zIndex = isMatch ? '2' : '1';
+            });
+
+            if (currentEvent) {
+                currentEvent.color = activeColor || null;
+                reconcileEventRows();
+            }
+        }
+
+        for (const item of PRESET_BOSS_COLORS) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'event-color-swatch';
+            btn.setAttribute('data-color', item.color);
+            const label = isTh ? item.label_th : item.label_en;
+            btn.setAttribute('data-unified-tooltip', label);
+            btn.setAttribute('aria-label', label);
+            const isMatch = item.color.toLowerCase() === activeColor.toLowerCase();
+
+            btn.style.cssText = `
+                width: 24px;
+                height: 24px;
+                border-radius: 5px;
+                border: 2px solid ${item.border};
+                background: ${item.bg};
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.15s ease;
+                box-shadow: ${isMatch ? `0 0 10px ${item.border}, 0 0 0 2px #ffffff` : 'none'};
+                transform: ${isMatch ? 'scale(1.15)' : 'scale(1)'};
+                position: relative;
+            `;
+
+            if (item.color === '') {
+                btn.innerHTML = `<span style="font-size:10px;color:#ffffff;font-weight:700;">⚪</span>`;
+            } else {
+                btn.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${item.dot};"></span>`;
+            }
+
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                updateSelectedColor(item.color);
+            });
+
+            swatchesRow.appendChild(btn);
+        }
+
+        const customPickerLabel = document.createElement('label');
+        customPickerLabel.className = 'event-color-swatch-custom';
+        customPickerLabel.setAttribute('data-unified-tooltip', isTh ? 'เลือกสีกำหนดเอง' : 'Custom Color');
+        customPickerLabel.setAttribute('aria-label', isTh ? 'เลือกสีกำหนดเอง' : 'Custom Color');
+        customPickerLabel.style.cssText = `
+            position: relative;
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            border: 2px dashed rgba(255,255,255,0.4);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: rgba(255,255,255,0.08);
+            font-size: 11px;
+            transition: all 0.15s ease;
+        `;
+        customPickerLabel.innerHTML = `
+            <span>🌈</span>
+            <input type="color" id="custom-event-color-input-field" value="${activeColor || '#38bdf8'}" style="position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer;">
+        `;
+        const colorInput = customPickerLabel.querySelector('input');
+        colorInput.addEventListener('input', (e) => {
+            updateSelectedColor(e.target.value);
+        });
+        swatchesRow.appendChild(customPickerLabel);
+
+        nameInput.addEventListener('input', () => {
+            if (previewEl) previewEl.textContent = nameInput.value.trim() || (isTh ? 'ชื่อกิจกรรม' : 'Event Name');
+        });
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn && submitBtn.parentElement) {
+            submitBtn.parentElement.parentElement.insertBefore(picker, submitBtn.parentElement);
+        } else {
+            form.appendChild(picker);
+        }
+
+        const triggerSaveColor = async () => {
+            const finalColor = hiddenVal.value ? hiddenVal.value.trim() : null;
+            if (currentEvent && currentEvent.id) {
+                currentEvent.color = finalColor;
+                reconcileEventRows();
+                try {
+                    await fetch(`/events/${currentEvent.id}/color`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ color: finalColor })
+                    });
+                } catch (err) {
+                    console.error('Failed to update event color:', err);
+                }
+            }
+        };
+
+        if (submitBtn) {
+            submitBtn.addEventListener('click', triggerSaveColor, { capture: true });
+        }
+        form.addEventListener('submit', triggerSaveColor, { capture: true });
+    }
+
     let invasionColorSyncTimeout = null;
     function syncInvasionSettingsAdminLock() {
         const dialog = document.querySelector('[role="dialog"]');
@@ -1735,6 +1992,7 @@
             window.attachAdminSettingsToReactDialog();
         }
         attachBossColorPickerToDialog();
+        attachEventColorPickerToDialog();
         syncInvasionSettingsAdminLock();
         translateVisibleTooltips();
         translateVisibleUi();

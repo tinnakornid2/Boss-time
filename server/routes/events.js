@@ -71,4 +71,21 @@ router.post('/:id/pin', (req, res) => {
     res.json({ success: true, event: updated });
 });
 
+function requireAdmin(req, res, next) {
+    if (req.user && req.user.role === 'admin') return next();
+    return res.status(403).json({ success: false, message: 'Admin access required' });
+}
+
+router.put('/:id/color', authMiddleware, requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    const event = db.getEvent(id);
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    const color = req.body.color ? String(req.body.color).trim() : null;
+    const updated = await db.updateEvent(id, { color });
+    broadcaster.broadcast('event:updated', updated);
+    res.json({ success: true, color, event: updated });
+});
+
 module.exports = router;
+
