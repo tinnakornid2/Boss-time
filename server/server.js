@@ -1846,6 +1846,7 @@ function getDashboardProps(req) {
         allEvents: db.getAllEvents(),
         hideInvasionBosses: Boolean(settings.hideInvasionBosses),
         invasionLabel: settings.invasionLabel || 'L3',
+        invasionColor: settings.invasionColor || '#facc15',
         announcement: settings.announcement || null,
         resetTimeConfigs: db.getResetConfigs(),
         savedMaintenanceEndTime: db.getSavedMaintenanceEndTime() || null,

@@ -772,7 +772,14 @@
         return Array.from(document.querySelectorAll('tr')).filter(row => {
             const text = row.textContent || '';
             if (!text.includes(boss.name)) return false;
-            const hasInvBadge = text.includes('INV') || text.includes('L3') || Boolean(row.querySelector('.bg-purple-900\\/50, .border-purple-500\\/50'));
+            const invLabel = state.settings?.invasionLabel || '';
+            const localInvLabel = localStorage.getItem('dashboard.invasionLabel') || '';
+            const hasInvBadge = Boolean(
+                row.querySelector('.bg-yellow-400\\/20, .border-yellow-400\\/30, .tracking-wide, .bg-purple-900\\/50') ||
+                (invLabel && text.includes(invLabel)) ||
+                (localInvLabel && text.includes(localInvLabel)) ||
+                text.includes('INV') || text.includes('L3') || text.includes('K2') || text.includes('K6') || text.includes('⚡')
+            );
             if (boss.is_invasion) return hasInvBadge;
             return !hasInvBadge;
         });
@@ -784,13 +791,13 @@
             return String(boss.color).trim();
         }
         if (boss.is_invasion) {
+            if (state.settings && state.settings.invasionColor) {
+                return String(state.settings.invasionColor).trim();
+            }
             try {
                 const invColor = localStorage.getItem('dashboard.invasionColor');
                 if (invColor && String(invColor).trim()) return String(invColor).trim();
             } catch (_) {}
-            if (state.settings && state.settings.invasionColor) {
-                return String(state.settings.invasionColor).trim();
-            }
             return '#facc15';
         }
         return '';
@@ -800,6 +807,8 @@
         if (!row || !boss) return;
         const color = getEffectiveBossColor(boss);
         const tds = row.querySelectorAll('td');
+        const invLabel = (state.settings?.invasionLabel || '').trim();
+        const localInvLabel = (localStorage.getItem('dashboard.invasionLabel') || '').trim();
         for (const td of tds) {
             if (td.textContent && td.textContent.includes(boss.name)) {
                 if (color) {
@@ -807,13 +816,19 @@
                     td.setAttribute('data-boss-custom-color', color);
                     const spans = td.querySelectorAll('span');
                     for (const sp of spans) {
+                        const spText = (sp.textContent || '').trim();
                         if (sp.classList.contains('pre-spawn-flash-label') ||
                             sp.classList.contains('bg-yellow-400/20') ||
+                            sp.classList.contains('border-yellow-400/30') ||
                             sp.classList.contains('tracking-wide') ||
                             sp.classList.contains('text-[0.72em]') ||
-                            sp.textContent.trim() === 'INV' ||
-                            sp.textContent.trim() === 'L3' ||
-                            sp.textContent.trim() === 'Pre-spawning') {
+                            spText === 'INV' ||
+                            spText === 'L3' ||
+                            spText === 'K2' ||
+                            spText === 'K6' ||
+                            (invLabel && spText === invLabel) ||
+                            (localInvLabel && spText === localInvLabel) ||
+                            spText === 'Pre-spawning') {
                             continue;
                         }
                         sp.style.setProperty('color', color, 'important');
@@ -997,7 +1012,16 @@
         if (!root) return;
         try {
             const page = JSON.parse(root.getAttribute('data-page') || '{}');
+            state.isAdmin = page.props?.auth?.user?.role === 'admin';
             state.highestDataRevision = Number(page.props?.dataRevision) || 0;
+            if (!state.settings) state.settings = {};
+            if (page.props?.invasionLabel) state.settings.invasionLabel = String(page.props.invasionLabel).trim();
+            if (page.props?.invasionColor) {
+                state.settings.invasionColor = String(page.props.invasionColor).trim();
+                try {
+                    localStorage.setItem('dashboard.invasionColor', state.settings.invasionColor);
+                } catch (_) {}
+            }
             for (const boss of page.props?.bosses || []) state.bosses.set(Number(boss.id), boss);
             for (const event of page.props?.events || []) state.events.set(Number(event.id), event);
         } catch (_) {}
