@@ -150,3 +150,31 @@ test('Boss color: Invasion boss font color dynamically derives from invasion set
     assert.ok(alertsSrc.includes('boss.is_invasion'));
 });
 
+test('Boss color: Expanded 20+ colors palette and global invasion color synchronization contract', () => {
+    const alertsSrc = fs.readFileSync(path.join(__dirname, '../public/js/realtime-alerts.js'), 'utf8');
+    const serverSrc = fs.readFileSync(path.join(__dirname, '../server/server.js'), 'utf8');
+
+    // 1. Verify 20+ color presets
+    assert.ok(alertsSrc.includes("key: 'gold'"));
+    assert.ok(alertsSrc.includes("key: 'white'"));
+    assert.ok(alertsSrc.includes("key: 'silver'"));
+    assert.ok(alertsSrc.includes("key: 'yellow'"));
+    assert.ok(alertsSrc.includes("key: 'coral'"));
+    assert.ok(alertsSrc.includes("key: 'crimson'"));
+    assert.ok(alertsSrc.includes("key: 'rose'"));
+    assert.ok(alertsSrc.includes("key: 'fuchsia'"));
+    assert.ok(alertsSrc.includes("key: 'violet'"));
+    assert.ok(alertsSrc.includes("key: 'indigo'"));
+    assert.ok(alertsSrc.includes("key: 'skyblue'"));
+    assert.ok(alertsSrc.includes("key: 'teal'"));
+    assert.ok(alertsSrc.includes("key: 'lime'"));
+
+    // 2. Verify server PUT /settings/invasion-color endpoint
+    assert.ok(serverSrc.includes("app.put('/settings/invasion-color', requireAdmin"));
+    assert.ok(serverSrc.includes("invasionColor: settings.invasionColor"));
+
+    // 3. Verify admin lock & live sync in realtime-alerts.js
+    assert.ok(alertsSrc.includes('syncInvasionSettingsAdminLock'));
+    assert.ok(alertsSrc.includes('/settings/invasion-color'));
+});
+

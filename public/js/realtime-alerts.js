@@ -184,7 +184,9 @@
             boss_font_color: 'Boss Font Color',
             color_preview: 'Preview',
             color_default: 'Default',
-            color_custom: 'Custom Color'
+            color_custom: 'Custom Color',
+            invasion_sync_admin_only: '🔒 Admin Only (Synced to all screens)',
+            invasion_sync_all: '🌐 Synced to all screens'
         },
         th: {
             lang_code: 'TH',
@@ -200,6 +202,8 @@
             color_preview: 'ตัวอย่าง',
             color_default: 'ค่าเริ่มต้น',
             color_custom: 'เลือกสีเอง',
+            invasion_sync_admin_only: '🔒 เฉพาะผู้ดูแลระบบ (ซิงค์กับทุกจอ)',
+            invasion_sync_all: '🌐 ซิงค์กับทุกจอ',
             audio_status_connected: 'เสียงเรียลไทม์เชื่อมต่อแล้ว',
             audio_status_fallback: 'เสียงเชื่อมต่อสำรอง',
             audio_status_connecting: 'กำลังเชื่อมต่อเสียง...',
@@ -894,6 +898,16 @@
             }
         }
         for (const event of data.events || []) state.events.set(Number(event.id), event);
+        if (data.invasionColor) {
+            if (!state.settings) state.settings = {};
+            const cleanInvColor = String(data.invasionColor).trim();
+            if (cleanInvColor && state.settings.invasionColor !== cleanInvColor) {
+                state.settings.invasionColor = cleanInvColor;
+                try {
+                    localStorage.setItem('dashboard.invasionColor', cleanInvColor);
+                } catch (_) {}
+            }
+        }
         const initial = !state.initialEventsLoaded;
         for (const event of data.recentLiveEvents || []) consumeLiveEvent(event, initial);
         consumeLiveEvent(data.liveEvent, initial);
@@ -1360,14 +1374,27 @@
 
     const PRESET_BOSS_COLORS = [
         { key: 'default', color: '', label_en: 'Default', label_th: 'ค่าเริ่มต้น', bg: '#27272a', border: '#71717a', dot: '#ffffff' },
-        { key: 'gold', color: '#f59e0b', label_en: 'Gold', label_th: 'ทอง', bg: '#78350f', border: '#f59e0b', dot: '#f59e0b' },
-        { key: 'orange', color: '#f97316', label_en: 'Orange', label_th: 'ส้ม', bg: '#7c2d12', border: '#f97316', dot: '#f97316' },
-        { key: 'red', color: '#ef4444', label_en: 'Red', label_th: 'แดง', bg: '#7f1d1d', border: '#ef4444', dot: '#ef4444' },
-        { key: 'purple', color: '#a855f7', label_en: 'Purple', label_th: 'ม่วงนีออน', bg: '#581c87', border: '#a855f7', dot: '#a855f7' },
-        { key: 'cyan', color: '#06b6d4', label_en: 'Cyan', label_th: 'ฟ้าไซแอน', bg: '#164e63', border: '#06b6d4', dot: '#06b6d4' },
-        { key: 'emerald', color: '#10b981', label_en: 'Emerald', label_th: 'เขียวมรกต', bg: '#064e3b', border: '#10b981', dot: '#10b981' },
-        { key: 'pink', color: '#ec4899', label_en: 'Pink', label_th: 'ชมพู', bg: '#831843', border: '#ec4899', dot: '#ec4899' },
-        { key: 'yellow', color: '#eab308', label_en: 'Yellow', label_th: 'เหลืองนีออน', bg: '#713f12', border: '#eab308', dot: '#eab308' }
+        { key: 'white', color: '#ffffff', label_en: 'Bright White', label_th: 'ขาวสว่าง', bg: '#3f3f46', border: '#ffffff', dot: '#ffffff' },
+        { key: 'silver', color: '#94a3b8', label_en: 'Silver Slate', label_th: 'เงินสว่าง', bg: '#1e293b', border: '#94a3b8', dot: '#94a3b8' },
+        { key: 'gold', color: '#f59e0b', label_en: 'Gold', label_th: 'ทองคำ', bg: '#78350f', border: '#f59e0b', dot: '#f59e0b' },
+        { key: 'yellow', color: '#eab308', label_en: 'Neon Yellow', label_th: 'เหลืองนีออน', bg: '#713f12', border: '#eab308', dot: '#eab308' },
+        { key: 'amber', color: '#d97706', label_en: 'Amber', label_th: 'ส้มอำพัน', bg: '#451a03', border: '#d97706', dot: '#d97706' },
+        { key: 'orange', color: '#f97316', label_en: 'Orange', label_th: 'ส้มสด', bg: '#7c2d12', border: '#f97316', dot: '#f97316' },
+        { key: 'coral', color: '#fb7185', label_en: 'Coral Rose', label_th: 'ส้มปะการัง', bg: '#881337', border: '#fb7185', dot: '#fb7185' },
+        { key: 'red', color: '#ef4444', label_en: 'Flame Red', label_th: 'แดงเพลิง', bg: '#7f1d1d', border: '#ef4444', dot: '#ef4444' },
+        { key: 'crimson', color: '#dc2626', label_en: 'Crimson', label_th: 'แดงเข้ม', bg: '#450a0a', border: '#dc2626', dot: '#dc2626' },
+        { key: 'rose', color: '#f43f5e', label_en: 'Ruby Rose', label_th: 'กุหลาบแดง', bg: '#4c0519', border: '#f43f5e', dot: '#f43f5e' },
+        { key: 'pink', color: '#ec4899', label_en: 'Neon Pink', label_th: 'ชมพูนีออน', bg: '#831843', border: '#ec4899', dot: '#ec4899' },
+        { key: 'fuchsia', color: '#d946ef', label_en: 'Fuchsia Magenta', label_th: 'ชมพูมาเจนต้า', bg: '#701a75', border: '#d946ef', dot: '#d946ef' },
+        { key: 'purple', color: '#a855f7', label_en: 'Purple Neon', label_th: 'ม่วงนีออน', bg: '#581c87', border: '#a855f7', dot: '#a855f7' },
+        { key: 'violet', color: '#8b5cf6', label_en: 'Electric Violet', label_th: 'ม่วงไวโอเล็ต', bg: '#3b0764', border: '#8b5cf6', dot: '#8b5cf6' },
+        { key: 'indigo', color: '#6366f1', label_en: 'Indigo', label_th: 'น้ำเงินคราม', bg: '#312e81', border: '#6366f1', dot: '#6366f1' },
+        { key: 'blue', color: '#3b82f6', label_en: 'Royal Blue', label_th: 'น้ำเงินรอยัล', bg: '#1e3a8a', border: '#3b82f6', dot: '#3b82f6' },
+        { key: 'skyblue', color: '#38bdf8', label_en: 'Sky Blue', label_th: 'ฟ้าสว่าง', bg: '#0c4a6e', border: '#38bdf8', dot: '#38bdf8' },
+        { key: 'cyan', color: '#06b6d4', label_en: 'Cyan Neon', label_th: 'ฟ้าไซแอน', bg: '#164e63', border: '#06b6d4', dot: '#06b6d4' },
+        { key: 'teal', color: '#14b8a6', label_en: 'Teal Aqua', label_th: 'เขียวน้ำทะเล', bg: '#134e4a', border: '#14b8a6', dot: '#14b8a6' },
+        { key: 'emerald', color: '#10b981', label_en: 'Emerald Green', label_th: 'เขียวมรกต', bg: '#064e3b', border: '#10b981', dot: '#10b981' },
+        { key: 'lime', color: '#84cc16', label_en: 'Neon Lime', label_th: 'เขียวมะนาว', bg: '#365314', border: '#84cc16', dot: '#84cc16' }
     ];
 
     function attachBossColorPickerToDialog() {
@@ -1581,6 +1608,83 @@
         form.addEventListener('submit', triggerSaveColor, { capture: true });
     }
 
+    let invasionColorSyncTimeout = null;
+    function syncInvasionSettingsAdminLock() {
+        const dialog = document.querySelector('[role="dialog"]');
+        if (!dialog) return;
+
+        const dialogText = dialog.textContent || '';
+        const isInvTab = dialogText.includes('Invasion') || dialogText.includes('สงครามบุกรุก') || dialogText.includes('Inv.');
+        if (!isInvTab) return;
+
+        const colorInputs = dialog.querySelectorAll('input[type="color"]');
+        for (const input of colorInputs) {
+            if (input.id === 'custom-boss-color-input-field') continue;
+
+            const container = input.closest('div') || input.parentElement;
+            if (!container) continue;
+
+            let syncBadge = container.parentElement ? container.parentElement.querySelector('.invasion-sync-badge') : null;
+
+            if (!state.isAdmin) {
+                input.disabled = true;
+                input.style.pointerEvents = 'none';
+                input.style.cursor = 'not-allowed';
+                input.title = t('invasion_sync_admin_only');
+
+                if (!syncBadge && container.parentElement) {
+                    syncBadge = document.createElement('div');
+                    syncBadge.className = 'invasion-sync-badge';
+                    syncBadge.style.cssText = 'font-size: 10px; font-weight: 600; color: #a1a1aa; margin-top: 4px; display: flex; align-items: center; gap: 4px;';
+                    container.parentElement.appendChild(syncBadge);
+                }
+                if (syncBadge) {
+                    syncBadge.textContent = t('invasion_sync_admin_only');
+                }
+            } else {
+                input.disabled = false;
+                input.style.pointerEvents = 'auto';
+                input.style.cursor = 'pointer';
+
+                if (!input.hasAttribute('data-admin-synced')) {
+                    input.setAttribute('data-admin-synced', 'true');
+                    input.addEventListener('input', (e) => {
+                        const newColor = e.target.value;
+                        if (!newColor) return;
+                        try {
+                            localStorage.setItem('dashboard.invasionColor', newColor);
+                        } catch (_) {}
+                        if (!state.settings) state.settings = {};
+                        state.settings.invasionColor = newColor;
+                        reconcileBossRows();
+
+                        clearTimeout(invasionColorSyncTimeout);
+                        invasionColorSyncTimeout = setTimeout(() => {
+                            fetch('/settings/invasion-color', {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({ invasionColor: newColor })
+                            }).catch(() => {});
+                        }, 250);
+                    });
+                }
+
+                if (!syncBadge && container.parentElement) {
+                    syncBadge = document.createElement('div');
+                    syncBadge.className = 'invasion-sync-badge';
+                    syncBadge.style.cssText = 'font-size: 10px; font-weight: 600; color: #38bdf8; margin-top: 4px; display: flex; align-items: center; gap: 4px;';
+                    container.parentElement.appendChild(syncBadge);
+                }
+                if (syncBadge) {
+                    syncBadge.textContent = t('invasion_sync_all');
+                }
+            }
+        }
+    }
+
     function enhanceUi() {
         for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
         for (const element of document.querySelectorAll('button, [role="button"], a, [title], [data-unified-tooltip], [data-i18n-title]')) {
@@ -1607,6 +1711,7 @@
             window.attachAdminSettingsToReactDialog();
         }
         attachBossColorPickerToDialog();
+        syncInvasionSettingsAdminLock();
         translateVisibleTooltips();
         translateVisibleUi();
     }

@@ -2044,6 +2044,7 @@ app.get('/poll', async (req, res) => {
         announcement: settings.announcement || null,
         hideInvasionBosses: Boolean(settings.hideInvasionBosses),
         invasionLabel: settings.invasionLabel || 'L3',
+        invasionColor: settings.invasionColor || '#facc15',
         resetTimeConfigs: db.getResetConfigs(),
         savedMaintenanceEndTime: db.getSavedMaintenanceEndTime() || null,
         forceReloadAt: forceReloadAt,
@@ -2281,6 +2282,17 @@ app.put('/settings/invasion-visibility', requireAdmin, async (req, res) => {
 app.put('/settings/invasion-label', requireAdmin, async (req, res) => {
     const label = req.body.invasion_label !== undefined ? req.body.invasion_label : req.body.invasionLabel;
     await db.updateSettings({ invasionLabel: label || 'L3' });
+    return respondInertiaOrRedirect(req, res, '/');
+});
+
+// PUT /settings/invasion-color
+app.put('/settings/invasion-color', requireAdmin, async (req, res) => {
+    const color = req.body.invasion_color !== undefined ? req.body.invasion_color : req.body.invasionColor;
+    const finalColor = color ? String(color).trim() : '#facc15';
+    await db.updateSettings({ invasionColor: finalColor });
+    if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers['x-inertia']) {
+        return res.json({ success: true, invasionColor: finalColor });
+    }
     return respondInertiaOrRedirect(req, res, '/');
 });
 
