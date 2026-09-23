@@ -143,11 +143,15 @@ test('Boss color: handles multiple bosses with same name (e.g. Invasion vs Norma
     await db.deleteBoss(invasionBoss.id);
 });
 
-test('Boss color: Invasion boss font color dynamically derives from invasion settings when boss.color is null', () => {
+test('Boss color: shared Invasion color overrides a saved per-boss color', () => {
     const alertsSrc = fs.readFileSync(path.join(__dirname, '../public/js/realtime-alerts.js'), 'utf8');
-    assert.ok(alertsSrc.includes('getEffectiveBossColor'));
-    assert.ok(alertsSrc.includes('dashboard.invasionColor'));
-    assert.ok(alertsSrc.includes('boss.is_invasion'));
+    const functionStart = alertsSrc.indexOf('function getEffectiveBossColor');
+    const functionEnd = alertsSrc.indexOf('function applyRowBossColor', functionStart);
+    const effectiveColorSource = alertsSrc.slice(functionStart, functionEnd);
+
+    assert.ok(functionStart >= 0);
+    assert.ok(effectiveColorSource.includes('dashboard.invasionColor'));
+    assert.ok(effectiveColorSource.indexOf('if (boss.is_invasion)') < effectiveColorSource.indexOf('if (boss.color'));
 });
 
 test('Boss color: Expanded 20+ colors palette and global invasion color synchronization contract', () => {
@@ -225,5 +229,4 @@ test('Event color: Event rows and Boss rows isolation contract (No color bleedin
     assert.ok(gasSrc.includes("ev.color || ''"));
     assert.ok(gasSrc.includes("color: erow[9] ? String(erow[9]).trim() : null"));
 });
-
 

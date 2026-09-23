@@ -128,6 +128,10 @@ test('Dual-language EN/TH support: English default, top bar switcher, and boss n
 
     // 5. Boss names must NEVER be modified or translated
     assert.ok(alertsSrc.includes("Never mutate boss names! Boss names stay strictly in original English."));
+    assert.ok(alertsSrc.includes('function translateSystemText()'));
+    assert.ok(alertsSrc.includes("['Reset Boss Time', 'รีเซ็ตเวลาบอส']"));
+    assert.ok(alertsSrc.includes("['Settings', 'ตั้งค่า']"));
+    assert.ok(alertsSrc.includes("parent.closest('script, style, textarea, tbody')"));
     const bossList = ['Antharas', 'Core', 'Baium', 'Zaken', 'Queen Ant', 'Orfen'];
     for (const boss of bossList) {
         // Boss names must not appear as translated dictionary keys
@@ -145,6 +149,10 @@ test('Unified Style #1 tooltip (orange balloon with arrow) and settings subbar p
     assert.ok(alertsSrc.includes('custom-unified-tooltip-arrow'));
     assert.ok(alertsSrc.includes('#d97706')); // Amber-600 Style #1 background
     assert.ok(alertsSrc.includes('#09090b')); // Style #1 text color
+    assert.ok(alertsSrc.includes('background: var(--primary, #d97706)'));
+    assert.ok(alertsSrc.includes('color: var(--primary-foreground, #09090b)'));
+    assert.ok(alertsSrc.includes('font-size: 12px'));
+    assert.ok(alertsSrc.includes('padding: 6px 12px'));
     assert.ok(alertsSrc.includes('ensureUnifiedTooltip'));
     assert.ok(alertsSrc.includes('showCustomTooltip'));
     assert.ok(alertsSrc.includes('hideCustomTooltip'));
@@ -240,6 +248,4 @@ test('Active data source indicator: Firebase vs Google Sheets Failover vs Local 
     // Restore original config
     googleSheets.saveLocalConfig(origConfig);
 });
-
-
 

@@ -92,6 +92,11 @@
             tooltip_spawn_5m: 'Spawn in 5 Minutes (2 Clicks)',
             tooltip_spawn_1m: 'Spawn in 1 Minute (2 Clicks)',
             tooltip_not_spawned: 'Not Spawned (2 Clicks)',
+            tooltip_still_alive_once: 'Still Alive',
+            tooltip_spawn_5m_once: 'Set Spawn to 5 Minutes',
+            tooltip_spawn_1m_once: 'Set Spawn to 1 Minute',
+            tooltip_not_spawned_once: 'Mark as Not Spawned',
+            tooltip_action_applied: 'Applied',
             tooltip_event_done: 'Mark Event Done (2 Clicks)',
             tooltip_skip_today: 'Skip Today (2 Clicks)',
             tooltip_pin_still_alive: 'Pin Still Alive (2 Clicks)',
@@ -224,6 +229,11 @@
             tooltip_spawn_5m: 'บอสเกิดใน 5 นาที (คลิก 2 ครั้ง)',
             tooltip_spawn_1m: 'บอสเกิดใน 1 นาที (คลิก 2 ครั้ง)',
             tooltip_not_spawned: 'บอสยังไม่เกิด (คลิก 2 ครั้ง)',
+            tooltip_still_alive_once: 'ตั้งสถานะบอสยังไม่ตาย',
+            tooltip_spawn_5m_once: 'ตั้งให้บอสเกิดใน 5 นาที',
+            tooltip_spawn_1m_once: 'ตั้งให้บอสเกิดใน 1 นาที',
+            tooltip_not_spawned_once: 'ตั้งสถานะบอสยังไม่เกิด',
+            tooltip_action_applied: 'ดำเนินการแล้ว',
             tooltip_event_done: 'กิจกรรมเสร็จแล้ว (กด 2 ครั้ง)',
             tooltip_skip_today: 'ข้ามกิจกรรมวันนี้ (กด 2 ครั้ง)',
             tooltip_pin_still_alive: 'ปักหมุดว่ายังไม่จบ (กด 2 ครั้ง)',
@@ -348,6 +358,115 @@
         return str;
     }
 
+    // Shared clock for actions that must be consistent across user devices.
+    // The offset is refreshed from /poll; countdown rendering remains local.
+    window.getTrackerServerNow = function () {
+        return new Date(Date.now() + state.serverOffset);
+    };
+
+    // React's production bundle contains presentation text directly. Keep one
+    // reversible dictionary here so the language button also updates screens
+    // that are rendered after the initial page load (settings, menus and toasts).
+    const SYSTEM_TEXT = [
+        ['Settings', 'ตั้งค่า'], ['Customize your tracker', 'ปรับแต่งตัวติดตามของคุณ'],
+        ['Appearance', 'รูปลักษณ์'], ['Layout', 'เค้าโครง'], ['Font', 'แบบอักษร'],
+        ['Text size', 'ขนาดตัวอักษร'], ['Row information', 'ข้อมูลในแถว'],
+        ['Table UX', 'การใช้งานตาราง'], ['Sound effects', 'เอฟเฟกต์เสียง'],
+        ['Timing & volume', 'เวลาและระดับเสียง'], ['Invasion options', 'ตัวเลือกสงครามบุกรุก'],
+        ['Boss colour', 'สีบอส'], ['Position', 'ตำแหน่ง'], ['Before', 'ก่อน'], ['After', 'หลัง'],
+        ['Own column', 'แยกคอลัมน์'], ['Disabled', 'ปิดใช้งาน'],
+        ['Split invasion table', 'แยกตารางสงครามบุกรุก'], ['Label source', 'แหล่งที่มาของป้าย'],
+        ['Badge label', 'ข้อความบนป้าย'], ['Emoji', 'อีโมจิ'], ['Example', 'ตัวอย่าง'],
+        ['Alert before spawn', 'แจ้งเตือนก่อนเกิด'], ['Boss alert sound', 'เสียงแจ้งเตือนบอส'],
+        ['Just-spawned sound', 'เสียงเมื่อบอสเกิด'], ['Pre-spawn alert', 'เสียงเตือนก่อนเกิด'],
+        ['Action button tooltips', 'คำอธิบายปุ่มการทำงาน'],
+        ['Show tooltips when hovering action buttons', 'แสดงคำอธิบายเมื่อชี้ปุ่มการทำงาน'],
+        ['Row Actions', 'ปุ่มการทำงานในแถว'], ['Hover to reveal actions', 'ชี้เมาส์เพื่อแสดงปุ่ม'],
+        ['Hides row buttons until you hover the row', 'ซ่อนปุ่มในแถวจนกว่าจะชี้เมาส์'],
+        ['Split spawn status buttons', 'แยกปุ่มสถานะการเกิด'],
+        ['Replaces kill buttons with status shortcuts', 'แทนปุ่มบันทึกเวลาตายด้วยปุ่มสถานะลัด'],
+        ['Configured Events', 'กิจกรรมที่ตั้งค่าไว้'], ['No events configured yet.', 'ยังไม่มีกิจกรรมที่ตั้งค่า'],
+        ['Event management is available to admins.', 'การจัดการกิจกรรมสำหรับผู้ดูแลระบบเท่านั้น'],
+        ['Add Boss', 'เพิ่มบอส'], ['Edit Boss', 'แก้ไขบอส'], ['Delete Boss', 'ลบบอส'],
+        ['Boss Name', 'ชื่อบอส'], ['Name', 'ชื่อ'], ['Location', 'สถานที่'],
+        ['Interval (HH:MM)', 'รอบเวลา (ชม.:นาที)'], ['Chance (%)', 'โอกาส (%)'],
+        ['Last Kill Time', 'เวลาตายล่าสุด'], ['Next Spawn Time', 'เวลาเกิดถัดไป'],
+        ['Time killed', 'เวลาที่ตาย'], ['Update spawn', 'อัปเดตเวลาเกิด'],
+        ['Still alive', 'ยังไม่ตาย'], ['Still alive — pinned', 'ยังไม่ตาย — ปักหมุด'],
+        ['Not spawned', 'ยังไม่เกิด'], ['Pre-spawning', 'กำลังเตรียมเกิด'],
+        ['Maintenance', 'ปิดปรับปรุง'], ['Post Maintenance Mode', 'โหมดหลังปิดปรับปรุง'],
+        ['Reset Boss Time', 'รีเซ็ตเวลาบอส'], ['Maintenance End Time', 'เวลาสิ้นสุดการปิดปรับปรุง'],
+        ['Delay (h / m)', 'เวลาหน่วง (ชม. / นาที)'], ['Spawns', 'เวลาเกิด'],
+        ['Copy delay', 'คัดลอกเวลาหน่วง'], ['Save Config', 'บันทึกการตั้งค่า'],
+        ['Apply Reset Boss Time', 'ใช้การรีเซ็ตเวลาบอส'],
+        ['Normal', 'ปกติ'], ['Invasion boss', 'บอสสงครามบุกรุก'],
+        ['Schedule', 'ตารางเวลา'], ['Occurs On', 'วันที่เกิด'], ['Days', 'วัน'],
+        ['Event Name', 'ชื่อกิจกรรม'], ['Event Time', 'เวลากิจกรรม'],
+        ['Time for Today', 'เวลาสำหรับวันนี้'], ['Name for Today', 'ชื่อสำหรับวันนี้'],
+        ['This only affects today\'s occurrence.', 'มีผลเฉพาะกิจกรรมของวันนี้'],
+        ['Send announcement', 'ส่งประกาศ'], ['Type your message…', 'พิมพ์ข้อความ…'],
+        ['Urgent', 'เร่งด่วน'], ['Clear for all', 'ล้างสำหรับทุกคน'],
+        ['Resend alert sound', 'ส่งเสียงแจ้งเตือนอีกครั้ง'], ['Force all users to reload their page', 'บังคับให้ผู้ใช้ทุกคนโหลดหน้าใหม่'],
+        ['Search bosses by name or location', 'ค้นหาชื่อบอสหรือสถานที่'],
+        ['Search…', 'ค้นหา…'], ['No results', 'ไม่พบผลลัพธ์'], ['No bosses', 'ไม่พบบอส'],
+        ['Loading…', 'กำลังโหลด…'], ['Close', 'ปิด'], ['Cancel', 'ยกเลิก'],
+        ['Save', 'บันทึก'], ['Delete', 'ลบ'], ['Undo', 'ย้อนกลับ'],
+        ['None', 'ไม่มี'], ['Preview', 'ตัวอย่าง'], ['Customise', 'ปรับแต่ง'],
+        ['Download desktop app', 'ดาวน์โหลดแอปเดสก์ท็อป'], ['Get App', 'ดาวน์โหลดแอป'],
+        ['[AUTO] time may not be accurate', '[อัตโนมัติ] เวลาอาจไม่แม่นยำ'],
+        ['Manually updated <2 min ago', 'อัปเดตด้วยตนเองไม่ถึง 2 นาที'],
+        ['[MAINTENANCE] time not yet updated', '[ปิดปรับปรุง] เวลายังไม่ได้อัปเดต'],
+        ['(optional)', '(ไม่บังคับ)'], ['(disabled)', '(ปิดใช้งาน)']
+    ];
+
+    const SYSTEM_TEXT_LOOKUP = {
+        en: new Map(SYSTEM_TEXT.map(([en, th]) => [th, en])),
+        th: new Map(SYSTEM_TEXT.map(([en, th]) => [en, th]))
+    };
+
+    function translatedSystemValue(text, lookup) {
+        const exact = lookup.get(text);
+        if (exact) return exact;
+        const lang = getLanguage();
+        let match = text.match(/^(Save Config|บันทึกการตั้งค่า) \((\d+\/\d+)\)$/);
+        if (match) return `${lang === 'th' ? 'บันทึกการตั้งค่า' : 'Save Config'} (${match[2]})`;
+        match = text.match(/^(Apply Reset Boss Time|ใช้การรีเซ็ตเวลาบอส) \((\d+\/\d+)\)$/);
+        if (match) return `${lang === 'th' ? 'ใช้การรีเซ็ตเวลาบอส' : 'Apply Reset Boss Time'} (${match[2]})`;
+        return null;
+    }
+
+    function translateSystemText() {
+        const lookup = SYSTEM_TEXT_LOOKUP[getLanguage()];
+        const roots = document.querySelectorAll('[role="dialog"], [role="menu"], [data-radix-popper-content-wrapper], .fixed');
+        for (const root of roots) {
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            let node;
+            while ((node = walker.nextNode())) {
+                const parent = node.parentElement;
+                if (!parent || parent.closest('script, style, textarea, tbody')) continue;
+                if (parent.classList.contains('truncate') && parent.classList.contains('text-[11px]') && node === parent.firstChild) continue;
+                const raw = node.nodeValue || '';
+                const text = raw.trim();
+                const translated = translatedSystemValue(text, lookup);
+                if (translated) node.nodeValue = raw.replace(text, translated);
+            }
+        }
+
+        for (const element of document.querySelectorAll('input[placeholder], textarea[placeholder]')) {
+            const translated = translatedSystemValue((element.placeholder || '').trim(), lookup);
+            if (translated) element.placeholder = translated;
+        }
+        for (const element of document.querySelectorAll('[aria-label], [data-unified-tooltip], [title]')) {
+            if (element.closest('tbody')) continue;
+            for (const attribute of ['aria-label', 'data-unified-tooltip', 'title']) {
+                const value = element.getAttribute(attribute);
+                if (!value) continue;
+                const translated = translatedSystemValue(value.trim(), lookup);
+                if (translated) element.setAttribute(attribute, translated);
+            }
+        }
+    }
+
     window.getLanguage = getLanguage;
     window.setLanguage = setLanguage;
     window.t = t;
@@ -465,22 +584,20 @@
                 position: fixed;
                 z-index: 999999;
                 pointer-events: none;
-                background: #d97706;
-                color: #09090b;
+                background: var(--primary, #d97706);
+                color: var(--primary-foreground, #09090b);
                 font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 0.01em;
-                line-height: 1.2;
-                padding: 4px 8px;
+                font-size: 12px;
+                font-weight: 400;
+                line-height: 16px;
+                padding: 6px 12px;
                 border-radius: 6px;
-                box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
                 white-space: nowrap;
                 opacity: 0;
-                transform: scale(0.96);
-                transition: opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+                transform: scale(0.95);
+                transition: opacity 0.15s ease-out, transform 0.15s ease-out;
                 display: none;
-                max-width: 320px;
+                max-width: 384px;
             }
             #custom-unified-tooltip.active {
                 display: block;
@@ -489,16 +606,17 @@
             }
             #custom-unified-tooltip .custom-unified-tooltip-arrow {
                 position: absolute;
-                width: 8px;
-                height: 8px;
-                background: #d97706;
+                width: 10px;
+                height: 10px;
+                background: var(--primary, #d97706);
+                border-radius: 2px;
                 transform: rotate(45deg);
             }
             #custom-unified-tooltip[data-side="top"] .custom-unified-tooltip-arrow {
-                bottom: -4px;
+                bottom: -5px;
             }
             #custom-unified-tooltip[data-side="bottom"] .custom-unified-tooltip-arrow {
-                top: -4px;
+                top: -5px;
             }
 
             @media (max-width: 430px) {
@@ -760,9 +878,9 @@
         const toast = document.createElement('div');
         toast.id = 'realtime-alert-toast';
         toast.textContent = message;
-        toast.style.cssText = `position:fixed;left:50%;top:52px;transform:translateX(-50%);z-index:100001;max-width:90vw;padding:10px 16px;border-radius:10px;background:${urgent ? '#7f1d1d' : '#172554'};border:1px solid ${urgent ? '#ef4444' : '#3b82f6'};color:white;font:700 14px system-ui;box-shadow:0 8px 30px #000a`;
+        toast.style.cssText = `position:fixed;right:10px;bottom:10px;left:auto;top:auto;transform:none;z-index:100001;max-width:min(300px,72vw);padding:8px 12px;border-radius:8px;background:${urgent ? '#7f1d1d' : '#172554'};border:1px solid ${urgent ? '#ef4444' : '#3b82f6'};color:white;font:700 12px/1.35 system-ui;box-shadow:0 8px 30px #000a;white-space:normal;overflow-wrap:anywhere`;
         document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 8000);
+        setTimeout(() => toast.remove(), 5000);
     }
 
     function isRowEvent(row) {
@@ -812,9 +930,9 @@
 
     function getEffectiveBossColor(boss) {
         if (!boss) return '';
-        if (boss.color && String(boss.color).trim()) {
-            return String(boss.color).trim();
-        }
+        // The shared Invasion colour is authoritative for every Invasion boss.
+        // This keeps the boss name and its Invasion badge in the same colour,
+        // even when the boss still has a legacy per-boss colour saved.
         if (boss.is_invasion) {
             if (state.settings && state.settings.invasionColor) {
                 return String(state.settings.invasionColor).trim();
@@ -823,7 +941,13 @@
                 const invColor = localStorage.getItem('dashboard.invasionColor');
                 if (invColor && String(invColor).trim()) return String(invColor).trim();
             } catch (_) {}
+            if (boss.color && String(boss.color).trim()) {
+                return String(boss.color).trim();
+            }
             return '#facc15';
+        }
+        if (boss.color && String(boss.color).trim()) {
+            return String(boss.color).trim();
         }
         return '';
     }
@@ -1080,6 +1204,9 @@
             const page = JSON.parse(root.getAttribute('data-page') || '{}');
             state.isAdmin = page.props?.auth?.user?.role === 'admin';
             state.highestDataRevision = Number(page.props?.dataRevision) || 0;
+            if (Number.isFinite(Number(page.props?.serverTime))) {
+                state.serverOffset = Number(page.props.serverTime) - Date.now();
+            }
             if (!state.settings) state.settings = {};
             if (page.props?.invasionLabel) state.settings.invasionLabel = String(page.props.invasionLabel).trim();
             if (page.props?.invasionColor) {
@@ -1107,6 +1234,7 @@
         'Skip today (click 2x)': 'tooltip_skip_today',
         'Pin still alive (click 2x)': 'tooltip_pin_still_alive',
         'Click again to confirm': 'tooltip_confirm_2nd',
+        'Applied': 'tooltip_action_applied',
         'Double-click to mark as pre-spawned': 'tooltip_pre_spawn_notify',
         'Double-click to clear pre-spawned': 'tooltip_pre_spawn_clear',
         'Show muted': 'show_muted',
@@ -1115,7 +1243,10 @@
         'Edit Boss': 'tooltip_edit_boss',
         'Delete Boss': 'tooltip_delete_boss',
         'Delete': 'tooltip_delete',
-        'Still alive': 'tooltip_still_alive_2x',
+        'Still alive': 'tooltip_still_alive_once',
+        'Spawn in 5 min': 'tooltip_spawn_5m_once',
+        'Spawn in 1 min': 'tooltip_spawn_1m_once',
+        'Not spawned': 'tooltip_not_spawned_once',
         'Pre-spawning': 'tooltip_pre_spawn_notify',
         'Update spawn': 'tooltip_update_spawn',
         'Reset Boss Time': 'tooltip_reset_time',
@@ -1460,6 +1591,7 @@
                 guestBadge.removeAttribute('title');
             }
         }
+        translateSystemText();
     }
 
     const PRESET_BOSS_COLORS = [

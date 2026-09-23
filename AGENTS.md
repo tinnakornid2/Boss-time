@@ -80,6 +80,8 @@ Before editing:
 
 Before production deployment:
 
+> CRITICAL DEPLOYMENT GATE: This section is mandatory. Stop the deployment if any check fails. Preserve `server/data/store.json` byte-for-byte around tests, verify its SHA-256 before/after, and never include it in staged or deployed files.
+
 1. Run syntax checks for changed JavaScript files.
 2. Run `npm test`; the Unset, five-minute NOW, Still Alive, and catch-up tests must pass.
 3. Review the staged file list and exclude `server/data/store.json` and secrets.

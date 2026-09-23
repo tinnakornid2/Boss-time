@@ -1850,6 +1850,7 @@ function getDashboardProps(req) {
         announcement: settings.announcement || null,
         resetTimeConfigs: db.getResetConfigs(),
         savedMaintenanceEndTime: db.getSavedMaintenanceEndTime() || null,
+        serverTime: Date.now(),
         dataRevision: db.getDataRevision()
     };
 }
@@ -2317,6 +2318,8 @@ app.post('/bosses/reset-invasion-kill-times', requireAdmin, async (req, res) => 
     return respondInertiaOrRedirect(req, res, '/');
 });
 
+const { normalizeResetConfigs, getResetConfig } = require('./reset-time-configs');
+
 // POST /bosses/apply-reset-boss-time
 app.post('/bosses/apply-reset-boss-time', requireAdmin, async (req, res) => {
     const { maintenance_end_time, configs } = req.body;
@@ -2338,22 +2341,11 @@ app.post('/bosses/apply-reset-boss-time', requireAdmin, async (req, res) => {
             }
         }
 
-        let configsMap = {};
-        if (Array.isArray(configs)) {
-            for (const c of configs) {
-                configsMap[c.boss_name] = {
-                    hours: Number(c.delay_hours) || 0,
-                    minutes: Number(c.delay_minutes) || 0
-                };
-            }
-        } else if (configs && typeof configs === 'object') {
-            configsMap = configs;
-        } else {
-            configsMap = db.getResetConfigs();
-        }
+        const savedConfigs = db.getResetConfigs();
+        const configsMap = configs == null ? savedConfigs : normalizeResetConfigs(configs);
 
         await db.batchUpdateBosses(boss => {
-            const conf = configsMap[boss.name] || db.getResetConfigs()[boss.name];
+            const conf = getResetConfig(configsMap, boss) || getResetConfig(savedConfigs, boss);
             if (conf) {
                 const offsetMinutes = (Number(conf.hours) || 0) * 60 + (Number(conf.minutes) || 0);
                 const nextSpawn = new Date(baseDate.getTime() + offsetMinutes * 60000);
@@ -2380,19 +2372,7 @@ app.post('/bosses/apply-reset-boss-time', requireAdmin, async (req, res) => {
 // POST /bosses/save-reset-boss-config
 app.post('/bosses/save-reset-boss-config', requireAdmin, async (req, res) => {
     const { configs, resetTimeConfigs, maintenance_end_time } = req.body;
-    let configsMap = {};
-    if (Array.isArray(configs)) {
-        for (const c of configs) {
-            configsMap[c.boss_name] = {
-                hours: Number(c.delay_hours) || 0,
-                minutes: Number(c.delay_minutes) || 0
-            };
-        }
-    } else if (configs && typeof configs === 'object') {
-        configsMap = configs;
-    } else if (resetTimeConfigs) {
-        configsMap = resetTimeConfigs;
-    }
+    const configsMap = normalizeResetConfigs(configs != null ? configs : resetTimeConfigs);
 
     if (Object.keys(configsMap).length > 0) {
         await db.saveResetConfigs(configsMap);
