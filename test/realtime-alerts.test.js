@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 test('realtime alert bridge does not reorder React-managed boss rows', () => {
     const source = fs.readFileSync(
@@ -75,4 +76,80 @@ test('status action tooltips describe their real single-click behavior', () => {
         assert.doesNotMatch(bundle, new RegExp(`tooltip:\\"${label.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')} \\(click 2x\\)`));
     }
     assert.match(bridge, /tooltip_action_applied: 'ดำเนินการแล้ว'/);
+});
+
+test('boss color rules survive React row replacement and stay keyed by boss id', () => {
+    const source = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+    const start = source.indexOf('    function getEffectiveBossColor(');
+    const end = source.indexOf('    function applyRowBossColor(', start);
+    assert.ok(start >= 0 && end > start);
+
+    const styles = new Map();
+    const state = {
+        settings: { invasionColor: '#a855f7' },
+        bosses: new Map([
+            [10, { id: 10, name: 'Medusa', color: '#38bdf8', is_invasion: false }],
+            [65, { id: 65, name: 'Medusa', color: '#ffffff', is_invasion: true }],
+            [42, { id: 42, name: 'Talakin', color: null, is_invasion: false }]
+        ])
+    };
+    const document = {
+        head: { appendChild(element) { styles.set(element.id, element); } },
+        getElementById(id) { return styles.get(id) || null; },
+        createElement() { return { id: '', textContent: '' }; }
+    };
+    const context = { state, document, localStorage: { getItem() { return null; } } };
+    vm.runInNewContext(`${source.slice(start, end)}\nsyncBossColorStyles();`, context);
+
+    const css = styles.get('boss-name-colors-by-id').textContent;
+    assert.match(css, /tr\[data-boss-id="10"\].*color:#38bdf8!important/);
+    assert.match(css, /tr\[data-boss-id="65"\].*color:#a855f7!important/);
+    assert.doesNotMatch(css, /data-boss-id="42"/);
+    assert.doesNotMatch(css, /data-event-id|Medusa|Talakin/);
+});
+
+test('old live events cannot replace a newer boss color from the full poll snapshot', () => {
+    const source = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+    const start = source.indexOf('    function consumeLiveEvent(');
+    const end = source.indexOf('    // Reuse the dashboard', start);
+    assert.ok(start >= 0 && end > start);
+
+    const current = { id: 28, name: 'Medusa', color: '#38bdf8', updated_at: '2026-09-24T06:00:00.000Z' };
+    const oldEvent = {
+        id: 'old-color', type: 'boss_updated', bossId: 28,
+        boss: { ...current, color: null, updated_at: '2026-09-24T05:00:00.000Z' },
+        createdAt: 0
+    };
+    const state = {
+        bosses: new Map([[28, current]]), events: new Map(), seenEventIds: new Set(),
+        initialEventsLoaded: true, serverOffset: 0, settings: {}
+    };
+    const context = {
+        state,
+        sessionStorage: { setItem() {}, getItem() { return null; } },
+        reconcileBossRows() {}, updateStatus() {}, Date, Number,
+        document: { visibilityState: 'visible' }
+    };
+    vm.runInNewContext(source.slice(start, end), context);
+
+    context.consumeLiveEvent(oldEvent, true, true);
+    assert.equal(state.bosses.get(28).color, '#38bdf8');
+    context.consumeLiveEvent({ ...oldEvent, id: 'old-stream' }, true);
+    assert.equal(state.bosses.get(28).color, '#38bdf8');
+    context.consumeLiveEvent({
+        ...oldEvent, id: 'same-time-stream',
+        boss: { ...current, color: null }
+    }, true);
+    assert.equal(state.bosses.get(28).color, '#38bdf8');
+    context.consumeLiveEvent({
+        ...oldEvent, id: 'new-stream',
+        boss: { ...current, color: '#a855f7', updated_at: '2026-09-24T07:00:00.000Z' }
+    }, true);
+    assert.equal(state.bosses.get(28).color, '#a855f7');
 });

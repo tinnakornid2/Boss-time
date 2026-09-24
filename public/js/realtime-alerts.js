@@ -952,6 +952,27 @@
         return '';
     }
 
+    function syncBossColorStyles() {
+        const rules = [];
+        for (const boss of state.bosses.values()) {
+            const id = Number(boss.id);
+            const color = getEffectiveBossColor(boss);
+            if (!Number.isSafeInteger(id) || id < 0 || !/^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)) continue;
+            // These cells are the boss-name cells in all three React row types.
+            // A rule keyed by ID remains effective when React replaces a row.
+            const cell = `tr[data-boss-id="${id}"] > td.truncate:is(.font-medium,.font-semibold)`;
+            rules.push(`${cell},${cell} span.pre-spawn-name-blink,${cell} span.pre-spawn-name-blink-no-color{color:${color}!important}`);
+        }
+        const css = rules.join('\n');
+        let style = document.getElementById('boss-name-colors-by-id');
+        if (!style) {
+            style = document.createElement('style');
+            style.id = 'boss-name-colors-by-id';
+            document.head.appendChild(style);
+        }
+        if (style.textContent !== css) style.textContent = css;
+    }
+
     function applyRowBossColor(row, boss) {
         if (!row || !boss || isRowEvent(row)) return;
         const color = getEffectiveBossColor(boss);
@@ -1043,6 +1064,7 @@
 
     function reconcileBossRows() {
         const now = Date.now() + state.serverOffset;
+        syncBossColorStyles();
         for (const row of document.querySelectorAll('tr.realtime-pre-spawn-flash')) {
             row.classList.remove('realtime-pre-spawn-flash');
         }
@@ -1057,10 +1079,28 @@
         reconcileEventRows();
     }
 
-    function consumeLiveEvent(event, initial) {
+    function consumeLiveEvent(event, initial, fromFullSnapshot = false) {
         if (!event || !event.id) return;
-        if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
-        if (event.event) state.events.set(Number(event.event.id), event.event);
+        // /poll already contains the authoritative boss and event arrays. An
+        // older notification must not replace a newer row (including its color).
+        if (!fromFullSnapshot && event.boss) {
+            const id = Number(event.boss.id);
+            const current = state.bosses.get(id);
+            const incomingTime = Date.parse(event.boss.updated_at || '');
+            const currentTime = Date.parse(current?.updated_at || '');
+            if (!current || (Number.isFinite(incomingTime) && (!Number.isFinite(currentTime) || incomingTime > currentTime))) {
+                state.bosses.set(id, event.boss);
+            }
+        }
+        if (!fromFullSnapshot && event.event) {
+            const id = Number(event.event.id);
+            const current = state.events.get(id);
+            const incomingTime = Date.parse(event.event.updated_at || '');
+            const currentTime = Date.parse(current?.updated_at || '');
+            if (!current || (Number.isFinite(incomingTime) && (!Number.isFinite(currentTime) || incomingTime > currentTime))) {
+                state.events.set(id, event.event);
+            }
+        }
         if (state.seenEventIds.has(event.id)) return;
         const fresh = Math.abs(Date.now() - Number(event.createdAt || 0)) < 45000;
         state.lastEventId = event.id;
@@ -1068,7 +1108,6 @@
         if (state.seenEventIds.size > 100) state.seenEventIds.delete(state.seenEventIds.values().next().value);
         sessionStorage.setItem('bossTracker.lastLiveEvent', event.id);
         if (event.type === 'boss_pre_spawn_started') {
-            if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
             reconcileBossRows();
             if (!initial && fresh && document.visibilityState !== 'visible' && !isMuted(event.bossId, 'boss')) {
                 const key = setting('preSpawnSound', 'pop2');
@@ -1076,10 +1115,8 @@
                 showNotice(t('pre_spawn_toast', { name: event.bossName }), true);
             }
         } else if (event.type === 'boss_pre_spawn_cleared') {
-            if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
             reconcileBossRows();
         } else if (event.type === 'boss_time_unset' || event.type === 'boss_updated') {
-            if (event.boss) state.bosses.set(Number(event.boss.id), event.boss);
             reconcileBossRows();
         }
     }
@@ -1114,8 +1151,8 @@
             }
         }
         const initial = !state.initialEventsLoaded;
-        for (const event of data.recentLiveEvents || []) consumeLiveEvent(event, initial);
-        consumeLiveEvent(data.liveEvent, initial);
+        for (const event of data.recentLiveEvents || []) consumeLiveEvent(event, initial, true);
+        consumeLiveEvent(data.liveEvent, initial, true);
         state.initialEventsLoaded = true;
         reconcileBossRows();
         updateStatus();
