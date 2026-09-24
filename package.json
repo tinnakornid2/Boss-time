@@ -1,6 +1,6 @@
 {
   "name": "boss-tracker",
-  "version": "1.3.33",
+  "version": "1.3.34",
   "description": "Lineage 2 Real-Time Boss & Event Spawn Tracker",
   "main": "server/server.js",
   "scripts": {

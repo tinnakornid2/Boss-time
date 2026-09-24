@@ -11,7 +11,14 @@ const start = source.indexOf('function BS(t){');
 const end = source.indexOf('function US(t){', start);
 if (start < 0 || end < 0) throw new Error('Reset Boss Time component not found');
 if (source.slice(start, end).includes('Copied delay from')) {
-    console.log('Reset Boss Time UI patch already applied');
+    const before = 'bg-amber-400/5 px-2.5 py-1.5 text-[10px] text-amber-200",children:';
+    const after = 'bg-amber-400/5 px-2.5 py-1.5 text-[10px] text-amber-200",style:{columnGap:"4px",rowGap:"2px"},children:';
+    if (source.slice(start, end).includes(before)) {
+        fs.writeFileSync(bundlePath, source.slice(0, start) + source.slice(start, end).replace(before, after) + source.slice(end));
+        console.log('Reset Boss Time banner spacing updated');
+    } else {
+        console.log('Reset Boss Time UI patch already applied');
+    }
     process.exit(0);
 }
 
@@ -37,7 +44,7 @@ replaceOnce('e[70]!==o.length?', 'e[70]!==o.length||e[96]!==pasteTarget?');
 replaceOnce('e[70]=o.length,e[71]=ue', 'e[70]=o.length,e[96]=pasteTarget,e[71]=ue');
 replaceOnce(
     'children:[c.jsxs("div",{className:"flex items-center gap-1.5 border-b border-white/8 px-2.5 py-1.5"',
-    'children:[y&&c.jsxs("div",{className:"flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-b border-amber-400/20 bg-amber-400/5 px-2.5 py-1.5 text-[10px] text-amber-200",children:[c.jsx("span",{children:"Copied delay from"}),c.jsx("strong",{children:y.sourceName}),c.jsx("span",{children:`(${y.hours}h ${y.minutes}m)`}),c.jsx("span",{children:"Select a boss name below; Paste appears only on that row."}),pasteTarget&&c.jsx("strong",{className:"text-sky-300",children:`→ ${resetBossByKey[pasteTarget]?.name??""}`})]}),c.jsxs("div",{className:"flex items-center gap-1.5 border-b border-white/8 px-2.5 py-1.5"'
+    'children:[y&&c.jsxs("div",{className:"flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-b border-amber-400/20 bg-amber-400/5 px-2.5 py-1.5 text-[10px] text-amber-200",style:{columnGap:"4px",rowGap:"2px"},children:[c.jsx("span",{children:"Copied delay from"}),c.jsx("strong",{children:y.sourceName}),c.jsx("span",{children:`(${y.hours}h ${y.minutes}m)`}),c.jsx("span",{children:"Select a boss name below; Paste appears only on that row."}),pasteTarget&&c.jsx("strong",{className:"text-sky-300",children:`→ ${resetBossByKey[pasteTarget]?.name??""}`})]}),c.jsxs("div",{className:"flex items-center gap-1.5 border-b border-white/8 px-2.5 py-1.5"'
 );
 replaceOnce(
     'c.jsxs("span",{className:"truncate text-[11px] text-white/70",title:resetBossByKey[me]?.location??"",children:',

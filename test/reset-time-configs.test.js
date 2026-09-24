@@ -48,6 +48,7 @@ test('reset UI sorts names and only offers paste on the selected boss row', () =
     assert.match(resetUi, /y&&pasteTarget===me&&!_\.has\(me\)&&c\.jsx\("button",\{type:"button",title:"Paste copied delay here"/);
     assert.match(resetUi, /setPasteTarget\(null\),x\(null\)/);
     assert.match(resetUi, /sourceName:resetBossByKey\[me\]\?\.name/);
+    assert.match(resetUi, /style:\{columnGap:"4px",rowGap:"2px"\}/);
 });
 
 test('reset copy and paste instructions have Thai translations', () => {
