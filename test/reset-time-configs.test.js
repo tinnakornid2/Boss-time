@@ -33,3 +33,34 @@ test('admin reset UI keys rows and submissions by boss id', () => {
     assert.match(bundle, /boss_id:resetBossByKey\[me\]\?\.id/);
     assert.match(bundle, /\?"· Invasion":"· Normal"/);
 });
+
+test('reset UI sorts names and only offers paste on the selected boss row', () => {
+    const bundle = fs.readFileSync(
+        path.join(__dirname, '../public/build/assets/dashboard-B9CVP--8.js'),
+        'utf8'
+    );
+    const start = bundle.indexOf('function BS(t){');
+    const end = bundle.indexOf('function US(t){', start);
+    const resetUi = bundle.slice(start, end);
+
+    assert.match(resetUi, /me\.localeCompare\(Ne,"en",\{sensitivity:"base"\}\)\|\|W\.localeCompare\(ce\)/);
+    assert.match(resetUi, /\[pasteTarget,setPasteTarget\]=M\.useState\(null\)/);
+    assert.match(resetUi, /y&&pasteTarget===me&&!_\.has\(me\)&&c\.jsx\("button",\{type:"button",title:"Paste copied delay here"/);
+    assert.match(resetUi, /setPasteTarget\(null\),x\(null\)/);
+    assert.match(resetUi, /sourceName:resetBossByKey\[me\]\?\.name/);
+});
+
+test('reset copy and paste instructions have Thai translations', () => {
+    const script = fs.readFileSync(
+        path.join(__dirname, '../public/js/realtime-alerts.js'),
+        'utf8'
+    );
+    for (const phrase of [
+        'Copied delay from',
+        'Select a boss name below; Paste appears only on that row.',
+        'Select as paste destination',
+        'Paste copied delay here'
+    ]) {
+        assert.ok(script.includes(`['${phrase}',`), `missing translation: ${phrase}`);
+    }
+});
