@@ -901,9 +901,10 @@
         if (boss.id) {
             const byId = document.querySelectorAll(`tr[data-boss-id="${boss.id}"]`);
             if (byId.length > 0) return Array.from(byId).filter(row => !isRowEvent(row));
+            return [];
         }
         return Array.from(document.querySelectorAll('tr')).filter(row => {
-            if (isRowEvent(row)) return false;
+            if (isRowEvent(row) || row.hasAttribute('data-boss-id')) return false;
             const text = row.textContent || '';
             if (!text.includes(boss.name)) return false;
             const invLabel = state.settings?.invasionLabel || '';
@@ -924,9 +925,10 @@
         if (event.id) {
             const byId = document.querySelectorAll(`tr[data-event-id="${event.id}"]`);
             if (byId.length > 0) return Array.from(byId);
+            return [];
         }
         return Array.from(document.querySelectorAll('tr')).filter(row => {
-            if (!isRowEvent(row)) return false;
+            if (!isRowEvent(row) || row.hasAttribute('data-event-id')) return false;
             const text = row.textContent || '';
             return text.includes(event.name);
         });
@@ -965,7 +967,8 @@
             // These cells are the boss-name cells in all three React row types.
             // A rule keyed by ID remains effective when React replaces a row.
             const cell = `tr[data-boss-id="${id}"] > td.truncate:is(.font-medium,.font-semibold)`;
-            rules.push(`${cell},${cell} span.pre-spawn-name-blink,${cell} span.pre-spawn-name-blink-no-color{color:${color}!important}`);
+            const textShadow = (color !== '#ffffff' && color !== '#f4f4f5') ? `text-shadow:0 0 10px ${color}80!important;` : '';
+            rules.push(`${cell},${cell} span,${cell} span.pre-spawn-name-blink,${cell} span.pre-spawn-name-blink-no-color{color:${color}!important;${textShadow}}`);
         }
         const css = rules.join('\n');
         let style = document.getElementById('boss-name-colors-by-id');
@@ -979,6 +982,9 @@
 
     function applyRowBossColor(row, boss) {
         if (!row || !boss || isRowEvent(row)) return;
+        const rowBossId = row.getAttribute('data-boss-id');
+        if (rowBossId && String(boss.id) !== rowBossId) return;
+
         const color = getEffectiveBossColor(boss);
         const tds = row.querySelectorAll('td');
         const invLabel = (state.settings?.invasionLabel || '').trim();
@@ -1028,6 +1034,9 @@
 
     function applyRowEventColor(row, event) {
         if (!row || !event) return;
+        const rowEventId = row.getAttribute('data-event-id');
+        if (rowEventId && String(event.id) !== rowEventId) return;
+
         const color = (event.color && String(event.color).trim()) || '';
         const tds = row.querySelectorAll('td');
         for (const td of tds) {
@@ -1037,7 +1046,7 @@
                     td.setAttribute('data-event-custom-color', color);
                     const spans = td.querySelectorAll('span');
                     for (const sp of spans) {
-                        sp.style.setProperty('color', color, 'important');
+                        const spText = (sp.textContent || '').trim();
                         if (color !== '#ffffff' && color !== '#f4f4f5') {
                             sp.style.setProperty('text-shadow', `0 0 10px ${color}80`, 'important');
                         } else {
@@ -1093,7 +1102,13 @@
             const incomingTime = Date.parse(event.boss.updated_at || '');
             const currentTime = Date.parse(current?.updated_at || '');
             if (!current || (Number.isFinite(incomingTime) && (!Number.isFinite(currentTime) || incomingTime > currentTime))) {
-                state.bosses.set(id, event.boss);
+                const incomingBoss = {
+                    ...event.boss,
+                    color: (event.boss.color !== undefined)
+                        ? event.boss.color
+                        : (current?.color || null)
+                };
+                state.bosses.set(id, incomingBoss);
             }
         }
         if (!fromFullSnapshot && event.event) {
@@ -1102,7 +1117,13 @@
             const incomingTime = Date.parse(event.event.updated_at || '');
             const currentTime = Date.parse(current?.updated_at || '');
             if (!current || (Number.isFinite(incomingTime) && (!Number.isFinite(currentTime) || incomingTime > currentTime))) {
-                state.events.set(id, event.event);
+                const incomingEvent = {
+                    ...event.event,
+                    color: (event.event.color !== undefined)
+                        ? event.event.color
+                        : (current?.color || null)
+                };
+                state.events.set(id, incomingEvent);
             }
         }
         if (state.seenEventIds.has(event.id)) return;
@@ -1128,13 +1149,21 @@
     function processPollData(data) {
         if (Number.isFinite(Number(data.serverTime))) state.serverOffset = Number(data.serverTime) - Date.now();
         for (const boss of data.bosses || []) {
-            state.bosses.set(Number(boss.id), boss);
+            const id = Number(boss.id);
+            const current = state.bosses.get(id);
+            const cleanBoss = {
+                ...boss,
+                color: (boss.color !== undefined)
+                    ? boss.color
+                    : (current?.color || null)
+            };
+            state.bosses.set(id, cleanBoss);
             const pendingKey = `pending_new_boss_color_${(boss.name || '').toLowerCase()}`;
             const pendingColor = sessionStorage.getItem(pendingKey);
             if (pendingColor !== null) {
                 sessionStorage.removeItem(pendingKey);
-                if (pendingColor && boss.color !== pendingColor) {
-                    boss.color = pendingColor;
+                if (pendingColor && cleanBoss.color !== pendingColor) {
+                    cleanBoss.color = pendingColor;
                     fetch(`/bosses/${boss.id}/color`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -1143,7 +1172,17 @@
                 }
             }
         }
-        for (const event of data.events || []) state.events.set(Number(event.id), event);
+        for (const event of data.events || []) {
+            const id = Number(event.id);
+            const current = state.events.get(id);
+            const cleanEvent = {
+                ...event,
+                color: (event.color !== undefined)
+                    ? event.color
+                    : (current?.color || null)
+            };
+            state.events.set(id, cleanEvent);
+        }
         if (data.invasionColor) {
             if (!state.settings) state.settings = {};
             const cleanInvColor = String(data.invasionColor).trim();

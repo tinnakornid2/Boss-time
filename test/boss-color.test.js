@@ -229,4 +229,98 @@ test('Event color: Event rows and Boss rows isolation contract (No color bleedin
     assert.ok(gasSrc.includes("ev.color || ''"));
     assert.ok(gasSrc.includes("color: erow[9] ? String(erow[9]).trim() : null"));
 });
+test('Boss color: bossRows and applyRowBossColor strictly isolate by boss id (prevents duplicate-name color wipeout)', () => {
+    const alertsSrc = fs.readFileSync(path.join(__dirname, '../public/js/realtime-alerts.js'), 'utf8');
+    
+    // Verify bossRows returns [] if boss.id is present but not found in DOM
+    assert.ok(alertsSrc.includes('const byId = document.querySelectorAll('));
+    assert.ok(alertsSrc.includes('if (byId.length > 0) return Array.from(byId).filter(row => !isRowEvent(row));'));
 
+    // Verify applyRowBossColor verifies rowBossId matches boss.id
+    assert.ok(alertsSrc.includes("const rowBossId = row.getAttribute('data-boss-id');"));
+    assert.ok(alertsSrc.includes("if (rowBossId && String(boss.id) !== rowBossId) return;"));
+
+    // Verify syncBossColorStyles includes span and text-shadow
+    assert.ok(alertsSrc.includes('span.pre-spawn-name-blink,'));
+    assert.ok(alertsSrc.includes('textShadow'));
+});
+
+test('Boss color: Google Apps Script readFullStore maps color column accurately', () => {
+    const gasSrc = fs.readFileSync(path.join(__dirname, '../google_apps_script/Code.gs'), 'utf8');
+    assert.ok(gasSrc.includes("color: row[6] ? String(row[6]).trim() : null,"));
+    assert.ok(gasSrc.includes("last_kill_time: row[7] ? String(row[7]) : null,"));
+    assert.ok(gasSrc.includes("next_spawn: row[8] ? String(row[8]) : null,"));
+});
+
+test('Boss color: unset boss with null color cannot strip color from active queue row with duplicate name', () => {
+    const alertsSrc = fs.readFileSync(path.join(__dirname, '../public/js/realtime-alerts.js'), 'utf8');
+    const start = alertsSrc.indexOf('    function bossRows(');
+    const end = alertsSrc.indexOf('    function reconcileEventRows()');
+    assert.ok(start >= 0 && end > start);
+
+    // Mock DOM
+    const queueSpan = {
+        textContent: 'Valefar',
+        classList: { contains() { return false; } },
+        style: {
+            props: { color: '#3e91fe', 'text-shadow': '0 0 10px #3e91fe80' },
+            setProperty(k, v) { this.props[k] = v; },
+            removeProperty(k) { delete this.props[k]; }
+        }
+    };
+    const queueTd = {
+        textContent: 'Valefar',
+        style: {
+            props: { color: '#3e91fe' },
+            setProperty(k, v) { this.props[k] = v; },
+            removeProperty(k) { delete this.props[k]; }
+        },
+        hasAttribute(attr) { return attr === 'data-boss-custom-color'; },
+        setAttribute(attr, val) { this[attr] = val; },
+        removeAttribute(attr) { delete this[attr]; },
+        querySelectorAll(selector) {
+            if (selector === 'span') return [queueSpan];
+            return [];
+        }
+    };
+    const queueRow = {
+        getAttribute(attr) { if (attr === 'data-boss-id') return '101'; return null; },
+        hasAttribute(attr) { return attr === 'data-boss-id'; },
+        textContent: 'Valefar 02:45',
+        querySelectorAll(selector) {
+            if (selector === 'td') return [queueTd];
+            return [];
+        }
+    };
+
+    const documentMock = {
+        querySelectorAll(selector) {
+            if (selector === 'tr[data-boss-id="101"]') return [queueRow];
+            if (selector === 'tr[data-boss-id="102"]') return [];
+            if (selector === 'tr') return [queueRow];
+            return [];
+        }
+    };
+
+    const context = {
+        document: documentMock,
+        state: { settings: {} },
+        localStorage: { getItem() { return null; } },
+        isRowEvent() { return false; },
+        Array
+    };
+
+    const vm = require('vm');
+    vm.runInNewContext(alertsSrc.slice(start, end), context);
+
+    // Call bossRows for unset boss 102 (same name "Valefar", but id 102)
+    const unsetBoss = { id: 102, name: 'Valefar', color: null };
+    const matchingRows = context.bossRows(unsetBoss);
+    assert.equal(matchingRows.length, 0); // Must NOT match queueRow (id 101)
+
+    // Even if applyRowBossColor is called with queueRow and unsetBoss
+    context.applyRowBossColor(queueRow, unsetBoss);
+    // Queue span color and text-shadow must be preserved!
+    assert.equal(queueSpan.style.props['color'], '#3e91fe');
+    assert.equal(queueSpan.style.props['text-shadow'], '0 0 10px #3e91fe80');
+});

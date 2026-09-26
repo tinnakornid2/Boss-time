@@ -387,13 +387,14 @@ function readFullStore(ss) {
         interval: Number(row[3]) || 60,
         chance_of_appearing: String(row[4]),
         is_invasion: String(row[5]) === 'YES',
-        last_kill_time: row[6] ? String(row[6]) : null,
-        next_spawn: row[7] ? String(row[7]) : null,
-        pinned_alive: String(row[8]) === 'YES',
-        auto_advanced: String(row[9]) === 'YES',
-        post_maintenance: String(row[10]) === 'YES',
-        pre_spawned: String(row[11]) === 'YES',
-        updated_at: row[12] ? String(row[12]) : new Date().toISOString()
+        color: row[6] ? String(row[6]).trim() : null,
+        last_kill_time: row[7] ? String(row[7]) : null,
+        next_spawn: row[8] ? String(row[8]) : null,
+        pinned_alive: String(row[9]) === 'YES',
+        auto_advanced: String(row[10]) === 'YES',
+        post_maintenance: String(row[11]) === 'YES',
+        pre_spawned: String(row[12]) === 'YES',
+        updated_at: row[13] ? String(row[13]) : new Date().toISOString()
       });
     }
   }
