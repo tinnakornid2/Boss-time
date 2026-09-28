@@ -882,7 +882,7 @@
         const toast = document.createElement('div');
         toast.id = 'realtime-alert-toast';
         toast.textContent = message;
-        toast.style.cssText = `position:fixed;right:12px;top:12px;left:auto;bottom:auto;transform:none;z-index:100001;max-width:min(320px,76vw);padding:8px 12px;border-radius:8px;background:${urgent ? '#7f1d1d' : '#172554'};border:1px solid ${urgent ? '#ef4444' : '#3b82f6'};color:white;font:700 12px/1.35 system-ui;box-shadow:0 8px 30px #000a;white-space:normal;overflow-wrap:anywhere;cursor:pointer`;
+        toast.style.cssText = `position:fixed;left:12px;top:12px;right:auto;bottom:auto;transform:none;z-index:100001;max-width:min(320px,76vw);padding:8px 12px;border-radius:8px;background:${urgent ? '#7f1d1d' : '#172554'};border:1px solid ${urgent ? '#ef4444' : '#3b82f6'};color:white;font:700 12px/1.35 system-ui;box-shadow:0 8px 30px #000a;white-space:normal;overflow-wrap:anywhere;cursor:pointer`;
         toast.onclick = () => toast.remove();
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 5000);
@@ -2180,6 +2180,12 @@
     }
 
     function enhanceUi() {
+        if (!document.getElementById('action-toast-position')) {
+            const s = document.createElement('style');
+            s.id = 'action-toast-position';
+            s.textContent = '.fixed.bottom-4.left-4{left:1rem!important;right:auto!important}';
+            document.head.appendChild(s);
+        }
         for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
         for (const element of document.querySelectorAll('button, [role="button"], a, [title], [data-unified-tooltip], [data-i18n-title]')) {
             const existingTitle = element.getAttribute('title');
