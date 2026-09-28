@@ -20,7 +20,7 @@ test('realtime alert popup stays away from top boss names', () => {
         'utf8'
     );
 
-    assert.match(source, /right:10px;bottom:10px;left:auto;top:auto/);
+    assert.match(source, /right:12px;top:12px;left:auto;bottom:auto/);
     assert.doesNotMatch(source, /left:50%;top:52px;transform:translateX\(-50%\)/);
     assert.match(source, /setTimeout\(\(\) => toast\.remove\(\), 5000\)/);
 });
@@ -152,4 +152,13 @@ test('old live events cannot replace a newer boss color from the full poll snaps
         boss: { ...current, color: '#a855f7', updated_at: '2026-09-24T07:00:00.000Z' }
     }, true);
     assert.equal(state.bosses.get(28).color, '#a855f7');
+});
+test('Action toast (kill and event undo) sits at bottom-right corner of screen', () => {
+    const bundle = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'build', 'assets', 'dashboard-B9CVP--8.js'),
+        'utf8'
+    );
+
+    assert.match(bundle, /className:"fixed bottom-4 right-4 z-50 flex items-center gap-3/);
+    assert.doesNotMatch(bundle, /className:"fixed bottom-4 left-1\/2 z-50 flex -translate-x-1\/2 items-center gap-3/);
 });
