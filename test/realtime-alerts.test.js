@@ -22,7 +22,7 @@ test('realtime alert popup stays away from top boss names', () => {
 
     assert.match(source, /left:12px;bottom:12px;right:auto;top:auto/);
     assert.doesNotMatch(source, /left:50%;top:52px;transform:translateX\(-50%\)/);
-    assert.match(source, /setTimeout\(\(\) => toast\.remove\(\), 5000\)/);
+    assert.match(source, /setTimeout\(\(\) => toast\.remove\(\), 10000\)/);
 });
 
 test('Kill Now captures first-click time and requires a second click before submitting', () => {
@@ -171,4 +171,34 @@ test('checkScheduledAlerts triggers showNotice for both bosses and events regard
     assert.match(alertsSource, /left:12px;bottom:12px;right:auto;top:auto/);
     assert.match(alertsSource, /Notification\.permission === 'granted'/);
     assert.match(alertsSource, /if \(!handledByDashboard\) \{\s*playSound/);
+});
+test('Realtime alerts stack multiple toasts vertically with earlier boss floating upward', () => {
+    const alertsSource = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+
+    // Verify container uses flex column anchored at bottom-left
+    assert.match(alertsSource, /id = 'realtime-toast-container'/);
+    assert.match(alertsSource, /left:12px;bottom:12px;right:auto;top:auto;display:flex;flex-direction:column;gap:6px/);
+    assert.match(alertsSource, /container\.appendChild\(toast\)/);
+    // Verify max 3 items to avoid blocking game UI
+    assert.match(alertsSource, /container\.children\.length >= 3/);
+    assert.match(alertsSource, /container\.firstElementChild\.remove\(\)/);
+});
+test('Spawned alert replaces earlier pre-spawn alert for the same boss without competing for space', () => {
+    const alertsSource = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+
+    // Verify removeTargetNotice helper exists
+    assert.match(alertsSource, /function removeTargetNotice\(targetId\)/);
+    // Verify showNotice removes prior alert for same target
+    assert.match(alertsSource, /if \(targetId !== null\) \{\s*removeTargetNotice\(targetId\);/);
+    // Verify targetId is tagged on toast DOM
+    assert.match(alertsSource, /toast\.setAttribute\('data-alert-target', String\(targetId\)\)/);
+    // Verify checkScheduledAlerts passes targetId
+    assert.ok(alertsSource.includes("showNotice(t('spawn_soon_notice', { name: item.name, min: minLeft }), false, `${kind}_${item.id}`, 'spawn_soon');"));
+    assert.ok(alertsSource.includes("showNotice(t('spawned_notice', { name: item.name }), true, `${kind}_${item.id}`, 'spawned');"));
 });

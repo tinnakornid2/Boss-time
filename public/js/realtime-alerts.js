@@ -876,7 +876,26 @@
         })();
     }
 
-    function showNotice(message, urgent) {
+    function ensureToastContainer() {
+        let container = document.getElementById('realtime-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'realtime-toast-container';
+            container.style.cssText = 'position:fixed;left:12px;bottom:12px;right:auto;top:auto;display:flex;flex-direction:column;gap:6px;z-index:100001;pointer-events:none;max-width:min(280px,68vw);';
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    function removeTargetNotice(targetId) {
+        if (!targetId) return;
+        const container = document.getElementById('realtime-toast-container');
+        if (!container) return;
+        const existing = container.querySelectorAll(`[data-alert-target="${targetId}"]`);
+        for (const el of existing) el.remove();
+    }
+
+    function showNotice(message, urgent, targetId = null, alertType = null) {
         if ('Notification' in window && Notification.permission === 'granted') {
             try {
                 new Notification('Boss Tracker', {
@@ -886,15 +905,24 @@
                 });
             } catch (_) {}
         }
-        const old = document.getElementById('realtime-alert-toast');
-        if (old) old.remove();
+        const container = ensureToastContainer();
+        // If an alert for the same boss/event already exists (e.g. pre-spawn notice),
+        // remove it so it does not compete for space with the newer alert (such as spawned)
+        if (targetId !== null) {
+            removeTargetNotice(targetId);
+        }
+        while (container.children.length >= 3) {
+            container.firstElementChild.remove();
+        }
         const toast = document.createElement('div');
-        toast.id = 'realtime-alert-toast';
+        toast.className = 'realtime-alert-toast-item';
+        if (targetId !== null) toast.setAttribute('data-alert-target', String(targetId));
+        if (alertType) toast.setAttribute('data-alert-type', alertType);
         toast.textContent = message;
-        toast.style.cssText = `position:fixed;left:12px;bottom:12px;right:auto;top:auto;transform:none;z-index:100001;max-width:min(280px,68vw);padding:6px 11px;border-radius:6px;background:${urgent ? 'rgba(127,29,29,0.96)' : 'rgba(15,23,42,0.96)'};border:1px solid ${urgent ? '#ef4444' : '#38bdf8'};color:white;font:700 11.5px/1.3 system-ui,-apple-system,sans-serif;box-shadow:${urgent ? '0 0 10px rgba(239,68,68,0.45),0 4px 18px rgba(0,0,0,0.85)' : '0 0 10px rgba(56,189,248,0.4),0 4px 18px rgba(0,0,0,0.85)'};text-shadow:0 1px 2px rgba(0,0,0,0.9);white-space:normal;overflow-wrap:anywhere;cursor:pointer`;
+        toast.style.cssText = `pointer-events:auto;transition:all 0.25s ease-out;padding:6px 11px;border-radius:6px;background:${urgent ? 'rgba(127,29,29,0.96)' : 'rgba(15,23,42,0.96)'};border:1px solid ${urgent ? '#ef4444' : '#38bdf8'};color:white;font:700 11.5px/1.3 system-ui,-apple-system,sans-serif;box-shadow:${urgent ? '0 0 10px rgba(239,68,68,0.45),0 4px 18px rgba(0,0,0,0.85)' : '0 0 10px rgba(56,189,248,0.4),0 4px 18px rgba(0,0,0,0.85)'};text-shadow:0 1px 2px rgba(0,0,0,0.9);white-space:normal;overflow-wrap:anywhere;cursor:pointer`;
         toast.onclick = () => toast.remove();
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 5000);
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 10000);
     }
     function isRowEvent(row) {
         if (!row) return false;
@@ -1148,7 +1176,7 @@
                     const key = setting('preSpawnSound', 'pop2');
                     playSound(soundPath(key, '/pop2.mp3'));
                 }
-                showNotice(t('pre_spawn_toast', { name: event.bossName }), true);
+                showNotice(t('pre_spawn_toast', { name: event.bossName }), true, `boss_${event.bossId}`, 'pre_spawn');
             }
         } else if (event.type === 'boss_pre_spawn_cleared') {
             reconcileBossRows();
@@ -2250,7 +2278,7 @@
                     playSound(soundPath(setting('alertSound', 'alert'), '/alert.mp3'));
                 }
                 const minLeft = Math.max(0, Math.ceil(diff / 60000));
-                showNotice(t('spawn_soon_notice', { name: item.name, min: minLeft }), false);
+                showNotice(t('spawn_soon_notice', { name: item.name, min: minLeft }), false, `${kind}_${item.id}`, 'spawn_soon');
             }
             if (diff <= 0 && diff > -90000 && !state.alerted.has(spawnKey)) {
                 state.alerted.add(spawnKey);
@@ -2259,7 +2287,7 @@
                     const path = selected === 'default' ? '/just-spawned.mp3' : soundPath(selected, '/just-spawned.mp3');
                     playSound(path);
                 }
-                showNotice(t('spawned_notice', { name: item.name }), true);
+                showNotice(t('spawned_notice', { name: item.name }), true, `${kind}_${item.id}`, 'spawned');
             }
         }
     }
