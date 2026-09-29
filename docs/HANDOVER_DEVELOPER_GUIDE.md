@@ -115,8 +115,9 @@ npm run backup
 
 ## 🚫 5. ข้อห้ามเด็ดขาด (Golden Rules)
 
-1. ❌ **ห้ามคอมมิตไฟล์ `server/data/store.json` หรือรหัสผ่านลง Git**
-2. ❌ **ห้ามยิง Request ไป Firebase หรือ Google Sheets ทุกวินาที** (ต้องใช้ Local Timer เสมอ)
-3. ❌ **ห้ามแปลชื่อบอส** (เช่น ห้ามแปล Antharas, Baium เป็นภาษาไทย)
-4. ❌ **ห้ามลบ Recovery Tags** (`stable-v1.3.27`, `stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
+1. 🛑 **กฎเหล็กเด็ดขาด: ห้าม Deploy หรือ Push ขึ้น Production เด็ดขาด จนกว่าผู้ใช้จะอนุญาตอย่างชัดเจน** (เช่น ผู้ใช้ต้องพิมพ์คำว่า "deploy" หรือ "อนุญาตให้ deploy" ในแชทเท่านั้น ห้ามอนุมานเอาเองหรือ deploy อัตโนมัติหลังรันเทสผ่าน)
+2. ❌ **ห้ามคอมมิตไฟล์ `server/data/store.json` หรือรหัสผ่านลง Git** (ต้องตรวจสอบ SHA-256 ก่อนและหลังเทสเสมอ)
+3. ❌ **ห้ามยิง Request ไป Firebase หรือ Google Sheets ทุกวินาที** (ต้องใช้ Local Timer เสมอ)
+4. ❌ **ห้ามแปลชื่อบอส** (เช่น ห้ามแปล Antharas, Baium เป็นภาษาไทย)
+5. ❌ **ห้ามลบ Recovery Tags** (`stable-v1.3.30`, `stable-v1.3.27`, `stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
 

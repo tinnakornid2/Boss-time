@@ -80,13 +80,19 @@ Before editing:
 
 Before production deployment:
 
-> CRITICAL DEPLOYMENT GATE: This section is mandatory. Stop the deployment if any check fails. Preserve `server/data/store.json` byte-for-byte around tests, verify its SHA-256 before/after, and never include it in staged or deployed files.
+> CRITICAL DEPLOYMENT GATE: This section is mandatory. Stop the deployment if any check fails.
+>
+> 🛑 IRONCLAD RULE — EXPLICIT USER PERMISSION REQUIRED:
+> NEVER deploy to production, push to main, or trigger a release without EXPLICIT, UNAMBIGUOUS permission from the user in the current chat turn (e.g. user expressly types "deploy" or "อนุญาตให้ deploy"). Asking "Ready to deploy?" and receiving any general or ambiguous reply is NOT permission. You MUST halt immediately after tests pass and await explicit deployment authorization.
+>
+> Preserve `server/data/store.json` byte-for-byte around tests, verify its SHA-256 before/after, and never include it in staged or deployed files.
 
 1. Run syntax checks for changed JavaScript files.
 2. Run `npm test`; the Unset, five-minute NOW, Still Alive, and catch-up tests must pass.
 3. Review the staged file list and exclude `server/data/store.json` and secrets.
-4. Deploy through GitHub/Vercel and verify the production version, authentication boundary, Firebase readiness, browser console, and relevant user flow.
-5. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` unchanged; use `stable-v1.3.25` as the primary recovery point.
+4. Obtain explicit user permission to deploy. Do NOT deploy without this confirmation.
+5. Deploy through GitHub/Vercel and verify the production version, authentication boundary, Firebase readiness, browser console, and relevant user flow.
+6. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` unchanged; use `stable-v1.3.25` as the primary recovery point.
 
 ## Parallel Google Sheets Mirror & Failover
 
