@@ -20,7 +20,7 @@ test('realtime alert popup stays away from top boss names', () => {
         'utf8'
     );
 
-    assert.match(source, /left:12px;top:12px;right:auto;bottom:auto/);
+    assert.match(source, /left:12px;bottom:12px;right:auto;top:auto/);
     assert.doesNotMatch(source, /left:50%;top:52px;transform:translateX\(-50%\)/);
     assert.match(source, /setTimeout\(\(\) => toast\.remove\(\), 5000\)/);
 });
@@ -161,4 +161,14 @@ test('Action toast (kill and event undo) sits at bottom-left corner of screen', 
 
     assert.match(bundle, /className:"fixed bottom-4 left-4 z-50 flex items-center gap-3/);
     assert.doesNotMatch(bundle, /className:"fixed bottom-4 left-1\/2 z-50 flex -translate-x-1\/2 items-center gap-3/);
+});
+test('checkScheduledAlerts triggers showNotice for both bosses and events regardless of tab visibility', () => {
+    const alertsSource = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+
+    assert.match(alertsSource, /left:12px;bottom:12px;right:auto;top:auto/);
+    assert.match(alertsSource, /Notification\.permission === 'granted'/);
+    assert.match(alertsSource, /if \(!handledByDashboard\) \{\s*playSound/);
 });

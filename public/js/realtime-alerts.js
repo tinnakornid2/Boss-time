@@ -877,17 +877,25 @@
     }
 
     function showNotice(message, urgent) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+                new Notification('Boss Tracker', {
+                    body: message,
+                    icon: '/favicon.png',
+                    silent: true
+                });
+            } catch (_) {}
+        }
         const old = document.getElementById('realtime-alert-toast');
         if (old) old.remove();
         const toast = document.createElement('div');
         toast.id = 'realtime-alert-toast';
         toast.textContent = message;
-        toast.style.cssText = `position:fixed;left:12px;top:12px;right:auto;bottom:auto;transform:none;z-index:100001;max-width:min(320px,76vw);padding:8px 12px;border-radius:8px;background:${urgent ? '#7f1d1d' : '#172554'};border:1px solid ${urgent ? '#ef4444' : '#3b82f6'};color:white;font:700 12px/1.35 system-ui;box-shadow:0 8px 30px #000a;white-space:normal;overflow-wrap:anywhere;cursor:pointer`;
+        toast.style.cssText = `position:fixed;left:12px;bottom:12px;right:auto;top:auto;transform:none;z-index:100001;max-width:min(280px,68vw);padding:6px 11px;border-radius:6px;background:${urgent ? 'rgba(127,29,29,0.96)' : 'rgba(15,23,42,0.96)'};border:1px solid ${urgent ? '#ef4444' : '#38bdf8'};color:white;font:700 11.5px/1.3 system-ui,-apple-system,sans-serif;box-shadow:${urgent ? '0 0 10px rgba(239,68,68,0.45),0 4px 18px rgba(0,0,0,0.85)' : '0 0 10px rgba(56,189,248,0.4),0 4px 18px rgba(0,0,0,0.85)'};text-shadow:0 1px 2px rgba(0,0,0,0.9);white-space:normal;overflow-wrap:anywhere;cursor:pointer`;
         toast.onclick = () => toast.remove();
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 5000);
     }
-
     function isRowEvent(row) {
         if (!row) return false;
         if (row.hasAttribute('data-event-id') || row.getAttribute('data-is-event') === 'true') return true;
@@ -1135,9 +1143,11 @@
         sessionStorage.setItem('bossTracker.lastLiveEvent', event.id);
         if (event.type === 'boss_pre_spawn_started') {
             reconcileBossRows();
-            if (!initial && fresh && document.visibilityState !== 'visible' && !isMuted(event.bossId, 'boss')) {
-                const key = setting('preSpawnSound', 'pop2');
-                playSound(soundPath(key, '/pop2.mp3'));
+            if (!initial && fresh && !isMuted(event.bossId, 'boss')) {
+                if (document.visibilityState !== 'visible') {
+                    const key = setting('preSpawnSound', 'pop2');
+                    playSound(soundPath(key, '/pop2.mp3'));
+                }
                 showNotice(t('pre_spawn_toast', { name: event.bossName }), true);
             }
         } else if (event.type === 'boss_pre_spawn_cleared') {
@@ -2183,7 +2193,7 @@
         if (!document.getElementById('action-toast-position')) {
             const s = document.createElement('style');
             s.id = 'action-toast-position';
-            s.textContent = '.fixed.bottom-4.left-4{left:1rem!important;right:auto!important}';
+            s.textContent = '.fixed.bottom-4.left-4{left:12px!important;bottom:52px!important;right:auto!important}';
             document.head.appendChild(s);
         }
         for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
@@ -2233,25 +2243,26 @@
             const diff = spawnAt - now;
             const preKey = `pre:${kind}:${item.id}:${item.next_spawn}`;
             const spawnKey = `spawn:${kind}:${item.id}:${item.next_spawn}`;
-            // The existing dashboard already handles visible boss alerts. This bridge
-            // covers game events and background tabs without playing the same sound twice.
             const handledByDashboard = kind === 'boss' && document.visibilityState === 'visible';
-            if (!handledByDashboard && diff <= threshold && diff > -30000 && !state.alerted.has(preKey)) {
+            if (diff <= threshold && diff > -30000 && !state.alerted.has(preKey)) {
                 state.alerted.add(preKey);
-                playSound(soundPath(setting('alertSound', 'alert'), '/alert.mp3'));
+                if (!handledByDashboard) {
+                    playSound(soundPath(setting('alertSound', 'alert'), '/alert.mp3'));
+                }
                 const minLeft = Math.max(0, Math.ceil(diff / 60000));
                 showNotice(t('spawn_soon_notice', { name: item.name, min: minLeft }), false);
             }
-            if (!handledByDashboard && diff <= 0 && diff > -90000 && !state.alerted.has(spawnKey)) {
+            if (diff <= 0 && diff > -90000 && !state.alerted.has(spawnKey)) {
                 state.alerted.add(spawnKey);
-                const selected = setting('justSpawnedSound', 'default');
-                const path = selected === 'default' ? '/just-spawned.mp3' : soundPath(selected, '/just-spawned.mp3');
-                playSound(path);
+                if (!handledByDashboard) {
+                    const selected = setting('justSpawnedSound', 'default');
+                    const path = selected === 'default' ? '/just-spawned.mp3' : soundPath(selected, '/just-spawned.mp3');
+                    playSound(path);
+                }
                 showNotice(t('spawned_notice', { name: item.name }), true);
             }
         }
     }
-
     document.addEventListener('DOMContentLoaded', () => {
         readInitialData();
         ensureStatusButton();
