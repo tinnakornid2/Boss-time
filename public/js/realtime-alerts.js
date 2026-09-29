@@ -37,6 +37,7 @@
         streamConnected: false,
         streamFailed: false,
         alerted: new Set(),
+        initialAlertScanDone: false,
         lastPlayedAt: 0,
         serverOffset: 0,
         initialEventsLoaded: false,
@@ -895,7 +896,57 @@
         for (const el of existing) el.remove();
     }
 
-    function showNotice(message, urgent, targetId = null, alertType = null) {
+        function isInvasionHidden() {
+        if (state.settings && typeof state.settings.hideInvasionBosses === 'boolean') {
+            return state.settings.hideInvasionBosses;
+        }
+        try {
+            const raw = localStorage.getItem('dashboard.hideInvasionBosses');
+            if (raw === 'true') return true;
+            if (raw === 'false') return false;
+        } catch (_) {}
+        const root = document.getElementById('app');
+        if (root) {
+            try {
+                const page = JSON.parse(root.getAttribute('data-page') || '{}');
+                if (typeof page.props?.hideInvasionBosses === 'boolean') {
+                    return Boolean(page.props.hideInvasionBosses);
+                }
+            } catch (_) {}
+        }
+        return false;
+    }
+
+    function getItemAlertDisplay(item, kind) {
+        if (!item) return { plainName: '', color: '', isInvasion: false, invColor: '', prefixTag: '', locationText: '' };
+        const isInvasion = kind === 'boss' && Boolean(item.is_invasion);
+        const invLabel = (state.settings?.invasionLabel || localStorage.getItem('dashboard.invasionLabel') || 'L3').trim();
+        const invColor = getEffectiveBossColor({ is_invasion: true }) || '#facc15';
+
+        let color = '';
+        let prefixTag = '';
+        if (kind === 'boss') {
+            color = getEffectiveBossColor(item);
+            if (isInvasion) {
+                prefixTag = `[${invLabel}] `;
+            }
+        } else if (kind === 'event') {
+            color = (item.color && String(item.color).trim()) || '#38bdf8';
+        }
+
+        const locationText = item.location ? ` (${item.location})` : '';
+        const plainName = `${prefixTag}${item.name}${locationText}`;
+        return {
+            plainName,
+            color,
+            isInvasion,
+            invColor,
+            prefixTag,
+            locationText
+        };
+    }
+
+    function showNotice(message, urgent, targetId = null, alertType = null, options = null) {
         if ('Notification' in window && Notification.permission === 'granted') {
             try {
                 new Notification('Boss Tracker', {
@@ -918,8 +969,56 @@
         toast.className = 'realtime-alert-toast-item';
         if (targetId !== null) toast.setAttribute('data-alert-target', String(targetId));
         if (alertType) toast.setAttribute('data-alert-type', alertType);
-        toast.textContent = message;
-        toast.style.cssText = `pointer-events:auto;transition:all 0.25s ease-out;padding:6px 11px;border-radius:6px;background:${urgent ? 'rgba(127,29,29,0.96)' : 'rgba(15,23,42,0.96)'};border:1px solid ${urgent ? '#ef4444' : '#38bdf8'};color:white;font:700 11.5px/1.3 system-ui,-apple-system,sans-serif;box-shadow:${urgent ? '0 0 10px rgba(239,68,68,0.45),0 4px 18px rgba(0,0,0,0.85)' : '0 0 10px rgba(56,189,248,0.4),0 4px 18px rgba(0,0,0,0.85)'};text-shadow:0 1px 2px rgba(0,0,0,0.9);white-space:normal;overflow-wrap:anywhere;cursor:pointer`;
+
+        const customColor = options?.color;
+        const isInvasion = Boolean(options?.isInvasion);
+        const invColor = options?.invColor || '#facc15';
+
+        // Border & glow
+        let borderStyle = urgent ? '#ef4444' : '#38bdf8';
+        let glowStyle = urgent
+            ? '0 0 10px rgba(239,68,68,0.45), 0 4px 18px rgba(0,0,0,0.85)'
+            : '0 0 10px rgba(56,189,248,0.4), 0 4px 18px rgba(0,0,0,0.85)';
+        let bgStyle = urgent ? 'rgba(127,29,29,0.96)' : 'rgba(15,23,42,0.96)';
+
+        if (isInvasion && !urgent) {
+            borderStyle = invColor;
+            glowStyle = `0 0 10px ${invColor}66, 0 4px 18px rgba(0,0,0,0.85)`;
+        }
+
+        toast.style.cssText = `pointer-events:auto;transition:all 0.25s ease-out;padding:6px 11px;border-radius:6px;background:${bgStyle};border:1px solid ${borderStyle};color:white;font:700 11.5px/1.3 system-ui,-apple-system,sans-serif;box-shadow:${glowStyle};text-shadow:0 1px 2px rgba(0,0,0,0.9);white-space:normal;overflow-wrap:anywhere;cursor:pointer`;
+
+        if (options && (customColor || isInvasion)) {
+            const fontColor = customColor || (isInvasion ? invColor : '#ffffff');
+            const shadow = (fontColor && fontColor !== '#ffffff' && fontColor !== '#f4f4f5') ? `text-shadow:0 0 8px ${fontColor}80;` : '';
+            const tag = options.prefixTag || '';
+            const loc = options.location || '';
+            const rawName = options.rawName || '';
+
+            let titlePrefix = urgent ? '🔥 ' : '🔔 ';
+            let actionText = '';
+            if (message.includes('—')) {
+                const parts = message.split('—');
+                titlePrefix = parts[0].trim() + ' — ';
+            }
+            if (urgent) {
+                actionText = message.includes('เกิดแล้ว!') ? 'เกิดแล้ว!' : (message.includes('has spawned!') ? 'has spawned!' : '');
+            } else if (options.minLeft) {
+                actionText = message.includes('จะเกิดใน') ? `จะเกิดใน ${options.minLeft} นาที` : `in ${options.minLeft} min`;
+            }
+
+            toast.innerHTML = `
+                <div style="display:flex;align-items:center;gap:4px;min-width:0;">
+                    <span style="flex-shrink:0;">${titlePrefix}</span>
+                    <span style="color:${fontColor};${shadow}font-weight:bold;">${tag}${rawName}</span>
+                    ${actionText ? `<span style="margin-left:2px;">${actionText}</span>` : ''}
+                    ${loc ? `<span style="opacity:0.75;font-size:10px;margin-left:2px;">${loc}</span>` : ''}
+                </div>
+            `.trim();
+        } else {
+            toast.textContent = message;
+        }
+
         toast.onclick = () => toast.remove();
         container.appendChild(toast);
         setTimeout(() => toast.remove(), 10000);
@@ -1171,12 +1270,31 @@
         sessionStorage.setItem('bossTracker.lastLiveEvent', event.id);
         if (event.type === 'boss_pre_spawn_started') {
             reconcileBossRows();
+            const boss = state.bosses.get(Number(event.bossId));
+            if (boss?.is_invasion && isInvasionHidden()) {
+                return; // FORBID alert when invasion visibility is off
+            }
             if (!initial && fresh && !isMuted(event.bossId, 'boss')) {
                 if (document.visibilityState !== 'visible') {
                     const key = setting('preSpawnSound', 'pop2');
                     playSound(soundPath(key, '/pop2.mp3'));
                 }
-                showNotice(t('pre_spawn_toast', { name: event.bossName }), true, `boss_${event.bossId}`, 'pre_spawn');
+                const boss = state.bosses.get(Number(event.bossId));
+                const alertInfo = getItemAlertDisplay(boss || { name: event.bossName, id: event.bossId }, 'boss');
+                showNotice(
+                    t('pre_spawn_toast', { name: alertInfo.plainName }),
+                    true,
+                    `boss_${event.bossId}`,
+                    'pre_spawn',
+                    {
+                        color: alertInfo.color,
+                        isInvasion: alertInfo.isInvasion,
+                        invColor: alertInfo.invColor,
+                        rawName: event.bossName,
+                        prefixTag: alertInfo.prefixTag,
+                        location: alertInfo.locationText
+                    }
+                );
             }
         } else if (event.type === 'boss_pre_spawn_cleared') {
             reconcileBossRows();
@@ -1222,6 +1340,13 @@
             };
             state.events.set(id, cleanEvent);
         }
+        if (data.hideInvasionBosses !== undefined) {
+            if (!state.settings) state.settings = {};
+            state.settings.hideInvasionBosses = Boolean(data.hideInvasionBosses);
+            try {
+                localStorage.setItem('dashboard.hideInvasionBosses', String(Boolean(data.hideInvasionBosses)));
+            } catch (_) {}
+        }
         if (data.invasionColor) {
             if (!state.settings) state.settings = {};
             const cleanInvColor = String(data.invasionColor).trim();
@@ -1246,6 +1371,22 @@
     window.fetch = async function (...args) {
         const response = await nativeFetch(...args);
         const requestUrl = String(args[0]?.url || args[0] || '');
+        if (requestUrl.includes('/settings/invasion-visibility')) {
+            try {
+                const bodyStr = args[1]?.body;
+                if (bodyStr) {
+                    const parsed = JSON.parse(bodyStr);
+                    const val = parsed.hide_invasion_bosses !== undefined ? parsed.hide_invasion_bosses : parsed.hideInvasionBosses;
+                    if (val !== undefined) {
+                        if (!state.settings) state.settings = {};
+                        state.settings.hideInvasionBosses = Boolean(val);
+                        try {
+                            localStorage.setItem('dashboard.hideInvasionBosses', String(Boolean(val)));
+                        } catch (_) {}
+                    }
+                }
+            } catch (_) {}
+        }
         if (requestUrl.endsWith('/poll') || requestUrl.includes('/poll?')) {
             if (!response.ok) return response;
             try {
@@ -1327,6 +1468,12 @@
                 state.serverOffset = Number(page.props.serverTime) - Date.now();
             }
             if (!state.settings) state.settings = {};
+            if (page.props?.hideInvasionBosses !== undefined) {
+                state.settings.hideInvasionBosses = Boolean(page.props.hideInvasionBosses);
+                try {
+                    localStorage.setItem('dashboard.hideInvasionBosses', String(Boolean(page.props.hideInvasionBosses)));
+                } catch (_) {}
+            }
             if (page.props?.invasionLabel) state.settings.invasionLabel = String(page.props.invasionLabel).trim();
             if (page.props?.invasionColor) {
                 state.settings.invasionColor = String(page.props.invasionColor).trim();
@@ -2265,20 +2412,52 @@
             ...Array.from(state.bosses.values()).map(item => ({ item, kind: 'boss' })),
             ...Array.from(state.events.values()).map(item => ({ item, kind: 'event' }))
         ];
+        const isFirstScan = !state.initialAlertScanDone;
         for (const { item, kind } of items) {
             if (!item.next_spawn || item.post_maintenance || isMuted(item.id, kind)) continue;
+
+            // CRITICAL RULE: ถ้าบอสอินเว ปิดการมองเห็นห้ามแจ้งเตือน เปิดการมองเห็นเท่านั้นถึงแจ้งเตือนได้
+            if (kind === 'boss' && item.is_invasion) {
+                if (isInvasionHidden()) {
+                    continue; // FORBID alert completely when invasion visibility is turned off
+                }
+            }
+
             const spawnAt = new Date(item.next_spawn).getTime();
             const diff = spawnAt - now;
             const preKey = `pre:${kind}:${item.id}:${item.next_spawn}`;
             const spawnKey = `spawn:${kind}:${item.id}:${item.next_spawn}`;
+
+            // On initial page load, do not blast stale alerts for bosses that already spawned
+            if (isFirstScan) {
+                if (diff <= 0) state.alerted.add(spawnKey);
+                if (diff <= threshold) state.alerted.add(preKey);
+                continue;
+            }
+
             const handledByDashboard = kind === 'boss' && document.visibilityState === 'visible';
-            if (diff <= threshold && diff > -30000 && !state.alerted.has(preKey)) {
+            if (diff > 0 && diff <= threshold && !state.alerted.has(preKey)) {
                 state.alerted.add(preKey);
                 if (!handledByDashboard) {
                     playSound(soundPath(setting('alertSound', 'alert'), '/alert.mp3'));
                 }
-                const minLeft = Math.max(0, Math.ceil(diff / 60000));
-                showNotice(t('spawn_soon_notice', { name: item.name, min: minLeft }), false, `${kind}_${item.id}`, 'spawn_soon');
+                const minLeft = Math.max(1, Math.ceil(diff / 60000));
+                const alertInfo = getItemAlertDisplay(item, kind);
+                showNotice(
+                    t('spawn_soon_notice', { name: alertInfo.plainName, min: minLeft }),
+                    false,
+                    `${kind}_${item.id}`,
+                    'spawn_soon',
+                    {
+                        color: alertInfo.color,
+                        isInvasion: alertInfo.isInvasion,
+                        invColor: alertInfo.invColor,
+                        rawName: item.name,
+                        prefixTag: alertInfo.prefixTag,
+                        location: alertInfo.locationText,
+                        minLeft: minLeft
+                    }
+                );
             }
             if (diff <= 0 && diff > -90000 && !state.alerted.has(spawnKey)) {
                 state.alerted.add(spawnKey);
@@ -2287,9 +2466,24 @@
                     const path = selected === 'default' ? '/just-spawned.mp3' : soundPath(selected, '/just-spawned.mp3');
                     playSound(path);
                 }
-                showNotice(t('spawned_notice', { name: item.name }), true, `${kind}_${item.id}`, 'spawned');
+                const alertInfo = getItemAlertDisplay(item, kind);
+                showNotice(
+                    t('spawned_notice', { name: alertInfo.plainName }),
+                    true,
+                    `${kind}_${item.id}`,
+                    'spawned',
+                    {
+                        color: alertInfo.color,
+                        isInvasion: alertInfo.isInvasion,
+                        invColor: alertInfo.invColor,
+                        rawName: item.name,
+                        prefixTag: alertInfo.prefixTag,
+                        location: alertInfo.locationText
+                    }
+                );
             }
         }
+        state.initialAlertScanDone = true;
     }
     document.addEventListener('DOMContentLoaded', () => {
         readInitialData();

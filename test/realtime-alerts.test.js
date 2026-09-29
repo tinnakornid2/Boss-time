@@ -199,6 +199,126 @@ test('Spawned alert replaces earlier pre-spawn alert for the same boss without c
     // Verify targetId is tagged on toast DOM
     assert.match(alertsSource, /toast\.setAttribute\('data-alert-target', String\(targetId\)\)/);
     // Verify checkScheduledAlerts passes targetId
-    assert.ok(alertsSource.includes("showNotice(t('spawn_soon_notice', { name: item.name, min: minLeft }), false, `${kind}_${item.id}`, 'spawn_soon');"));
-    assert.ok(alertsSource.includes("showNotice(t('spawned_notice', { name: item.name }), true, `${kind}_${item.id}`, 'spawned');"));
+    assert.match(alertsSource, /showNotice\(\s*t\('spawn_soon_notice'[^)]+\),\s*false,\s*`\${kind}_\${item\.id}`,\s*'spawn_soon'/);
+    assert.match(alertsSource, /showNotice\(\s*t\('spawned_notice'[^)]+\),\s*true,\s*`\${kind}_\${item\.id}`,\s*'spawned'/);
+});
+
+test('Realtime alert differentiates invasion bosses with tag, invasion color, and custom boss font colors', () => {
+    const alertsSource = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+
+    // Verify getItemAlertDisplay helper exists and formats invasion label & colors
+    assert.match(alertsSource, /function getItemAlertDisplay\(item, kind\)/);
+    assert.match(alertsSource, /const isInvasion = kind === 'boss' && Boolean\(item\.is_invasion\)/);
+    assert.ok(alertsSource.includes("prefixTag = `[${invLabel}] `;"));
+    assert.match(alertsSource, /color = getEffectiveBossColor\(item\)/);
+
+    // Verify negative diff guard (strictly diff > 0 for spawn soon notice)
+    assert.match(alertsSource, /if \(diff > 0 && diff <= threshold && !state\.alerted\.has\(preKey\)\)/);
+
+    // Verify cold page load stale alert suppression
+    assert.match(alertsSource, /const isFirstScan = !state\.initialAlertScanDone/);
+    assert.match(alertsSource, /if \(isFirstScan\) \{\s*if \(diff <= 0\) state\.alerted\.add\(spawnKey\)/);
+
+    // Verify invasion filter respect
+    assert.match(alertsSource, /if \(kind === 'boss' && item\.is_invasion\) \{\s*if \(isInvasionHidden\(\)\) \{\s*continue;/);
+
+    // Verify rich toast styling supports invasion & custom font colors
+    assert.match(alertsSource, /if \(options && \(customColor \|\| isInvasion\)\)/);
+    assert.match(alertsSource, /borderStyle = invColor/);
+});
+
+test('Strict invasion visibility: alerts are completely forbidden when invasion bosses are hidden', () => {
+    const alertsSource = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+
+    // Verify isInvasionHidden helper inspects state.settings, localStorage, and data-page
+    assert.match(alertsSource, /function isInvasionHidden\(\)/);
+    assert.match(alertsSource, /state\.settings && typeof state\.settings\.hideInvasionBosses === 'boolean'/);
+    assert.match(alertsSource, /localStorage\.getItem\('dashboard\.hideInvasionBosses'\)/);
+
+    // Verify consumeLiveEvent forbids pre-spawn alert for invasion bosses when hidden
+    assert.match(alertsSource, /if \(boss\?\.is_invasion && isInvasionHidden\(\)\) \{\s*return;\s*\/\/\s*FORBID alert when invasion visibility is off/);
+
+    // Verify poll captures hideInvasionBosses
+    assert.match(alertsSource, /if \(data\.hideInvasionBosses !== undefined\) \{\s*if \(!state\.settings\) state\.settings = \{\};\s*state\.settings\.hideInvasionBosses = Boolean\(data\.hideInvasionBosses\);/);
+
+    // Verify initial data read captures hideInvasionBosses
+    assert.match(alertsSource, /if \(page\.props\?\.hideInvasionBosses !== undefined\) \{\s*state\.settings\.hideInvasionBosses = Boolean\(page\.props\.hideInvasionBosses\);/);
+
+    // Verify window.fetch intercepts /settings/invasion-visibility
+    assert.match(alertsSource, /requestUrl\.includes\('\/settings\/invasion-visibility'\)/);
+});
+
+test('Functional check: isInvasionHidden correctly reflects settings and suppresses invasion display', () => {
+    const source = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+    const startInvasion = source.indexOf('        function isInvasionHidden(');
+    const endDisplay = source.indexOf('    function showNotice(', startInvasion);
+    const startColor = source.indexOf('    function getEffectiveBossColor(');
+    const endColor = source.indexOf('    function syncBossColorStyles(', startColor);
+    assert.ok(startInvasion >= 0 && endDisplay > startInvasion, 'isInvasionHidden and getItemAlertDisplay found');
+    assert.ok(startColor >= 0 && endColor > startColor, 'getEffectiveBossColor found');
+
+    const store = new Map();
+    const context = {
+        state: {
+            settings: { hideInvasionBosses: true, invasionLabel: 'L3', invasionColor: '#facc15' },
+            bosses: new Map()
+        },
+        document: {
+            getElementById() { return null; }
+        },
+        localStorage: {
+            getItem(key) { return store.get(key) || null; },
+            setItem(key, val) { store.set(key, String(val)); }
+        },
+        String,
+        Boolean
+    };
+
+    const codeToRun = source.slice(startInvasion, endDisplay) + '\n' + source.slice(startColor, endColor);
+    vm.runInNewContext(codeToRun, context);
+
+    // 1. When settings.hideInvasionBosses is true
+    assert.equal(context.isInvasionHidden(), true);
+
+    // 2. When settings.hideInvasionBosses is false
+    context.state.settings.hideInvasionBosses = false;
+    assert.equal(context.isInvasionHidden(), false);
+
+    // 3. Fallback to localStorage
+    delete context.state.settings.hideInvasionBosses;
+    store.set('dashboard.hideInvasionBosses', 'true');
+    assert.equal(context.isInvasionHidden(), true);
+    store.set('dashboard.hideInvasionBosses', 'false');
+    assert.equal(context.isInvasionHidden(), false);
+
+    // 4. getItemAlertDisplay formatting
+    const invBoss = { id: 128, name: 'Chertuba', location: 'Swamp', is_invasion: true };
+    const normalBoss = { id: 10, name: 'Medusa', location: 'Cave', is_invasion: false, color: '#38bdf8' };
+    const eventItem = { id: 1, name: 'Siege', location: '', color: '#ec4899' };
+
+    const invDisplay = context.getItemAlertDisplay(invBoss, 'boss');
+    assert.equal(invDisplay.isInvasion, true);
+    assert.equal(invDisplay.prefixTag, '[L3] ');
+    assert.equal(invDisplay.plainName, '[L3] Chertuba (Swamp)');
+    assert.equal(invDisplay.invColor, '#facc15');
+
+    const normalDisplay = context.getItemAlertDisplay(normalBoss, 'boss');
+    assert.equal(normalDisplay.isInvasion, false);
+    assert.equal(normalDisplay.prefixTag, '');
+    assert.equal(normalDisplay.plainName, 'Medusa (Cave)');
+    assert.equal(normalDisplay.color, '#38bdf8');
+
+    const eventDisplay = context.getItemAlertDisplay(eventItem, 'event');
+    assert.equal(eventDisplay.isInvasion, false);
+    assert.equal(eventDisplay.plainName, 'Siege');
+    assert.equal(eventDisplay.color, '#ec4899');
 });
