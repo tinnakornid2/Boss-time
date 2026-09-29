@@ -790,7 +790,8 @@ function ensureDownloadAppButton() {
         overlay.id = 'download-app-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(5px);z-index:100005;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.2s ease-out;';
 
-        const downloadUrl = (state.settings?.appDownloadUrl || localStorage.getItem('dashboard.appDownloadUrl') || '/download/BossTracker.exe').trim();
+        const defaultDownloadUrl = 'https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Windows-Portable.zip';
+        const downloadUrl = (state.settings?.appDownloadUrl || localStorage.getItem('dashboard.appDownloadUrl') || defaultDownloadUrl).trim();
 
         overlay.innerHTML = `
             <div style="background:#0f172a;border:1px solid rgba(56,189,248,0.35);border-radius:14px;box-shadow:0 0 35px rgba(56,189,248,0.2), 0 20px 40px rgba(0,0,0,0.85);max-width:480px;width:100%;padding:22px;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;position:relative;">
