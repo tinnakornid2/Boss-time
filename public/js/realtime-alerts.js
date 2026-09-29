@@ -193,7 +193,16 @@
             color_default: 'Default',
             color_custom: 'Custom Color',
             invasion_sync_admin_only: '🔒 Admin Only (Synced to all screens)',
-            invasion_sync_all: '🌐 Synced to all screens'
+            invasion_sync_all: '🌐 Synced to all screens',
+            download_app_tooltip: 'Download Windows Desktop App (HUD Overlay)',
+            download_modal_title: 'Boss Tracker for Windows',
+            download_modal_badge: 'Portable v1.3.43',
+            download_feat_hud: 'Mini HUD Overlay: In-game floating boss timer on top of Lineage 2',
+            download_feat_clickthrough: 'Click-Through Mode: Press Alt+F12 to click through into the game without stealing focus',
+            download_feat_audio: 'Integrated Audio: Spawn and pre-spawn alerts directly on your desktop',
+            download_feat_light: 'Lightweight & Portable: Just extract and launch BossTracker.exe (No installation required)',
+            download_modal_cta: '⬇️ Download Portable (.zip)',
+            download_modal_close: 'Close'
         },
         th: {
             lang_code: 'TH',
@@ -323,7 +332,16 @@
             sheets_test_btn: '⚡ ทดสอบการเชื่อมต่อ',
             sheets_sync_btn: '🔄 ซิงค์ข้อมูลทั้งหมดเดี๋ยวนี้',
             sheets_save_btn: '💾 บันทึกการตั้งค่า',
-            sheets_script_guide: '📖 <b>ไฟล์สคริปต์:</b> อยู่ที่ <code>google_apps_script/Code.gs</code> พร้อมคู่มือใน <code>google_apps_script/README.md</code>'
+            sheets_script_guide: '📖 <b>ไฟล์สคริปต์:</b> อยู่ที่ <code>google_apps_script/Code.gs</code> พร้อมคู่มือใน <code>google_apps_script/README.md</code>',
+            download_app_tooltip: 'ดาวน์โหลดแอปเดสก์ท็อป Windows (HUD Overlay)',
+            download_modal_title: 'Boss Tracker สำหรับ Windows',
+            download_modal_badge: 'แบบพกพา v1.3.43 (Portable)',
+            download_feat_hud: 'Mini HUD Overlay: หน้าต่างลอยแสดงเวลานับถอยหลังบอสทับบนเกม Lineage 2',
+            download_feat_clickthrough: 'โหมดคลิกทะลุ: กดปุ่ม Alt+F12 เพื่อคลิกทะลุเข้าเกมได้ 100% ไม่กวนการเล่น',
+            download_feat_audio: 'ระบบเสียงเตือน: แจ้งเตือนบอสเกิดและเตือนล่วงหน้าตรงถึงเดสก์ท็อป',
+            download_feat_light: 'เบาและพกพาสะดวก: แตกไฟล์ .zip แล้วเปิดใช้งาน BossTracker.exe ได้ทันทีโดยไม่ต้องติดตั้ง',
+            download_modal_cta: '⬇️ ดาวน์โหลดเวอร์ชันพกพา (.zip)',
+            download_modal_close: 'ปิดหน้าต่าง'
         }
     };
 
