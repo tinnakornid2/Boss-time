@@ -162,6 +162,8 @@ class SoundManager {
     }
 
     triggerDesktopNotification(boss, body) {
+        // Native Windows Notification disabled per user request
+        return;
         if (!('Notification' in window)) return;
         if (Notification.permission === 'granted') {
             try {

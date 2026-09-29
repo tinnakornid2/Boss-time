@@ -20,6 +20,7 @@ cloudflared.exe
 Thumbs.db
 backups/
 server/google-sheets-config.json
+desktop-app/dist/
 
 # IDE & Editor files
 .vscode/

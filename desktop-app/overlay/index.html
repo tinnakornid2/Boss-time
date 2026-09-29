@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boss Tracker HUD</title>
+    <!-- Google Fonts matching web dashboard -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Arbutus&family=Google+Sans+Code:wght@400;700&family=Google+Sans+Flex:opsz,wght@6..120,400..700&family=New+Rocker&family=Open+Sans:ital,wght@0,400..700;1,400..700&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Sancreek&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+    <div class="hud-panel" id="hudPanel">
+        <header class="hud-header">
+            <div class="hud-title">
+                <span class="icon-swords">
+                    <!-- Lucide Swords -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-swords"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline><line x1="13" x2="19" y1="19" y2="13"></line><line x1="16" x2="20" y1="16" y2="20"></line><line x1="19" x2="21" y1="21" y2="19"></line><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"></polyline><line x1="5" x2="9" y1="14" y2="18"></line><line x1="7" x2="4" y1="17" y2="20"></line><line x1="3" x2="5" y1="19" y2="21"></line></svg>
+                </span>
+                <span>BOSS HUD</span>
+            </div>
+            <div class="hud-controls">
+                <button type="button" class="btn-icon interactive-element" id="btnFontSettings" title="ตั้งค่าตัวอักษร, ความโปร่งแสง และปุ่มคีย์ลัด (HUD Settings)">
+                    <span class="icon-wrap">
+                        <!-- Lucide Settings / Sliders -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sliders-horizontal"><line x1="21" x2="14" y1="4" y2="4"></line><line x1="10" x2="3" y1="4" y2="4"></line><line x1="21" x2="12" y1="12" y2="12"></line><line x1="8" x2="3" y1="12" y2="12"></line><line x1="21" x2="16" y1="20" y2="20"></line><line x1="12" x2="3" y1="20" y2="20"></line><line x1="14" x2="14" y1="2" y2="6"></line><line x1="8" x2="8" y1="10" y2="14"></line><line x1="16" x2="16" y1="18" y2="22"></line></svg>
+                    </span>
+                    <span id="fontSizeDisplay">11px</span>
+                </button>
+                <button type="button" class="btn-icon btn-click-through interactive-element" id="btnClickThrough" title="สลับโหมดคลิกทะลุโปร่งแสง">
+                    <span id="clickThroughIcon" class="icon-wrap">
+                        <!-- Lucide Lock -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    </span>
+                    <span id="clickThroughLabel">Alt+F12</span>
+                </button>
+                <button type="button" class="btn-icon interactive-element" id="btnOpenMain" title="เปิดหน้าต่างหลัก (Full Dashboard)">
+                    <span class="icon-wrap">
+                        <!-- Lucide AppWindow -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-app-window"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="M10 4v4"></path><path d="M2 8h20"></path></svg>
+                    </span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Announcement Banner (ข้อความประกาศ) -->
+        <div id="hudAnnouncement" class="hud-announcement interactive-element" style="display: none;">
+            <span class="announcement-icon">📢</span>
+            <span class="announcement-text" id="hudAnnouncementText"></span>
+        </div>
+
+        <!-- Dropdown drawer for adjusting font, size, opacity, location and hotkey -->
+        <div class="hud-font-panel interactive-element" id="hudFontPanel">
+            <div class="font-panel-row">
+                <span class="font-panel-label" id="labelFontSize">ขนาดตัวอักษร:</span>
+                <div class="size-stepper">
+                    <button type="button" class="btn-stepper interactive-element" id="btnFontSizeMinus" title="ลดขนาด (ต่ำสุด 10px)">−</button>
+                    <span class="stepper-value" id="stepperValue">11px</span>
+                    <button type="button" class="btn-stepper interactive-element" id="btnFontSizePlus" title="เพิ่มขนาด (สูงสุด 18px)">+</button>
+                </div>
+            </div>
+            <div class="font-panel-row font-grid-row">
+                <span class="font-panel-label" id="labelFontFamily">แบบอักษร:</span>
+                <div class="font-pills" id="fontPillsContainer">
+                    <!-- Populated dynamically via overlay.js -->
+                </div>
+            </div>
+            <!-- Toggle Show Location -->
+            <div class="font-panel-row">
+                <span class="font-panel-label" id="labelShowLocation">แสดงสถานที่:</span>
+                <div class="location-toggle-box">
+                    <label class="hud-switch interactive-element">
+                        <input type="checkbox" id="chkShowLocation" class="interactive-element">
+                        <span class="hud-slider round"></span>
+                    </label>
+                    <span class="stepper-value" id="locationStatusText" style="min-width: 32px; font-size: 10px;">ซ่อน</span>
+                </div>
+            </div>
+            <!-- Toggle Show Invasion Bosses -->
+            <div class="font-panel-row">
+                <span class="font-panel-label" id="labelShowInvasion">บอสอินเวชั่น:</span>
+                <div class="location-toggle-box">
+                    <label class="hud-switch interactive-element">
+                        <input type="checkbox" id="chkShowInvasion" class="interactive-element" checked>
+                        <span class="hud-slider round"></span>
+                    </label>
+                    <span class="stepper-value" id="invasionStatusText" style="min-width: 32px; font-size: 10px;">แสดง</span>
+                </div>
+            </div>
+            <!-- Main Window Panel Width -->
+            <div class="font-panel-row">
+                <span class="font-panel-label" id="labelPanelWidth">ความกว้างโปรแกรมหลัก:</span>
+                <div class="font-stepper">
+                    <button type="button" class="btn-stepper interactive-element" id="btnPanelWidthMinus" title="ลดความกว้างหน้าต่างหลัก">−</button>
+                    <span class="stepper-value" id="panelWidthDisplay" title="คลิกเพื่อสลับ 36rem / 100%" style="min-width: 44px; cursor: pointer;">36rem</span>
+                    <button type="button" class="btn-stepper interactive-element" id="btnPanelWidthPlus" title="เพิ่มความกว้างหน้าต่างหลัก">+</button>
+                </div>
+            </div>
+            <!-- Transparency / Opacity Slider -->
+            <div class="font-panel-row">
+                <span class="font-panel-label" id="labelOpacity">ความโปร่งแสง:</span>
+                <div class="opacity-control">
+                    <input type="range" class="opacity-slider interactive-element" id="opacitySlider" min="20" max="100" value="65">
+                    <span class="stepper-value" id="opacityDisplay">65%</span>
+                </div>
+            </div>
+            <!-- Custom Hotkey Selector -->
+            <div class="font-panel-row">
+                <span class="font-panel-label" id="labelHotkey">ปุ่มลัดโปร่งแสง:</span>
+                <div class="hotkey-control">
+                    <select class="hotkey-select interactive-element" id="hotkeySelect">
+                        <option value="Alt+F12" selected>Alt + F12 (ค่าเริ่มต้น)</option>
+                        <option value="CommandOrControl+F10">Ctrl + F10</option>
+                        <option value="CommandOrControl+F11">Ctrl + F11</option>
+                        <option value="Alt+F10">Alt + F10</option>
+                        <option value="Alt+F11">Alt + F11</option>
+                        <option value="CommandOrControl+Shift+Z">Ctrl + Shift + Z</option>
+                        <option value="F11">F11 (ปุ่มเดียว)</option>
+                        <option value="F12">F12 (ปุ่มเดียว)</option>
+                        <option value="custom">กดปุ่มกำหนดเอง...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="font-panel-row" id="customHotkeyRow" style="display: none;">
+                <span class="font-panel-label" id="labelCustomKey">กดคีย์บนคีย์บอร์ด:</span>
+                <div class="custom-hotkey-box">
+                    <input type="text" class="custom-hotkey-input interactive-element" id="customHotkeyInput" placeholder="กดปุ่มที่ต้องการ..." readonly>
+                    <button type="button" class="btn-stepper interactive-element" id="btnSaveCustomHotkey" title="บันทึกปุ่มนี้">✓</button>
+                </div>
+            </div>
+        </div>
+
+        <main class="hud-body" id="bossListContainer">
+            <div class="hud-empty">กำลังเชื่อมต่อข้อมูลบอส...</div>
+        </main>
+
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <script src="overlay.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "name": "boss-tracker-desktop",
+  "version": "1.3.43",
+  "description": "Lineage 2 Real-Time Boss & Event Spawn Tracker for Windows",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "keywords": [
+    "lineage2",
+    "boss-tracker",
+    "overlay",
+    "gaming-hud"
+  ],
+  "author": "Boss Tracker Team",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.bosstracker.windows",
+    "productName": "BossTracker",
+    "copyright": "Copyright © 2026 Boss Tracker",
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.png",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable.${ext}"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}

@@ -226,7 +226,7 @@ test('Realtime alert differentiates invasion bosses with tag, invasion color, an
     assert.match(alertsSource, /if \(kind === 'boss' && item\.is_invasion\) \{\s*if \(isInvasionHidden\(\)\) \{\s*continue;/);
 
     // Verify rich toast styling supports invasion & custom font colors
-    assert.match(alertsSource, /if \(options && \(customColor \|\| isInvasion\)\)/);
+    assert.match(alertsSource, /if \(options && \(customColor \|\| isInvasion/);
     assert.match(alertsSource, /borderStyle = invColor/);
 });
 
@@ -321,4 +321,168 @@ test('Functional check: isInvasionHidden correctly reflects settings and suppres
     assert.equal(eventDisplay.isInvasion, false);
     assert.equal(eventDisplay.plainName, 'Siege');
     assert.equal(eventDisplay.color, '#ec4899');
+});
+
+test('Single-line compact toast format (Option 1): no wrapping and dot separator', () => {
+    const alertsSource = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+
+    // Verify container width is expanded to avoid wrapping
+    assert.match(alertsSource, /max-width:min\(440px,92vw\)/);
+
+    // Verify toast uses white-space:nowrap
+    assert.match(alertsSource, /white-space:nowrap;/);
+
+    // Verify bullet dot separator • and compact action text
+    assert.match(alertsSource, /•<\/span><span style="font-weight:600;flex-shrink:0;">/);
+    assert.match(alertsSource, /actionText = isThai \? 'เกิดแล้ว!' : 'Spawned!'/);
+    assert.match(alertsSource, /actionText = isThai \? `อีก \${options\.minLeft} นาที` : `in \${options\.minLeft} min`/);
+});
+
+test('Header download app control button and download modal', () => {
+    const alertsSource = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+
+    // Verify header-download-app-control exists
+    assert.match(alertsSource, /id = 'header-download-app-control'/);
+    assert.match(alertsSource, /ensureDownloadAppButton\(\)/);
+    assert.match(alertsSource, /updateDownloadAppButton\(\)/);
+
+    // Verify mountCompactHeaderControls includes downloadBtn
+    assert.match(alertsSource, /const downloadBtn = document\.getElementById\('header-download-app-control'\);/);
+
+    // Verify openDownloadAppModal exists and includes portable badge
+    assert.match(alertsSource, /function openDownloadAppModal\(\)/);
+    assert.match(alertsSource, /download_modal_badge/);
+    assert.match(alertsSource, /download_modal_cta/);
+});
+
+test('Realtime auto-update: detects version update in poll data and reloads clients automatically', () => {
+    const alertsSource = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'),
+        'utf8'
+    );
+    const serverSource = fs.readFileSync(
+        path.join(__dirname, '..', 'server', 'server.js'),
+        'utf8'
+    );
+
+    // Verify server sends appVersion in poll response
+    assert.match(serverSource, /appVersion:\s*APP_VERSION/);
+
+    // Verify realtime-alerts checks data.appVersion and triggers reload
+    assert.match(alertsSource, /if \(data\.appVersion\) \{/);
+    assert.match(alertsSource, /sessionStorage\.getItem\('bossTracker\.appVersion'\)/);
+    assert.match(alertsSource, /window\.location\.reload\(true\)/);
+});
+
+test('Mini HUD Overlay: font and text size adjustment matching web dashboard (7 Google fonts + stepper 10-18px)', () => {
+    const overlayHtml = fs.readFileSync(
+        path.join(__dirname, '..', 'desktop-app', 'overlay', 'index.html'),
+        'utf8'
+    );
+    const overlayCss = fs.readFileSync(
+        path.join(__dirname, '..', 'desktop-app', 'overlay', 'overlay.css'),
+        'utf8'
+    );
+    const overlayJs = fs.readFileSync(
+        path.join(__dirname, '..', 'desktop-app', 'overlay', 'overlay.js'),
+        'utf8'
+    );
+
+    // Verify Google Fonts link includes all 7 fonts
+    assert.ok(overlayHtml.includes('Google+Sans+Flex'));
+    assert.ok(overlayHtml.includes('Open+Sans'));
+    assert.ok(overlayHtml.includes('New+Rocker'));
+    assert.ok(overlayHtml.includes('Google+Sans+Code'));
+    assert.ok(overlayHtml.includes('PT+Serif'));
+    assert.ok(overlayHtml.includes('Sancreek'));
+    assert.ok(overlayHtml.includes('Arbutus'));
+
+    // Verify font controls exist in HTML
+    assert.ok(overlayHtml.includes('id="btnFontSettings"'));
+    assert.ok(overlayHtml.includes('id="hudFontPanel"'));
+    assert.ok(overlayHtml.includes('id="btnFontSizeMinus"'));
+    assert.ok(overlayHtml.includes('id="btnFontSizePlus"'));
+    assert.ok(overlayHtml.includes('id="fontPillsContainer"'));
+
+    // Verify CSS variables and scaling
+    assert.ok(overlayCss.includes('--hud-font:'));
+    assert.ok(overlayCss.includes('--hud-font-size:'));
+    assert.ok(overlayCss.includes('.btn-font-pill'));
+    assert.ok(overlayCss.includes('.size-stepper'));
+
+    // Verify overlay JS font list and bounds
+    assert.ok(overlayJs.includes("'Google Sans Flex'"));
+    assert.ok(overlayJs.includes("'Open Sans'"));
+    assert.ok(overlayJs.includes("'New Rocker'"));
+    assert.ok(overlayJs.includes("'Google Sans Code'"));
+    assert.ok(overlayJs.includes("'PT Serif'"));
+    assert.ok(overlayJs.includes("'Sancreek'"));
+    assert.ok(overlayJs.includes("'Arbutus'"));
+    assert.match(overlayJs, /Math\.max\(10,\s*Math\.min\(18,/);
+    assert.ok(overlayJs.includes("localStorage.setItem('dashboard.fontSize'"));
+    assert.ok(overlayJs.includes("localStorage.setItem('dashboard.appFont'"));
+
+    // Verify overlay JS auto-update check
+    assert.match(overlayJs, /if \(data\.appVersion\) \{/);
+    assert.ok(overlayJs.includes("localStorage.getItem('bossTracker.overlayAppVersion')"));
+});
+
+test('Desktop App: Main window shrinks and expands dynamically according to Panel width (webMaxWidthRem)', () => {
+    const dashboardJs = fs.readFileSync(
+        path.join(__dirname, '..', 'public', 'build', 'assets', 'dashboard-B9CVP--8.js'),
+        'utf8'
+    );
+    const serverJs = fs.readFileSync(
+        path.join(__dirname, '..', 'server', 'server.js'),
+        'utf8'
+    );
+    const preloadJs = fs.readFileSync(
+        path.join(__dirname, '..', 'desktop-app', 'preload.js'),
+        'utf8'
+    );
+    const mainJs = fs.readFileSync(
+        path.join(__dirname, '..', 'desktop-app', 'main.js'),
+        'utf8'
+    );
+    const overlayHtml = fs.readFileSync(
+        path.join(__dirname, '..', 'desktop-app', 'overlay', 'index.html'),
+        'utf8'
+    );
+    const overlayJs = fs.readFileSync(
+        path.join(__dirname, '..', 'desktop-app', 'overlay', 'overlay.js'),
+        'utf8'
+    );
+
+    // 1. Dashboard settings exposes Panel width in desktop mode
+    assert.ok(dashboardJs.includes('true&&c.jsx(Pn,{label:"Panel width"'));
+
+    // 2. Server injects applyPanelWidth and electronAPI bridge
+    assert.match(serverJs, /function applyPanelWidth\(val\)/);
+    assert.match(serverJs, /window\.electronAPI\.setPanelWidth\(num\)/);
+    assert.match(serverJs, /window\.electronAPI\.onPanelWidthChanged/);
+
+    // 3. Preload bridges setPanelWidth and onPanelWidthChanged
+    assert.match(preloadJs, /setPanelWidth:\s*\(rem\)\s*=>\s*ipcRenderer\.invoke\('set-panel-width',\s*rem\)/);
+    assert.match(preloadJs, /onPanelWidthChanged:\s*\(callback\)\s*=>/);
+
+    // 4. Main process handles set-panel-width and resizes window
+    assert.match(mainJs, /minWidth:\s*420/);
+    assert.match(mainJs, /ipcMain\.handle\('set-panel-width'/);
+    assert.match(mainJs, /mainWindow\.setBounds|mainWindow\.setSize/);
+    assert.match(mainJs, /hudWindow\.webContents\.send\('panel-width-changed'/);
+
+    // 5. Mini HUD has panel width stepper controls
+    assert.ok(overlayHtml.includes('id="btnPanelWidthMinus"'));
+    assert.ok(overlayHtml.includes('id="btnPanelWidthPlus"'));
+    assert.ok(overlayHtml.includes('id="panelWidthDisplay"'));
+
+    // 6. Mini HUD overlay.js syncs panel width
+    assert.match(overlayJs, /function applyPanelWidth\(val,/);
+    assert.match(overlayJs, /window\.electronAPI\.onPanelWidthChanged/);
 });

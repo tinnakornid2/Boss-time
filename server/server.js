@@ -1417,11 +1417,18 @@ function renderHtml(pageData, title = '#Kain7') {
                     }
                 }
                 // Immediate restoration of user-configured Panel width (webMaxWidthRem)
+                let lastAppliedWidth = null;
                 function applyPanelWidth(val) {
-                    if (val !== null && val !== undefined) {
-                        const num = Number(val);
-                        if (Number.isFinite(num)) {
-                            document.documentElement.style.setProperty('--dashboard-web-max-width', num === 0 ? '100%' : num + 'rem');
+                    let num = 36;
+                    if (val !== null && val !== undefined && val !== '') {
+                        const parsed = Number(val);
+                        if (Number.isFinite(parsed)) num = parsed;
+                    }
+                    document.documentElement.style.setProperty('--dashboard-web-max-width', num === 0 ? '100%' : num + 'rem');
+                    if (lastAppliedWidth !== num) {
+                        lastAppliedWidth = num;
+                        if (window.electronAPI && typeof window.electronAPI.setPanelWidth === 'function') {
+                            window.electronAPI.setPanelWidth(num);
                         }
                     }
                 }
@@ -1443,6 +1450,14 @@ function renderHtml(pageData, title = '#Kain7') {
                             applyPanelWidth(e.newValue);
                         }
                     });
+                    if (window.electronAPI && typeof window.electronAPI.onPanelWidthChanged === 'function') {
+                        window.electronAPI.onPanelWidthChanged(function(rem) {
+                            try {
+                                origSetItem('dashboard.webMaxWidthRem', String(rem));
+                            } catch (_) {}
+                            applyPanelWidth(rem);
+                        });
+                    }
                 } catch (e) {}
             })();
         </script>
@@ -1483,6 +1498,9 @@ function renderHtml(pageData, title = '#Kain7') {
         <link rel="icon" href="/favicon.png" sizes="any" type="image/png">
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Arbutus&family=Google+Sans+Code:wght@400;700&family=Google+Sans+Flex:opsz,wght@6..120,400..700&family=New+Rocker&family=Open+Sans:ital,wght@0,400..700;1,400..700&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Sancreek&display=swap" rel="stylesheet">
         <link rel="preload" as="style" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
         <link rel="modulepreload" as="script" href="/build/assets/app-CTdHufbH.js" />
         <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
@@ -1848,6 +1866,7 @@ function getDashboardProps(req) {
         invasionLabel: settings.invasionLabel || 'L3',
         invasionColor: settings.invasionColor || '#facc15',
         announcement: settings.announcement || null,
+        appDownloadUrl: settings.appDownloadUrl || null,
         resetTimeConfigs: db.getResetConfigs(),
         savedMaintenanceEndTime: db.getSavedMaintenanceEndTime() || null,
         serverTime: Date.now(),
@@ -2044,6 +2063,8 @@ app.get('/poll', async (req, res) => {
         events: db.getEvents(),
         allEvents: db.getAllEvents(),
         announcement: settings.announcement || null,
+        appDownloadUrl: settings.appDownloadUrl || null,
+        appVersion: APP_VERSION,
         hideInvasionBosses: Boolean(settings.hideInvasionBosses),
         invasionLabel: settings.invasionLabel || 'L3',
         invasionColor: settings.invasionColor || '#facc15',
@@ -2057,6 +2078,26 @@ app.get('/poll', async (req, res) => {
         source: db.getActiveSource(),
         stale: false
     });
+});
+
+// GET /download/app -> Download Windows Desktop App Portable
+app.get(['/download/app', '/download/BossTracker.exe', '/download/BossTracker.zip'], (req, res) => {
+    const settings = db.getSettings();
+    if (settings.appDownloadUrl) {
+        return res.redirect(settings.appDownloadUrl);
+    }
+    const localZip = path.join(__dirname, '../desktop-app/dist/BossTracker-Windows-Portable.zip');
+    if (fs.existsSync(localZip)) {
+        return res.download(localZip, 'BossTracker-Windows-Portable.zip');
+    }
+    return res.redirect('https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Windows-Portable.zip');
+});
+
+// PUT /settings/app-download-url (Admin only)
+app.put('/settings/app-download-url', requireAdmin, async (req, res) => {
+    const { url } = req.body;
+    await db.updateSettings({ appDownloadUrl: (url || '').trim() || null });
+    res.json({ success: true, appDownloadUrl: db.getSettings().appDownloadUrl || null });
 });
 
 // Tiny fallback for background tabs when Firebase rules disallow public streams.
@@ -2515,19 +2556,25 @@ app.post('/announcement', requireAdmin, async (req, res) => {
     const sent_by = role === 'admin' ? 'admin' : 'kain7';
     let announcementObj = null;
     if (message !== undefined) {
-        announcementObj = {
-            message: message || '',
-            sent_by,
-            urgent: Boolean(urgent),
-            resent_at: new Date().toISOString()
-        };
+        const cleanMsg = (typeof message === 'object' && message !== null ? (message.message || '') : String(message || '')).trim();
+        if (cleanMsg && cleanMsg !== '[object Object]') {
+            announcementObj = {
+                message: cleanMsg,
+                sent_by,
+                urgent: Boolean(urgent),
+                resent_at: new Date().toISOString()
+            };
+        }
     } else if (announcement) {
-        announcementObj = typeof announcement === 'object' ? announcement : {
-            message: String(announcement),
-            sent_by,
-            urgent: false,
-            resent_at: new Date().toISOString()
-        };
+        const cleanMsg = (typeof announcement === 'object' && announcement !== null ? (announcement.message || '') : String(announcement || '')).trim();
+        if (cleanMsg && cleanMsg !== '[object Object]') {
+            announcementObj = {
+                message: cleanMsg,
+                sent_by: (typeof announcement === 'object' && announcement?.sent_by) || sent_by,
+                urgent: Boolean(typeof announcement === 'object' ? announcement?.urgent : false),
+                resent_at: (typeof announcement === 'object' && announcement?.resent_at) || new Date().toISOString()
+            };
+        }
     }
     await db.updateSettings({ announcement: announcementObj });
     if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers['x-inertia']) {

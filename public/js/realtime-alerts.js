@@ -346,6 +346,9 @@
         }
         translateVisibleUi();
         enhanceUi();
+        if (window.electronAPI && typeof window.electronAPI.syncLanguage === 'function') {
+            window.electronAPI.syncLanguage(lang);
+        }
     }
 
     function t(key, params) {
@@ -570,6 +573,19 @@
             #compact-system-controls #header-firebase-status-badge[data-status="quota_exceeded"],
             #compact-system-controls #header-firebase-status-badge[data-status="configuration_error"] { color: #f87171 !important; }
             #compact-system-controls #header-firebase-status-badge[data-status="offline"] { color: #f59e0b !important; }
+            #compact-system-controls #header-download-app-control {
+                width: auto !important;
+                min-width: 44px !important;
+                padding: 0 6px !important;
+                color: #93c5fd !important;
+                background: rgba(59, 130, 246, 0.12) !important;
+                border: 1px solid rgba(59, 130, 246, 0.3) !important;
+                border-radius: 6px !important;
+            }
+            #compact-system-controls #header-download-app-control:hover {
+                background: rgba(59, 130, 246, 0.25) !important;
+                border-color: rgba(59, 130, 246, 0.55) !important;
+            }
             #compact-system-controls #header-timezone-control {
                 width: 58px !important;
                 min-width: 58px !important;
@@ -645,6 +661,7 @@
         document.body.appendChild(button);
         ensureTimezoneButton();
         ensureLanguageButton();
+        ensureDownloadAppButton();
         updateStatus();
     }
 
@@ -719,6 +736,93 @@
         button.setAttribute('data-unified-tooltip', titleText);
         button.setAttribute('aria-label', titleText);
         button.removeAttribute('title');
+    }
+
+function ensureDownloadAppButton() {
+        if (document.getElementById('header-download-app-control')) return;
+        const button = document.createElement('button');
+        button.id = 'header-download-app-control';
+        button.type = 'button';
+        button.className = 'compact-system-control no-drag';
+        button.addEventListener('click', () => {
+            openDownloadAppModal();
+        });
+        document.body.appendChild(button);
+        updateDownloadAppButton();
+    }
+
+    function updateDownloadAppButton() {
+        const button = document.getElementById('header-download-app-control');
+        if (!button) return;
+        button.innerHTML = '<span aria-hidden="true" style="color:#60a5fa;">💻</span><span class="system-badge-label" style="font-weight:700; color:#93c5fd;">App</span>';
+        const titleText = t('download_app_tooltip');
+        button.setAttribute('data-unified-tooltip', titleText);
+        button.setAttribute('aria-label', titleText);
+        button.removeAttribute('title');
+    }
+
+    function openDownloadAppModal() {
+        const existing = document.getElementById('download-app-modal-overlay');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id = 'download-app-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(5px);z-index:100005;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.2s ease-out;';
+
+        const downloadUrl = (state.settings?.appDownloadUrl || localStorage.getItem('dashboard.appDownloadUrl') || '/download/BossTracker.exe').trim();
+
+        overlay.innerHTML = `
+            <div style="background:#0f172a;border:1px solid rgba(56,189,248,0.35);border-radius:14px;box-shadow:0 0 35px rgba(56,189,248,0.2), 0 20px 40px rgba(0,0,0,0.85);max-width:480px;width:100%;padding:22px;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;position:relative;">
+                <button type="button" id="close-download-modal-btn" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.08);border:none;color:#94a3b8;width:28px;height:28px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.2s;" onmouseover="this.style.color='#fff';this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.08)'">✕</button>
+                
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#0284c7,#38bdf8);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 15px rgba(56,189,248,0.5);">💻</div>
+                    <div>
+                        <h3 style="margin:0;font-size:16px;font-weight:700;color:#f8fafc;">${t('download_modal_title')}</h3>
+                        <span style="display:inline-block;margin-top:3px;font-size:11px;font-weight:700;color:#38bdf8;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);padding:1px 7px;border-radius:999px;">${t('download_modal_badge')}</span>
+                    </div>
+                </div>
+
+                <div style="margin:16px 0;display:flex;flex-direction:column;gap:9px;background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;">
+                    <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:#e2e8f0;">
+                        <span style="font-size:15px;flex-shrink:0;">🪟</span>
+                        <span>${t('download_feat_hud')}</span>
+                    </div>
+                    <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:#e2e8f0;">
+                        <span style="font-size:15px;flex-shrink:0;">🖱️</span>
+                        <span>${t('download_feat_clickthrough')}</span>
+                    </div>
+                    <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:#e2e8f0;">
+                        <span style="font-size:15px;flex-shrink:0;">🔊</span>
+                        <span>${t('download_feat_audio')}</span>
+                    </div>
+                    <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:#e2e8f0;">
+                        <span style="font-size:15px;flex-shrink:0;">⚡</span>
+                        <span>${t('download_feat_light')}</span>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;margin-top:18px;">
+                    <a href="${downloadUrl}" target="_blank" rel="noopener noreferrer" style="flex:1;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#0284c7,#2563eb);color:#ffffff;font-weight:700;font-size:13.5px;padding:10px 18px;border-radius:8px;box-shadow:0 0 18px rgba(37,99,235,0.4);border:1px solid rgba(147,197,253,0.3);transition:all 0.2s;" onmouseover="this.style.opacity='0.9';this.style.transform='translateY(-1px)'" onmouseout="this.style.opacity='1';this.style.transform='none'">
+                        ${t('download_modal_cta')}
+                    </a>
+                    <button type="button" id="dismiss-download-modal-btn" style="padding:10px 16px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:#94a3b8;font-weight:600;font-size:13px;border-radius:8px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#fff';this.style.background='rgba(255,255,255,0.14)'" onmouseout="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'">
+                        ${t('download_modal_close')}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+        overlay.querySelector('#close-download-modal-btn').addEventListener('click', () => overlay.remove());
+        overlay.querySelector('#dismiss-download-modal-btn').addEventListener('click', () => overlay.remove());
+
+        document.body.appendChild(overlay);
     }
 
     function shiftClockText(text, deltaMinutes) {
@@ -799,7 +903,8 @@
         const timezone = document.getElementById('header-timezone-control');
         const langBtn = document.getElementById('header-language-control');
         const audio = document.getElementById('realtime-audio-status');
-        for (const element of [firebase, version, timezone, langBtn, audio]) {
+        const downloadBtn = document.getElementById('header-download-app-control');
+        for (const element of [firebase, version, timezone, langBtn, downloadBtn, audio]) {
             if (!element) continue;
             element.classList.add('compact-system-control', 'no-drag');
             if (element.parentElement !== controls) controls.appendChild(element);
@@ -882,7 +987,7 @@
         if (!container) {
             container = document.createElement('div');
             container.id = 'realtime-toast-container';
-            container.style.cssText = 'position:fixed;left:12px;bottom:12px;right:auto;top:auto;display:flex;flex-direction:column;gap:6px;z-index:100001;pointer-events:none;max-width:min(280px,68vw);';
+            container.style.cssText = 'position:fixed;left:12px;bottom:12px;right:auto;top:auto;display:flex;flex-direction:column;gap:6px;z-index:100001;pointer-events:none;max-width:min(440px,92vw);';
             document.body.appendChild(container);
         }
         return container;
@@ -947,7 +1052,8 @@
     }
 
     function showNotice(message, urgent, targetId = null, alertType = null, options = null) {
-        if ('Notification' in window && Notification.permission === 'granted') {
+        // Native Windows Notification disabled per user request: keep only custom in-app/HUD toast popups
+        if (false && 'Notification' in window && Notification.permission === 'granted') {
             try {
                 new Notification('Boss Tracker', {
                     body: message,
@@ -986,33 +1092,31 @@
             glowStyle = `0 0 10px ${invColor}66, 0 4px 18px rgba(0,0,0,0.85)`;
         }
 
-        toast.style.cssText = `pointer-events:auto;transition:all 0.25s ease-out;padding:6px 11px;border-radius:6px;background:${bgStyle};border:1px solid ${borderStyle};color:white;font:700 11.5px/1.3 system-ui,-apple-system,sans-serif;box-shadow:${glowStyle};text-shadow:0 1px 2px rgba(0,0,0,0.9);white-space:normal;overflow-wrap:anywhere;cursor:pointer`;
+        toast.style.cssText = `pointer-events:auto;transition:all 0.25s ease-out;padding:6px 11px;border-radius:6px;background:${bgStyle};border:1px solid ${borderStyle};color:white;font:700 11.5px/1.3 system-ui,-apple-system,sans-serif;box-shadow:${glowStyle};text-shadow:0 1px 2px rgba(0,0,0,0.9);white-space:nowrap;cursor:pointer`;
 
-        if (options && (customColor || isInvasion)) {
+        if (options && (customColor || isInvasion || true)) {
             const fontColor = customColor || (isInvasion ? invColor : '#ffffff');
             const shadow = (fontColor && fontColor !== '#ffffff' && fontColor !== '#f4f4f5') ? `text-shadow:0 0 8px ${fontColor}80;` : '';
             const tag = options.prefixTag || '';
-            const loc = options.location || '';
+            const loc = options.location ? ` ${options.location}` : '';
             const rawName = options.rawName || '';
 
-            let titlePrefix = urgent ? '🔥 ' : '🔔 ';
+            const isThai = getLanguage() === 'th' || message.includes('เกิด') || message.includes('นาที');
+            let icon = urgent ? '🔥' : (alertType === 'pre_spawn' ? '⚡' : '🔔');
             let actionText = '';
-            if (message.includes('—')) {
-                const parts = message.split('—');
-                titlePrefix = parts[0].trim() + ' — ';
-            }
             if (urgent) {
-                actionText = message.includes('เกิดแล้ว!') ? 'เกิดแล้ว!' : (message.includes('has spawned!') ? 'has spawned!' : '');
+                actionText = isThai ? 'เกิดแล้ว!' : 'Spawned!';
             } else if (options.minLeft) {
-                actionText = message.includes('จะเกิดใน') ? `จะเกิดใน ${options.minLeft} นาที` : `in ${options.minLeft} min`;
+                actionText = isThai ? `อีก ${options.minLeft} นาที` : `in ${options.minLeft} min`;
+            } else if (alertType === 'pre_spawn') {
+                actionText = isThai ? 'เตรียมตัว!' : 'Get Ready!';
             }
 
             toast.innerHTML = `
-                <div style="display:flex;align-items:center;gap:4px;min-width:0;">
-                    <span style="flex-shrink:0;">${titlePrefix}</span>
-                    <span style="color:${fontColor};${shadow}font-weight:bold;">${tag}${rawName}</span>
-                    ${actionText ? `<span style="margin-left:2px;">${actionText}</span>` : ''}
-                    ${loc ? `<span style="opacity:0.75;font-size:10px;margin-left:2px;">${loc}</span>` : ''}
+                <div style="display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    <span style="flex-shrink:0;">${icon}</span>
+                    <span style="color:${fontColor};${shadow}font-weight:bold;">${tag}${rawName}${loc ? `<span style="opacity:0.75;font-weight:normal;font-size:10.5px;">${loc}</span>` : ''}</span>
+                    ${actionText ? `<span style="opacity:0.6;margin:0 2px;">•</span><span style="font-weight:600;flex-shrink:0;">${actionText}</span>` : ''}
                 </div>
             `.trim();
         } else {
@@ -1070,6 +1174,25 @@
         });
     }
 
+    function cacheBossColor(id, color) {
+        if (!id) return;
+        const numId = Number(id);
+        const clean = color && String(color).trim();
+        if (clean && clean !== '#ffffff') {
+            try { localStorage.setItem(`boss_color_${numId}`, clean); } catch (_) {}
+        }
+    }
+
+    function getCachedBossColor(id) {
+        if (!id) return null;
+        const numId = Number(id);
+        try {
+            const stored = localStorage.getItem(`boss_color_${numId}`);
+            if (stored && stored !== '#ffffff') return stored;
+        } catch (_) {}
+        return null;
+    }
+
     function getEffectiveBossColor(boss) {
         if (!boss) return '';
         // The shared Invasion colour is authoritative for every Invasion boss.
@@ -1088,8 +1211,14 @@
             }
             return '#facc15';
         }
-        if (boss.color && String(boss.color).trim()) {
-            return String(boss.color).trim();
+        if (boss.color && String(boss.color).trim() && String(boss.color).trim() !== '#ffffff') {
+            const c = String(boss.color).trim();
+            if (typeof cacheBossColor === 'function') cacheBossColor(boss.id, c);
+            return c;
+        }
+        if (typeof getCachedBossColor === 'function') {
+            const cached = getCachedBossColor(boss.id);
+            if (cached) return cached;
         }
         return '';
     }
@@ -1238,11 +1367,13 @@
             const incomingTime = Date.parse(event.boss.updated_at || '');
             const currentTime = Date.parse(current?.updated_at || '');
             if (!current || (Number.isFinite(incomingTime) && (!Number.isFinite(currentTime) || incomingTime > currentTime))) {
+                const incomingColor = (event.boss.color && String(event.boss.color).trim() && String(event.boss.color).trim() !== '#ffffff')
+                    ? String(event.boss.color).trim()
+                    : (current?.color || (typeof getCachedBossColor === 'function' ? getCachedBossColor(id) : null) || null);
+                if (incomingColor && typeof cacheBossColor === 'function') cacheBossColor(id, incomingColor);
                 const incomingBoss = {
                     ...event.boss,
-                    color: (event.boss.color !== undefined)
-                        ? event.boss.color
-                        : (current?.color || null)
+                    color: incomingColor
                 };
                 state.bosses.set(id, incomingBoss);
             }
@@ -1305,14 +1436,39 @@
 
     function processPollData(data) {
         if (Number.isFinite(Number(data.serverTime))) state.serverOffset = Number(data.serverTime) - Date.now();
+
+        // Auto-update check: detect when a new version is deployed or force reload is triggered
+        if (data.appVersion) {
+            const currentVer = sessionStorage.getItem('bossTracker.appVersion');
+            if (!currentVer) {
+                sessionStorage.setItem('bossTracker.appVersion', data.appVersion);
+            } else if (currentVer !== data.appVersion) {
+                sessionStorage.setItem('bossTracker.appVersion', data.appVersion);
+                showNotice('🔄 พบเวอร์ชันใหม่ (' + data.appVersion + ') กำลังอัปเดตอัตโนมัติ...', true);
+                setTimeout(() => window.location.reload(true), 1200);
+                return;
+            }
+        }
+        if (data.forceReloadAt) {
+            const currentForce = sessionStorage.getItem('bossTracker.forceReloadAt');
+            if (!currentForce) {
+                sessionStorage.setItem('bossTracker.forceReloadAt', data.forceReloadAt);
+            } else if (currentForce !== data.forceReloadAt) {
+                sessionStorage.setItem('bossTracker.forceReloadAt', data.forceReloadAt);
+                window.location.reload(true);
+                return;
+            }
+        }
         for (const boss of data.bosses || []) {
             const id = Number(boss.id);
             const current = state.bosses.get(id);
+            const resolvedColor = (boss.color && String(boss.color).trim() && String(boss.color).trim() !== '#ffffff')
+                ? String(boss.color).trim()
+                : (current?.color || (typeof getCachedBossColor === 'function' ? getCachedBossColor(id) : null) || null);
+            if (resolvedColor && typeof cacheBossColor === 'function') cacheBossColor(id, resolvedColor);
             const cleanBoss = {
                 ...boss,
-                color: (boss.color !== undefined)
-                    ? boss.color
-                    : (current?.color || null)
+                color: resolvedColor
             };
             state.bosses.set(id, cleanBoss);
             const pendingKey = `pending_new_boss_color_${(boss.name || '').toLowerCase()}`;
@@ -1481,7 +1637,16 @@
                     localStorage.setItem('dashboard.invasionColor', state.settings.invasionColor);
                 } catch (_) {}
             }
-            for (const boss of page.props?.bosses || []) state.bosses.set(Number(boss.id), boss);
+            for (const boss of page.props?.bosses || []) {
+                const id = Number(boss.id);
+                if (boss.color && String(boss.color).trim() && String(boss.color).trim() !== '#ffffff') {
+                    if (typeof cacheBossColor === 'function') cacheBossColor(id, String(boss.color).trim());
+                } else if (typeof getCachedBossColor === 'function') {
+                    const cached = getCachedBossColor(id);
+                    if (cached) boss.color = cached;
+                }
+                state.bosses.set(id, boss);
+            }
             for (const event of page.props?.events || []) state.events.set(Number(event.id), event);
         } catch (_) {}
     }
@@ -2068,6 +2233,10 @@
                     ) || currentBoss;
                 if (targetBoss && targetBoss.id) {
                     targetBoss.color = finalColor;
+                    if (finalColor && typeof cacheBossColor === 'function') cacheBossColor(targetBoss.id, finalColor);
+                    else {
+                        try { localStorage.removeItem(`boss_color_${targetBoss.id}`); } catch (_) {}
+                    }
                     reconcileBossRows();
                     try {
                         await fetch(`/bosses/${targetBoss.id}/color`, {
