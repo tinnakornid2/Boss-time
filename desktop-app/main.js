@@ -153,7 +153,7 @@ function createHudWindow() {
         frame: false,
         transparent: true,
         alwaysOnTop: true,
-        skipTaskbar: false, // Ensure taskbar icon exists so users know app is running
+        skipTaskbar: true, // Keep HUD as overlay only, single window on taskbar
         resizable: true,
         hasShadow: false,
         show: true,
@@ -377,6 +377,27 @@ ipcMain.handle('show-main-window', () => {
     }
 });
 
+ipcMain.handle('sync-invasion-visibility', async (_, hide) => {
+    const shouldHide = Boolean(hide);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.executeJavaScript(`
+            try {
+                if (typeof window.setInvasionHidden === 'function') {
+                    window.setInvasionHidden(${shouldHide});
+                } else {
+                    localStorage.setItem('dashboard.hideInvasionBosses', '${shouldHide}');
+                    fetch('/settings/invasion-visibility', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ hide_invasion_bosses: ${shouldHide} })
+                    }).catch(() => {});
+                }
+            } catch (_) {}
+        `).catch(() => {});
+    }
+    return { ok: true, hideInvasionBosses: shouldHide };
+});
+
 ipcMain.handle('set-ignore-mouse-events', (_, ignore, options) => {
     if (hudWindow && !hudWindow.isDestroyed()) {
         hudWindow.setIgnoreMouseEvents(Boolean(ignore), options || { forward: true });
@@ -482,6 +503,9 @@ async function fetchTrackerDataFromMainWindow() {
                     const data = await res.json();
                     let isAdmin = false;
                     try {
+                        if (typeof window.isAdmin === 'function') {
+                            isAdmin = Boolean(window.isAdmin());
+                        }
                         const pageEl = document.querySelector('[data-page]');
                         if (pageEl) {
                             const page = JSON.parse(pageEl.getAttribute('data-page') || '{}');
@@ -494,11 +518,17 @@ async function fetchTrackerDataFromMainWindow() {
                     } catch (_) {}
                     const lang = localStorage.getItem('tracker_lang') || document.documentElement.lang || 'th';
                     const showLocation = localStorage.getItem('dashboard.showLocation') === 'true';
-                    const localHideInvasion = localStorage.getItem('dashboard.hideInvasionBosses');
-                    if (localHideInvasion !== null) {
-                        data.hideInvasionBosses = (localHideInvasion === 'true');
+                    let hideInvasion = Boolean(data.hideInvasionBosses);
+                    if (typeof window.isInvasionHidden === 'function') {
+                        hideInvasion = Boolean(window.isInvasionHidden());
+                    } else {
+                        const localHideInvasion = localStorage.getItem('dashboard.hideInvasionBosses');
+                        if (localHideInvasion !== null) {
+                            hideInvasion = (localHideInvasion === 'true');
+                        }
                     }
-                    return { ok: true, data, isAdmin, lang, showLocation };
+                    data.hideInvasionBosses = hideInvasion;
+                    return { ok: true, data, isAdmin, lang, showLocation, hideInvasionBosses: hideInvasion };
                 } catch (err) {
                     return { ok: false, error: err.message };
                 }

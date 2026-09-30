@@ -21,28 +21,31 @@ async function main() {
     const stat = fs.statSync(zipPath);
     console.log(`Target zip file: ${zipPath} (${(stat.size / 1024 / 1024).toFixed(2)} MB)`);
 
-    // 2. Check if release v1.3.43 already exists
-    let release = await getReleaseByTag('v1.3.43', token);
+    // 2. Check if release v1.3.44 already exists
+    let release = await getReleaseByTag('v1.3.44', token);
     if (!release) {
-        console.log('Release v1.3.43 not found. Creating new release...');
+        console.log('Release v1.3.44 not found. Creating new release...');
         release = await createRelease({
-            tag_name: 'v1.3.43',
-            name: 'Boss Tracker Windows Portable v1.3.43',
-            body: `## Boss Tracker Windows Portable v1.3.43
+            tag_name: 'v1.3.44',
+            name: 'Boss Tracker Windows Portable v1.3.44',
+            body: `## Boss Tracker Windows Portable v1.3.44
 
-### ฟีเจอร์หลักในเวอร์ชันนี้:
-- 🎮 **Mini HUD (Pure View-Only)**: หน้าต่างโอเวอร์เลย์แสดงเวลานับถอยหลังบอสแบบโปร่งแสง ไม่มีปุ่มบันทึกเวลากวนใจ ไร้การกดพลาดระหว่างเล่นเกม Lineage 2
-- 🌫️ **Click-Through Mode (Alt+F12)**: กดคลิกทะลุเข้าเกมได้ 100% สบายตา ไม่บังมอนสเตอร์
-- 🎨 **Custom Font & Opacity**: ปรับแต่งขนาดฟอนต์ 10-18px, เลือกฟอนต์ 7 แบบ, ปรับความโปร่งแสง 20-100%
-- 🔇 **Single Audio Master**: โปรแกรมหลักคุมเสียงเพียงตัวเดียว ป้องกันเสียงแจ้งเตือนตีกัน
-- 🚀 **Portable**: แตกไฟล์แล้วเปิดใช้งานได้ทันที ไม่ต้องติดตั้ง`,
+### ฟีเจอร์และการปรับปรุงในเวอร์ชันนี้:
+- 🎮 **Mini HUD Invasion Bosses Sync**: ซิงค์การแสดงผลบอสอิสเวชั่น (Invasion Bosses) ระหว่างหน้าต่างหลักและ Mini HUD ให้ตรงกัน 100%
+- 🪟 **Single Taskbar Icon**: แก้ไขหน้าต่างซ้อนบน Windows Taskbar โดยตั้งค่า \`skipTaskbar: true\` ให้ Mini HUD ทำงานเป็น Gaming Overlay แท้จริง ไม่เกะกะแถบงาน
+- 🌐 **100% Dual-Language System (EN/TH)**: รองรับการสลับภาษาอังกฤษและภาษาไทยอย่างสมบูรณ์ในทุกส่วนของ Mini HUD (ปุ่มควบคุม, Tooltip, ตัวเลือกฟอนต์/ความโปร่งแสง, Toast Notification)
+- 🔔 **Version Update Notification System (A+B)**:
+  - จุดแดงกะพริบแจ้งเตือนที่ปุ่มดาวน์โหลดเดสก์ท็อปบนหน้าต่างหลัก พร้อม Tooltip แสดงเลขเวอร์ชันล่าสุด
+  - แจ้งเตือน Toast ลอยบน Mini HUD พร้อมปุ่มคลิกเพื่อเปิดหน้าต่างดาวน์โหลดอัปเดตเวอร์ชันใหม่ทันที และซิงค์การปิดแจ้งเตือนข้ามหน้าต่าง
+- 🛡️ **Role-Based HUD Controls**: ซ่อนเมนูตั้งค่าเฉพาะ Admin (ตัวเลือกแสดง Invasion) สำหรับ Member และ Guest
+- 🎨 **Priority Font Color Rendering**: ปรับปรุงลำดับสีตัวอักษรให้สีเฉพาะของบอสมีความสำคัญสูงสุด`,
             draft: false,
             prerelease: false,
             make_latest: 'true'
         }, token);
         console.log(`Release created! ID: ${release.id}, URL: ${release.html_url}`);
     } else {
-        console.log(`Release v1.3.43 already exists (ID: ${release.id}).`);
+        console.log(`Release v1.3.44 already exists (ID: ${release.id}).`);
     }
 
     // 3. Check if asset already exists in release

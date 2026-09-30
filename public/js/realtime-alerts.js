@@ -196,13 +196,14 @@
             invasion_sync_all: '🌐 Synced to all screens',
             download_app_tooltip: 'Download Windows Desktop App (HUD Overlay)',
             download_modal_title: 'Boss Tracker for Windows',
-            download_modal_badge: 'Portable v1.3.43',
+            download_modal_badge: 'Portable v1.3.44',
             download_feat_hud: 'Mini HUD Overlay: In-game floating boss timer on top of Lineage 2',
             download_feat_clickthrough: 'Click-Through Mode: Press Alt+F12 to click through into the game without stealing focus',
             download_feat_audio: 'Integrated Audio: Spawn and pre-spawn alerts directly on your desktop',
             download_feat_light: 'Lightweight & Portable: Just extract and launch BossTracker.exe (No installation required)',
             download_modal_cta: '⬇️ Download Portable (.zip)',
-            download_modal_close: 'Close'
+            download_modal_close: 'Close',
+            download_app_update_tooltip: '✨ New update available: v{version} (Click to download)'
         },
         th: {
             lang_code: 'TH',
@@ -335,13 +336,14 @@
             sheets_script_guide: '📖 <b>ไฟล์สคริปต์:</b> อยู่ที่ <code>google_apps_script/Code.gs</code> พร้อมคู่มือใน <code>google_apps_script/README.md</code>',
             download_app_tooltip: 'ดาวน์โหลดแอปเดสก์ท็อป Windows (HUD Overlay)',
             download_modal_title: 'Boss Tracker สำหรับ Windows',
-            download_modal_badge: 'แบบพกพา v1.3.43 (Portable)',
+            download_modal_badge: 'แบบพกพา v1.3.44 (Portable)',
             download_feat_hud: 'Mini HUD Overlay: หน้าต่างลอยแสดงเวลานับถอยหลังบอสทับบนเกม Lineage 2',
             download_feat_clickthrough: 'โหมดคลิกทะลุ: กดปุ่ม Alt+F12 เพื่อคลิกทะลุเข้าเกมได้ 100% ไม่กวนการเล่น',
             download_feat_audio: 'ระบบเสียงเตือน: แจ้งเตือนบอสเกิดและเตือนล่วงหน้าตรงถึงเดสก์ท็อป',
             download_feat_light: 'เบาและพกพาสะดวก: แตกไฟล์ .zip แล้วเปิดใช้งาน BossTracker.exe ได้ทันทีโดยไม่ต้องติดตั้ง',
             download_modal_cta: '⬇️ ดาวน์โหลดเวอร์ชันพกพา (.zip)',
-            download_modal_close: 'ปิดหน้าต่าง'
+            download_modal_close: 'ปิดหน้าต่าง',
+            download_app_update_tooltip: '✨ มีอัปเดตใหม่เวอร์ชัน v{version} (คลิกเพื่อดาวน์โหลด)'
         }
     };
 
@@ -772,14 +774,30 @@ function ensureDownloadAppButton() {
     function updateDownloadAppButton() {
         const button = document.getElementById('header-download-app-control');
         if (!button) return;
-        button.innerHTML = '<span aria-hidden="true" style="color:#60a5fa;">💻</span><span class="system-badge-label" style="font-weight:700; color:#93c5fd;">App</span>';
-        const titleText = t('download_app_tooltip');
-        button.setAttribute('data-unified-tooltip', titleText);
-        button.setAttribute('aria-label', titleText);
+        const currentVer = state.appVersion || '1.3.44';
+        const dismissedVer = localStorage.getItem('bossTracker.dismissedAppUpdate');
+        const hasUpdate = Boolean(state.appVersion && dismissedVer !== state.appVersion);
+
+        if (hasUpdate) {
+            button.innerHTML = `<span aria-hidden="true" style="color:#60a5fa;position:relative;display:inline-flex;align-items:center;">💻<span class="update-badge-dot" style="position:absolute;top:-4px;right:-5px;width:7px;height:7px;background:#ef4444;border-radius:50%;box-shadow:0 0 6px #ef4444;animation:pulse 1.5s infinite;"></span></span><span class="system-badge-label" style="font-weight:700; color:#93c5fd;">App</span>`;
+            const titleText = t('download_app_update_tooltip', { version: currentVer });
+            button.setAttribute('data-unified-tooltip', titleText);
+            button.setAttribute('aria-label', titleText);
+        } else {
+            button.innerHTML = '<span aria-hidden="true" style="color:#60a5fa;">💻</span><span class="system-badge-label" style="font-weight:700; color:#93c5fd;">App</span>';
+            const titleText = t('download_app_tooltip');
+            button.setAttribute('data-unified-tooltip', titleText);
+            button.setAttribute('aria-label', titleText);
+        }
         button.removeAttribute('title');
     }
 
     function openDownloadAppModal() {
+        const currentVer = state.appVersion || '1.3.44';
+        try {
+            localStorage.setItem('bossTracker.dismissedAppUpdate', currentVer);
+        } catch (_) {}
+        updateDownloadAppButton();
         const existing = document.getElementById('download-app-modal-overlay');
         if (existing) {
             existing.remove();
@@ -1039,6 +1057,26 @@ function ensureDownloadAppButton() {
             } catch (_) {}
         }
         return false;
+    }
+
+    if (typeof window !== 'undefined') {
+        window.isAdmin = function () { return Boolean(state.isAdmin); };
+        window.isInvasionHidden = isInvasionHidden;
+        window.setInvasionHidden = function (hidden) {
+        const shouldHide = Boolean(hidden);
+        if (!state.settings) state.settings = {};
+        state.settings.hideInvasionBosses = shouldHide;
+        try {
+            localStorage.setItem('dashboard.hideInvasionBosses', String(shouldHide));
+        } catch (_) {}
+        fetch('/settings/invasion-visibility', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hide_invasion_bosses: shouldHide })
+        }).catch(() => {});
+        reconcileBossRows();
+        updateStatus();
+    };
     }
 
     function getItemAlertDisplay(item, kind) {
@@ -1458,6 +1496,8 @@ function ensureDownloadAppButton() {
 
         // Auto-update check: detect when a new version is deployed or force reload is triggered
         if (data.appVersion) {
+            state.appVersion = data.appVersion;
+            updateDownloadAppButton();
             const currentVer = sessionStorage.getItem('bossTracker.appVersion');
             if (!currentVer) {
                 sessionStorage.setItem('bossTracker.appVersion', data.appVersion);

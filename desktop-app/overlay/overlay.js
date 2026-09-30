@@ -109,7 +109,30 @@ const I18N_HUD = {
         toast_time_success: '🕒 บันทึกเวลา {time} ของ [{name}] สำเร็จ!',
         toast_time_fail: '⚠️ บันทึกเวลาไม่สำเร็จ: {error}',
         toast_hotkey_success: '✨ ตั้งปุ่มลัดโปร่งแสงเป็น [{key}] สำเร็จ!',
-        toast_hotkey_fail: '⚠️ ไม่สามารถตั้งปุ่ม {key} ได้ ({error})'
+        toast_hotkey_fail: '⚠️ ไม่สามารถตั้งปุ่ม {key} ได้ ({error})',
+        tooltip_font_minus: 'ลดขนาด (ต่ำสุด 10px)',
+        tooltip_font_plus: 'เพิ่มขนาด (สูงสุด 18px)',
+        tooltip_width_minus: 'ลดความกว้างหน้าต่างหลัก',
+        tooltip_width_toggle: 'คลิกเพื่อสลับ 36rem / 100%',
+        tooltip_width_plus: 'เพิ่มความกว้างหน้าต่างหลัก',
+        hotkey_default: 'Alt + F12 (ค่าเริ่มต้น)',
+        hotkey_ctrl_f10: 'Ctrl + F10',
+        hotkey_ctrl_f11: 'Ctrl + F11',
+        hotkey_alt_f10: 'Alt + F10',
+        hotkey_alt_f11: 'Alt + F11',
+        hotkey_ctrl_shift_z: 'Ctrl + Shift + Z',
+        hotkey_f11: 'F11 (ปุ่มเดียว)',
+        hotkey_f12: 'F12 (ปุ่มเดียว)',
+        hotkey_custom: 'กดปุ่มกำหนดเอง...',
+        ph_press_key: 'กดปุ่มที่ต้องการ...',
+        tooltip_save_hotkey: 'บันทึกปุ่มนี้',
+        toast_update_available: '🚀 พบอัปเดตใหม่ (v{version}) [คลิกเพื่ออัปเดต]',
+        toast_reloading: '🔄 พบการอัปเดตระบบ ({version}) กำลังรีโหลดอัตโนมัติ...',
+        toast_server_reload: '🔄 รีโหลดข้อมูลล่าสุดจากเซิร์ฟเวอร์...',
+        status_connecting_hint: 'กำลังเชื่อมต่อข้อมูลบอส...<br><span style="font-size: 10px; color: #64748b;">(หากยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบที่หน้าต่างหลัก)</span>',
+        btn_open_main: '🪟 เปิดหน้าต่างหลัก',
+        time_in_1min: 'อีก 1 นาที',
+        time_spawned: 'เกิดแล้ว!'
     },
     en: {
         boss_hud: 'BOSS HUD',
@@ -147,7 +170,30 @@ const I18N_HUD = {
         toast_time_success: '🕒 Saved time {time} for [{name}]!',
         toast_time_fail: '⚠️ Failed to save time: {error}',
         toast_hotkey_success: '✨ Click-through hotkey set to [{key}]!',
-        toast_hotkey_fail: '⚠️ Failed to set hotkey {key} ({error})'
+        toast_hotkey_fail: '⚠️ Failed to set hotkey {key} ({error})',
+        tooltip_font_minus: 'Decrease font size (min 10px)',
+        tooltip_font_plus: 'Increase font size (max 18px)',
+        tooltip_width_minus: 'Decrease main window width',
+        tooltip_width_toggle: 'Click to toggle 36rem / 100%',
+        tooltip_width_plus: 'Increase main window width',
+        hotkey_default: 'Alt + F12 (Default)',
+        hotkey_ctrl_f10: 'Ctrl + F10',
+        hotkey_ctrl_f11: 'Ctrl + F11',
+        hotkey_alt_f10: 'Alt + F10',
+        hotkey_alt_f11: 'Alt + F11',
+        hotkey_ctrl_shift_z: 'Ctrl + Shift + Z',
+        hotkey_f11: 'F11 (Single Key)',
+        hotkey_f12: 'F12 (Single Key)',
+        hotkey_custom: 'Custom hotkey...',
+        ph_press_key: 'Press desired key...',
+        tooltip_save_hotkey: 'Save hotkey',
+        toast_update_available: '🚀 New update available: v{version} [Click to update]',
+        toast_reloading: '🔄 System update found ({version}) reloading automatically...',
+        toast_server_reload: '🔄 Reloading latest data from server...',
+        status_connecting_hint: 'Connecting to boss tracker...<br><span style="font-size: 10px; color: #64748b;">(Please make sure you are logged in on the main window)</span>',
+        btn_open_main: '🪟 Open Main Window',
+        time_in_1min: 'in 1 min',
+        time_spawned: 'Spawned!'
     }
 };
 
@@ -195,6 +241,7 @@ const dom = {
     btnSaveCustomHotkey: document.getElementById('btnSaveCustomHotkey'),
     chkShowLocation: document.getElementById('chkShowLocation'),
     locationStatusText: document.getElementById('locationStatusText'),
+    rowShowInvasion: document.getElementById('rowShowInvasion'),
     chkShowInvasion: document.getElementById('chkShowInvasion'),
     invasionStatusText: document.getElementById('invasionStatusText'),
     labelFontSize: document.getElementById('labelFontSize'),
@@ -237,12 +284,20 @@ if (window.electronAPI) {
     if (typeof window.electronAPI.onTrackerDataUpdated === 'function') {
         window.electronAPI.onTrackerDataUpdated((res) => {
             if (res && res.ok && res.data) {
-                if (typeof res.isAdmin === 'boolean') state.isAdmin = res.isAdmin;
+                if (typeof res.isAdmin === 'boolean') {
+                    state.isAdmin = res.isAdmin;
+                    updateAdminVisibility();
+                }
                 if (res.lang && (res.lang === 'en' || res.lang === 'th') && res.lang !== state.lang) {
                     setHudLanguage(res.lang);
                 }
                 if (typeof res.showLocation === 'boolean' && res.showLocation !== state.showLocation) {
                     applyShowLocation(res.showLocation, false);
+                }
+                if (typeof res.hideInvasionBosses === 'boolean') {
+                    state.settings.hideInvasionBosses = res.hideInvasionBosses;
+                    if (dom.chkShowInvasion) dom.chkShowInvasion.checked = !res.hideInvasionBosses;
+                    if (dom.invasionStatusText) dom.invasionStatusText.textContent = !res.hideInvasionBosses ? t('loc_show') : t('loc_hide');
                 }
                 applyTrackerSnapshot(res.data);
             }
@@ -329,21 +384,21 @@ function applyShowInvasion(val, save = true) {
         try {
             localStorage.setItem('dashboard.hideInvasionBosses', !show ? 'true' : 'false');
         } catch (_) {}
+        if (window.electronAPI && typeof window.electronAPI.syncInvasionVisibility === 'function') {
+            window.electronAPI.syncInvasionVisibility(!show).catch(() => {});
+        }
     }
     renderBossList();
 }
 
 function setHudLanguage(lang) {
-    if (lang !== 'th' && lang !== 'en') lang = 'th';
-    if (state.lang === lang) {
-        updateHudLanguageUI();
-        return;
-    }
+    if (lang !== 'th' && lang !== 'en') lang = 'en';
     state.lang = lang;
     try {
         localStorage.setItem('tracker_lang', lang);
     } catch (_) {}
     updateHudLanguageUI();
+    updateAdminVisibility();
     renderBossList();
 }
 
@@ -363,6 +418,40 @@ function updateHudLanguageUI() {
     if (dom.btnFontSettings) dom.btnFontSettings.title = t('tooltip_settings');
     if (dom.btnClickThrough) dom.btnClickThrough.title = t('tooltip_clickthrough');
     if (dom.btnOpenMain) dom.btnOpenMain.title = t('tooltip_openmain');
+
+    // Controls & Tooltips inside font panel
+    if (dom.btnFontSizeMinus) dom.btnFontSizeMinus.title = t('tooltip_font_minus');
+    if (dom.btnFontSizePlus) dom.btnFontSizePlus.title = t('tooltip_font_plus');
+    if (dom.btnPanelWidthMinus) dom.btnPanelWidthMinus.title = t('tooltip_width_minus');
+    if (dom.panelWidthDisplay) dom.panelWidthDisplay.title = t('tooltip_width_toggle');
+    if (dom.btnPanelWidthPlus) dom.btnPanelWidthPlus.title = t('tooltip_width_plus');
+    if (dom.customHotkeyInput) dom.customHotkeyInput.placeholder = t('ph_press_key');
+    if (dom.btnSaveCustomHotkey) dom.btnSaveCustomHotkey.title = t('tooltip_save_hotkey');
+
+    // Select options in Hotkey select
+    if (dom.hotkeySelect) {
+        const optDefault = dom.hotkeySelect.querySelector('option[value="Alt+F12"]');
+        if (optDefault) optDefault.textContent = t('hotkey_default');
+        const optF11 = dom.hotkeySelect.querySelector('option[value="F11"]');
+        if (optF11) optF11.textContent = t('hotkey_f11');
+        const optF12 = dom.hotkeySelect.querySelector('option[value="F12"]');
+        if (optF12) optF12.textContent = t('hotkey_f12');
+        const optCustom = dom.hotkeySelect.querySelector('option[value="custom"]');
+        if (optCustom) optCustom.textContent = t('hotkey_custom');
+    }
+
+    // Refresh empty state if visible
+    const emptyEl = dom.bossListContainer?.querySelector('.hud-empty');
+    if (emptyEl && (!state.bosses || state.bosses.length === 0)) {
+        renderBossList();
+    }
+    updateAdminVisibility();
+}
+
+function updateAdminVisibility() {
+    if (dom.rowShowInvasion) {
+        dom.rowShowInvasion.style.display = state.isAdmin ? 'flex' : 'none';
+    }
 }
 
 // -------------------------------------------------------------
@@ -421,6 +510,19 @@ function initFontSettings() {
     } catch (_) {
         applyShowLocation(false, false);
     }
+
+    // Load initial language
+    try {
+        const savedLang = localStorage.getItem('tracker_lang');
+        if (savedLang === 'en' || savedLang === 'th') {
+            state.lang = savedLang;
+        } else {
+            state.lang = 'en';
+        }
+    } catch (_) {
+        state.lang = 'en';
+    }
+    updateHudLanguageUI();
 
     // Load initial showInvasion
     try {
@@ -704,7 +806,7 @@ function applyTrackerSnapshot(data) {
         } else if (currentVer !== data.appVersion) {
             localStorage.setItem('bossTracker.overlayAppVersion', data.appVersion);
             state.appVersion = data.appVersion;
-            showHudToast(`🔄 พบการอัปเดตระบบ (${data.appVersion}) กำลังรีโหลดอัตโนมัติ...`, '#38bdf8');
+            showHudToast(t('toast_reloading', { version: data.appVersion }), '#38bdf8');
             setTimeout(() => {
                 if (window.electronAPI && typeof window.electronAPI.reloadApp === 'function') {
                     window.electronAPI.reloadApp();
@@ -713,6 +815,19 @@ function applyTrackerSnapshot(data) {
                 }
             }, 1500);
             return;
+        }
+
+        // Option B: In-Game HUD Toast for new desktop version
+        const dismissedVer = localStorage.getItem('bossTracker.dismissedAppUpdate');
+        if (dismissedVer !== data.appVersion && !state.hasShownUpdateToast) {
+            state.hasShownUpdateToast = true;
+            const updateMsg = t('toast_update_available', { version: data.appVersion });
+            showHudToast(`
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;cursor:pointer;" onclick="if(window.electronAPI){window.electronAPI.showMainWindow();}try{localStorage.setItem('bossTracker.dismissedAppUpdate','${data.appVersion}');}catch(_){}">
+                    <span style="font-weight:600;">${updateMsg}</span>
+                    <span style="background:rgba(56,189,248,0.25);border:1px solid #38bdf8;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:700;color:#38bdf8;white-space:nowrap;">⬇️</span>
+                </div>
+            `, '#38bdf8');
         }
     }
 
@@ -723,7 +838,7 @@ function applyTrackerSnapshot(data) {
             localStorage.setItem('bossTracker.forceReloadAt', String(data.forceReloadAt));
         } else if (Number(lastForce) < Number(data.forceReloadAt)) {
             localStorage.setItem('bossTracker.forceReloadAt', String(data.forceReloadAt));
-            showHudToast('🔄 รีโหลดข้อมูลล่าสุดจากเซิร์ฟเวอร์...', '#38bdf8');
+            showHudToast(t('toast_server_reload'), '#38bdf8');
             setTimeout(() => {
                 if (window.electronAPI && typeof window.electronAPI.reloadApp === 'function') {
                     window.electronAPI.reloadApp();
@@ -758,12 +873,12 @@ function applyTrackerSnapshot(data) {
         }
     }
 
-    const localHideInv = localStorage.getItem('dashboard.hideInvasionBosses');
-    const hideInv = localHideInv !== null ? (localHideInv === 'true') : Boolean(data.hideInvasionBosses);
+    // Follow authoritative main dashboard invasion visibility
+    const hideInv = Boolean(data.hideInvasionBosses);
     state.settings = {
         hideInvasionBosses: hideInv,
-        invasionLabel: data.invasionLabel || 'L3',
-        invasionColor: data.invasionColor || '#facc15'
+        invasionLabel: data.invasionLabel || 'INV',
+        invasionColor: data.invasionColor || '#c084fc'
     };
     if (dom.chkShowInvasion) dom.chkShowInvasion.checked = !hideInv;
     if (dom.invasionStatusText) dom.invasionStatusText.textContent = !hideInv ? t('loc_show') : t('loc_hide');
@@ -791,12 +906,20 @@ async function fetchPollData() {
         if (window.electronAPI && typeof window.electronAPI.getTrackerData === 'function') {
             const res = await window.electronAPI.getTrackerData();
             if (res && res.ok && res.data) {
-                if (typeof res.isAdmin === 'boolean') state.isAdmin = res.isAdmin;
+                if (typeof res.isAdmin === 'boolean') {
+                    state.isAdmin = res.isAdmin;
+                    updateAdminVisibility();
+                }
                 if (res.lang && (res.lang === 'en' || res.lang === 'th') && res.lang !== state.lang) {
                     setHudLanguage(res.lang);
                 }
                 if (typeof res.showLocation === 'boolean' && res.showLocation !== state.showLocation) {
                     applyShowLocation(res.showLocation, false);
+                }
+                if (typeof res.hideInvasionBosses === 'boolean') {
+                    state.settings.hideInvasionBosses = res.hideInvasionBosses;
+                    if (dom.chkShowInvasion) dom.chkShowInvasion.checked = !res.hideInvasionBosses;
+                    if (dom.invasionStatusText) dom.invasionStatusText.textContent = !res.hideInvasionBosses ? t('loc_show') : t('loc_hide');
                 }
                 applyTrackerSnapshot(res.data);
                 return;
@@ -813,7 +936,6 @@ async function fetchPollData() {
 }
 
 function getEffectiveColor(item, isInv) {
-    if (isInv) return state.settings.invasionColor || '#facc15';
     if (item.color) {
         const clean = String(item.color).trim();
         if (clean && clean !== '#ffffff') {
@@ -823,6 +945,7 @@ function getEffectiveColor(item, isInv) {
     }
     const cached = getCachedBossColor(item.id);
     if (cached) return cached;
+    if (isInv) return state.settings.invasionColor || '#c084fc';
     return '#ffffff';
 }
 
@@ -843,8 +966,8 @@ function renderBossList() {
         dom.bossListContainer.innerHTML = `
             <div class="hud-empty" style="padding: 24px 12px; text-align: center; color: #949ba4;">
                 <div style="font-size: 20px; margin-bottom: 8px;">⏳</div>
-                <div style="font-size: 11px; margin-bottom: 12px; line-height: 1.4;">${state.lang === 'th' ? 'กำลังเชื่อมต่อข้อมูลบอส...<br><span style="font-size: 10px; color: #64748b;">(หากยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบที่หน้าต่างหลัก)</span>' : 'Connecting to boss tracker...<br><span style="font-size: 10px; color: #64748b;">(Please make sure you are logged in on the main window)</span>'}</div>
-                <button type="button" class="btn-time-save interactive-element" onclick="if(window.electronAPI) window.electronAPI.showMainWindow()" style="font-size: 10px; padding: 4px 10px;">🪟 ${state.lang === 'th' ? 'เปิดหน้าต่างหลัก' : 'Open Main Window'}</button>
+                <div style="font-size: 11px; margin-bottom: 12px; line-height: 1.4;">${t('status_connecting_hint')}</div>
+                <button type="button" class="btn-time-save interactive-element" onclick="if(window.electronAPI) window.electronAPI.showMainWindow()" style="font-size: 10px; padding: 4px 10px;">${t('btn_open_main')}</button>
             </div>
         `;
         return;
@@ -971,7 +1094,7 @@ function checkAlerts() {
         // 1-minute alert
         if (diff > 0 && diff <= 60000 && !state.alerted.has(preKey)) {
             state.alerted.add(preKey);
-            const actionText = state.lang === 'th' ? 'อีก 1 นาที' : 'in 1 min';
+            const actionText = t('time_in_1min');
             showHudToast(`${ICONS.bell} <span style="color:${fontColor}">${tag}${b.name}${loc}</span> • ${actionText}`, '#38bdf8');
             playAlertSound('alert.mp3');
         }
@@ -979,7 +1102,7 @@ function checkAlerts() {
         // Spawned alert
         if (diff <= 0 && diff > -60000 && !state.alerted.has(spawnKey)) {
             state.alerted.add(spawnKey);
-            const actionText = state.lang === 'th' ? 'เกิดแล้ว!' : 'Spawned!';
+            const actionText = t('time_spawned');
             showHudToast(`${ICONS.flame} <span style="color:${fontColor}">${tag}${b.name}${loc}</span> • ${actionText}`, '#ef4444');
             playAlertSound('just-spawned.mp3');
         }

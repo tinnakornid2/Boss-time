@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     killBossNow: (payload) => ipcRenderer.invoke('kill-boss-now', payload),
     setBossKillTime: (payload) => ipcRenderer.invoke('set-boss-kill-time', payload),
     toggleBossAlert: (bossId) => ipcRenderer.invoke('toggle-boss-alert', bossId),
+    syncInvasionVisibility: (hide) => ipcRenderer.invoke('sync-invasion-visibility', hide),
     getTrackerData: () => ipcRenderer.invoke('get-tracker-data'),
     onTrackerDataUpdated: (callback) => {
         ipcRenderer.on('tracker-data-updated', (_, data) => callback(data));
