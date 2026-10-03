@@ -294,6 +294,9 @@ if (window.electronAPI) {
                 if (typeof res.showLocation === 'boolean' && res.showLocation !== state.showLocation) {
                     applyShowLocation(res.showLocation, false);
                 }
+                if (typeof res.timeZoneOffset === 'number') {
+                    state.timeZoneOffset = res.timeZoneOffset;
+                }
                 if (typeof res.hideInvasionBosses === 'boolean') {
                     state.settings.hideInvasionBosses = res.hideInvasionBosses;
                     if (dom.chkShowInvasion) dom.chkShowInvasion.checked = !res.hideInvasionBosses;
@@ -916,6 +919,9 @@ async function fetchPollData() {
                 if (typeof res.showLocation === 'boolean' && res.showLocation !== state.showLocation) {
                     applyShowLocation(res.showLocation, false);
                 }
+                if (typeof res.timeZoneOffset === 'number') {
+                    state.timeZoneOffset = res.timeZoneOffset;
+                }
                 if (typeof res.hideInvasionBosses === 'boolean') {
                     state.settings.hideInvasionBosses = res.hideInvasionBosses;
                     if (dom.chkShowInvasion) dom.chkShowInvasion.checked = !res.hideInvasionBosses;
@@ -960,6 +966,16 @@ function formatCountdown(ms) {
     parts.push(`${String(m).padStart(2, '0')}m`);
     parts.push(`${String(s).padStart(2, '0')}s`);
     return parts.join(' ');
+}
+
+function formatSpawnClockTime(targetTs) {
+    if (!Number.isFinite(targetTs)) return '';
+    const tzOffsetHours = Number(state.timeZoneOffset) === 8 ? 8 : 7;
+    const d = new Date(targetTs + tzOffsetHours * 3600000);
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mm = String(d.getUTCMinutes()).padStart(2, '0');
+    const ss = String(d.getUTCSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
 }
 
 function renderBossList() {
@@ -1033,7 +1049,7 @@ function renderBossList() {
 
     let html = '';
 
-    function renderItemCard({ item, isNow, diff, isInv, isEvent }) {
+    function renderItemCard({ item, targetTs, isNow, diff, isInv, isEvent }) {
         const isEventItem = Boolean(isEvent || item.is_event);
         let fontColor = '#ffffff';
         if (isEventItem) {
@@ -1057,15 +1073,15 @@ function renderBossList() {
             timerClass = 'timer-unset';
         }
 
+        const spawnClockText = Number.isFinite(targetTs) ? formatSpawnClockTime(targetTs) : '';
+        const spawnClockHtml = spawnClockText ? `<div class="boss-spawn-clock">${spawnClockText}</div>` : '';
+
         const isPreSpawned = Boolean(item.pre_spawned);
         const alertBadge = isPreSpawned ? `<span class="badge-alert">🔔 ALERT</span>` : '';
         const maintBadge = item.post_maintenance ? `<span class="badge-alert" style="background:#475569;color:#e2e8f0;">MAINT</span>` : '';
-        const autoIcon = (item.auto_advanced && !item.post_maintenance) 
-            ? `<span class="hud-auto-icon" style="opacity:0.75;font-size:10px;margin-left:3px;cursor:default;">⚠️</span>` 
-            : '';
-        const maintIcon = item.post_maintenance 
-            ? `<span class="hud-maint-icon" style="opacity:0.75;font-size:10px;margin-left:3px;cursor:default;">🔧</span>` 
-            : '';
+        const statusIcon = item.post_maintenance
+            ? `<span class="hud-maint-icon" aria-hidden="true">🔧</span>`
+            : (item.auto_advanced ? `<span class="hud-auto-icon" aria-hidden="true">⚠️</span>` : '');
         const cardClass = `boss-card ${isNow ? 'now' : ''} ${isPreSpawned ? 'pre-spawned' : ''} ${isEventItem ? 'event-card' : ''}`;
 
         return `
@@ -1076,12 +1092,16 @@ function renderBossList() {
                              data-boss-id="${item.id}" 
                              data-boss-name="${item.name}" 
                              style="color: ${fontColor}; ${glow}">
-                            ${tag}${item.name}${autoIcon}${maintIcon}${maintBadge}${alertBadge}
+                            ${tag}${item.name}${maintBadge}${alertBadge}
                         </div>
                         ${loc}
                     </div>
                     <div class="boss-actions">
-                        <div class="boss-timer ${timerClass}">${timerText}</div>
+                        ${statusIcon}
+                        <div class="boss-timer-stack">
+                            <div class="boss-timer ${timerClass}">${timerText}</div>
+                            ${spawnClockHtml}
+                        </div>
                     </div>
                 </div>
             </div>

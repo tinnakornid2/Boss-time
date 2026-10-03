@@ -196,7 +196,7 @@
             invasion_sync_all: '🌐 Synced to all screens',
             download_app_tooltip: 'Download Windows Desktop App (HUD Overlay)',
             download_modal_title: 'Boss Tracker for Windows',
-            download_modal_badge: 'Portable v1.3.45',
+            download_modal_badge: 'Portable v1.3.46',
             download_feat_hud: 'Mini HUD Overlay: In-game floating boss timer on top of Lineage 2',
             download_feat_clickthrough: 'Click-Through Mode: Press Alt+F12 to click through into the game without stealing focus',
             download_feat_audio: 'Integrated Audio: Spawn and pre-spawn alerts directly on your desktop',
@@ -336,7 +336,7 @@
             sheets_script_guide: '📖 <b>ไฟล์สคริปต์:</b> อยู่ที่ <code>google_apps_script/Code.gs</code> พร้อมคู่มือใน <code>google_apps_script/README.md</code>',
             download_app_tooltip: 'ดาวน์โหลดแอปเดสก์ท็อป Windows (HUD Overlay)',
             download_modal_title: 'Boss Tracker สำหรับ Windows',
-            download_modal_badge: 'แบบพกพา v1.3.45 (Portable)',
+            download_modal_badge: 'แบบพกพา v1.3.46 (Portable)',
             download_feat_hud: 'Mini HUD Overlay: หน้าต่างลอยแสดงเวลานับถอยหลังบอสทับบนเกม Lineage 2',
             download_feat_clickthrough: 'โหมดคลิกทะลุ: กดปุ่ม Alt+F12 เพื่อคลิกทะลุเข้าเกมได้ 100% ไม่กวนการเล่น',
             download_feat_audio: 'ระบบเสียงเตือน: แจ้งเตือนบอสเกิดและเตือนล่วงหน้าตรงถึงเดสก์ท็อป',
@@ -356,7 +356,7 @@
     function setLanguage(lang) {
         if (lang !== 'en' && lang !== 'th') lang = 'en';
         localStorage.setItem('tracker_lang', lang);
-        document.documentElement.lang = lang;
+        document.documentElement.lang = lang === 'th' ? 'th-TH' : 'en-GB';
         updateLanguageButton();
         updateTimezoneButton();
         updateStatus();
@@ -370,6 +370,9 @@
             window.electronAPI.syncLanguage(lang);
         }
     }
+    try {
+        document.documentElement.lang = getLanguage() === 'th' ? 'th-TH' : 'en-GB';
+    } catch (_) {}
 
     function t(key, params) {
         const lang = getLanguage();
@@ -774,7 +777,7 @@ function ensureDownloadAppButton() {
     function updateDownloadAppButton() {
         const button = document.getElementById('header-download-app-control');
         if (!button) return;
-        const currentVer = state.appVersion || '1.3.45';
+        const currentVer = state.appVersion || '1.3.46';
         const dismissedVer = localStorage.getItem('bossTracker.dismissedAppUpdate');
         const hasUpdate = Boolean(state.appVersion && dismissedVer !== state.appVersion);
 
@@ -793,7 +796,7 @@ function ensureDownloadAppButton() {
     }
 
     function openDownloadAppModal() {
-        const currentVer = state.appVersion || '1.3.45';
+        const currentVer = state.appVersion || '1.3.46';
         try {
             localStorage.setItem('bossTracker.dismissedAppUpdate', currentVer);
         } catch (_) {}
@@ -2608,7 +2611,6 @@ function ensureDownloadAppButton() {
         const dialogs = document.querySelectorAll('[role="dialog"]');
         if (!dialogs.length) return;
 
-        const isTh = getLanguage() === 'th';
         const pad2 = (n) => String(Math.max(0, Math.floor(Number(n) || 0))).padStart(2, '0');
         const setReactInputValue = (el, val) => {
             const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
@@ -2625,303 +2627,32 @@ function ensureDownloadAppButton() {
         };
 
         for (const dialog of dialogs) {
+            // Remove any legacy custom widgets if present
+            for (const oldWidget of dialog.querySelectorAll('.custom-dmy-24h-widget')) {
+                oldWidget.remove();
+            }
+
             const dtInputs = dialog.querySelectorAll('input[type="datetime-local"]');
             for (const input of dtInputs) {
-                const parent = input.parentElement;
-                if (!parent) continue;
-
-                const inputId = input.id || 'dt-custom';
-                let widget = parent.querySelector(`.custom-dmy-24h-widget[data-for-id="${inputId}"]`);
-
-                if (widget) {
-                    if (widget.getAttribute('data-lang') !== getLanguage()) {
-                        widget.setAttribute('data-lang', getLanguage());
-                        const lblDate = widget.querySelector('.dmy-label-date');
-                        const lblTime = widget.querySelector('.dmy-label-time');
-                        const btnToday = widget.querySelector('.dmy-btn-today');
-                        const btnYest = widget.querySelector('.dmy-btn-yesterday');
-                        const btnNow = widget.querySelector('.dmy-btn-now');
-                        const btnClear = widget.querySelector('.dmy-btn-clear');
-                        const subDd = widget.querySelector('.dmy-sub-dd');
-                        const subMm = widget.querySelector('.dmy-sub-mm');
-                        const subYyyy = widget.querySelector('.dmy-sub-yyyy');
-                        const subHh = widget.querySelector('.dmy-sub-hh');
-                        const subMin = widget.querySelector('.dmy-sub-min');
-                        const subSec = widget.querySelector('.dmy-sub-sec');
-                        const sumLbl = widget.querySelector('.dmy-summary-label');
-
-                        if (lblDate) lblDate.textContent = isTh ? '📅 วันที่ (ว/ด/ป)' : '📅 Date (DD/MM/YYYY)';
-                        if (lblTime) lblTime.textContent = isTh ? '⏰ เวลา (24 ชม.)' : '⏰ Time (24-Hour)';
-                        if (btnToday) btnToday.textContent = isTh ? 'วันนี้' : 'Today';
-                        if (btnYest) btnYest.textContent = isTh ? 'เมื่อวาน' : 'Yesterday';
-                        if (btnNow) btnNow.textContent = isTh ? '⚡ เวลาตอนนี้' : '⚡ Now';
-                        if (btnClear) btnClear.textContent = isTh ? 'ล้างค่า' : 'Clear';
-                        if (subDd) subDd.textContent = isTh ? 'วัน (01-31)' : 'Day (01-31)';
-                        if (subMm) subMm.textContent = isTh ? 'เดือน (01-12)' : 'Month (01-12)';
-                        if (subYyyy) subYyyy.textContent = isTh ? 'ปี (ค.ศ.)' : 'Year (YYYY)';
-                        if (subHh) subHh.textContent = isTh ? 'ชม. (00-23)' : 'Hour (00-23)';
-                        if (subMin) subMin.textContent = isTh ? 'นาที (00-59)' : 'Min (00-59)';
-                        if (subSec) subSec.textContent = isTh ? 'วินาที (00-59)' : 'Sec (00-59)';
-                        if (sumLbl) sumLbl.textContent = isTh ? '📌 รูปแบบ ว/ด/ป (24 ชม.):' : '📌 Format DD/MM/YYYY (24h):';
-                    }
-                    continue;
+                // Keep the original native <input type="datetime-local"> UI intact and force dd/mm/yyyy + 24-hour clock via en-GB locale
+                if (input.getAttribute('lang') !== 'en-GB') {
+                    input.setAttribute('lang', 'en-GB');
+                }
+                if (input.parentElement && input.parentElement.getAttribute('lang') !== 'en-GB') {
+                    input.parentElement.setAttribute('lang', 'en-GB');
+                }
+                if (!input.getAttribute('step')) {
+                    input.setAttribute('step', '1');
                 }
 
-                // Hide native locale-dependent datetime-local input while keeping it mounted for React
-                input.style.cssText = 'position:absolute!important;opacity:0!important;pointer-events:none!important;width:0!important;height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;';
-
-                const isOptional = (inputId === 'b-kill-time');
-                const serverNow = typeof window.getTrackerServerNow === 'function' ? window.getTrackerServerNow() : new Date(Date.now() + state.serverOffset);
-
-                // Sync initial value to server clock for shared-kt / shared-st
-                let initDate = serverNow;
-                let hasValue = true;
-                if (isOptional && !input.value) {
-                    hasValue = false;
-                } else if (inputId === 'shared-kt' || inputId === 'shared-st') {
+                // Sync initial default time to server clock once when Update Spawn modal opens
+                if ((input.id === 'shared-kt' || input.id === 'shared-st') && !input.dataset.serverTimeSynced) {
+                    input.dataset.serverTimeSynced = 'true';
+                    const serverNow = typeof window.getTrackerServerNow === 'function'
+                        ? window.getTrackerServerNow()
+                        : new Date(Date.now() + state.serverOffset);
                     setReactInputValue(input, formatToIsoLocal(serverNow));
-                } else if (input.value) {
-                    const parsed = new Date(input.value);
-                    if (!isNaN(parsed.getTime())) initDate = parsed;
                 }
-
-                widget = document.createElement('div');
-                widget.className = 'custom-dmy-24h-widget';
-                widget.setAttribute('data-for-id', inputId);
-                widget.setAttribute('data-lang', getLanguage());
-                widget.style.cssText = 'background:rgba(24,24,27,0.92);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;margin-top:2px;';
-
-                widget.innerHTML = `
-                    <div style="display:flex;flex-direction:column;gap:4px;">
-                        <div style="display:flex;align-items:center;justify-content:space-between;">
-                            <span class="dmy-label-date" style="font-size:11px;font-weight:700;color:#38bdf8;">${isTh ? '📅 วันที่ (ว/ด/ป)' : '📅 Date (DD/MM/YYYY)'}</span>
-                            <div style="display:flex;gap:4px;">
-                                <button type="button" class="dmy-btn-today" style="padding:2px 7px;font-size:10px;font-weight:600;border-radius:4px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.35);color:#38bdf8;cursor:pointer;">${isTh ? 'วันนี้' : 'Today'}</button>
-                                <button type="button" class="dmy-btn-yesterday" style="padding:2px 7px;font-size:10px;font-weight:600;border-radius:4px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#d4d4d8;cursor:pointer;">${isTh ? 'เมื่อวาน' : 'Yesterday'}</button>
-                            </div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:5px;">
-                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
-                                <input type="text" inputmode="numeric" maxlength="2" class="dmy-field dmy-dd" placeholder="DD" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(56,189,248,0.35);border-radius:5px;padding:5px 4px;color:#ffffff;font-family:monospace;font-size:13px;font-weight:700;outline:none;">
-                                <span class="dmy-sub-dd" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'วัน (01-31)' : 'Day (01-31)'}</span>
-                            </div>
-                            <span style="color:#71717a;font-weight:800;font-size:14px;margin-bottom:14px;">/</span>
-                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
-                                <input type="text" inputmode="numeric" maxlength="2" class="dmy-field dmy-mm" placeholder="MM" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(56,189,248,0.35);border-radius:5px;padding:5px 4px;color:#ffffff;font-family:monospace;font-size:13px;font-weight:700;outline:none;">
-                                <span class="dmy-sub-mm" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'เดือน (01-12)' : 'Month (01-12)'}</span>
-                            </div>
-                            <span style="color:#71717a;font-weight:800;font-size:14px;margin-bottom:14px;">/</span>
-                            <div style="flex:1.3;display:flex;flex-direction:column;align-items:center;">
-                                <input type="text" inputmode="numeric" maxlength="4" class="dmy-field dmy-yyyy" placeholder="YYYY" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(56,189,248,0.35);border-radius:5px;padding:5px 4px;color:#ffffff;font-family:monospace;font-size:13px;font-weight:700;outline:none;">
-                                <span class="dmy-sub-yyyy" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'ปี (ค.ศ.)' : 'Year (YYYY)'}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="display:flex;flex-direction:column;gap:4px;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">
-                        <div style="display:flex;align-items:center;justify-content:space-between;">
-                            <span class="dmy-label-time" style="font-size:11px;font-weight:700;color:#fbbf24;">${isTh ? '⏰ เวลา (24 ชม.)' : '⏰ Time (24-Hour)'}</span>
-                            <div style="display:flex;gap:4px;">
-                                <button type="button" class="dmy-btn-now" style="padding:2px 7px;font-size:10px;font-weight:600;border-radius:4px;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.35);color:#fbbf24;cursor:pointer;">${isTh ? '⚡ เวลาตอนนี้' : '⚡ Now'}</button>
-                                ${isOptional ? `<button type="button" class="dmy-btn-clear" style="padding:2px 7px;font-size:10px;font-weight:600;border-radius:4px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);color:#f87171;cursor:pointer;">${isTh ? 'ล้างค่า' : 'Clear'}</button>` : ''}
-                            </div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:5px;">
-                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
-                                <input type="text" inputmode="numeric" maxlength="2" class="dmy-field dmy-hh" placeholder="HH" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(251,191,36,0.45);border-radius:5px;padding:5px 4px;color:#fde68a;font-family:monospace;font-size:14px;font-weight:700;outline:none;">
-                                <span class="dmy-sub-hh" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'ชม. (00-23)' : 'Hour (00-23)'}</span>
-                            </div>
-                            <span style="color:#fbbf24;font-weight:800;font-size:14px;margin-bottom:14px;">:</span>
-                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
-                                <input type="text" inputmode="numeric" maxlength="2" class="dmy-field dmy-min" placeholder="mm" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(251,191,36,0.45);border-radius:5px;padding:5px 4px;color:#fde68a;font-family:monospace;font-size:14px;font-weight:700;outline:none;">
-                                <span class="dmy-sub-min" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'นาที (00-59)' : 'Min (00-59)'}</span>
-                            </div>
-                            <span style="color:#fbbf24;font-weight:800;font-size:14px;margin-bottom:14px;">:</span>
-                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
-                                <input type="text" inputmode="numeric" maxlength="2" class="dmy-field dmy-sec" placeholder="ss" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(255,255,255,0.18);border-radius:5px;padding:5px 4px;color:#d4d4d8;font-family:monospace;font-size:13px;font-weight:700;outline:none;">
-                                <span class="dmy-sub-sec" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'วินาที (00-59)' : 'Sec (00-59)'}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="font-size:10.5px;color:#a1a1aa;padding:4px 8px;background:rgba(255,255,255,0.04);border-radius:5px;border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;">
-                        <span class="dmy-summary-label">${isTh ? '📌 รูปแบบ ว/ด/ป (24 ชม.):' : '📌 Format DD/MM/YYYY (24h):'}</span>
-                        <b class="dmy-summary-value" style="color:#38bdf8;font-family:monospace;font-size:11.5px;">--/--/---- --:--:--</b>
-                    </div>
-                `;
-
-                const ddEl = widget.querySelector('.dmy-dd');
-                const mmEl = widget.querySelector('.dmy-mm');
-                const yyyyEl = widget.querySelector('.dmy-yyyy');
-                const hhEl = widget.querySelector('.dmy-hh');
-                const minEl = widget.querySelector('.dmy-min');
-                const secEl = widget.querySelector('.dmy-sec');
-                const summaryVal = widget.querySelector('.dmy-summary-value');
-
-                const populateFromDate = (d) => {
-                    ddEl.value = pad2(d.getDate());
-                    mmEl.value = pad2(d.getMonth() + 1);
-                    yyyyEl.value = String(d.getFullYear());
-                    hhEl.value = pad2(d.getHours());
-                    minEl.value = pad2(d.getMinutes());
-                    secEl.value = pad2(d.getSeconds());
-                    syncToReact();
-                };
-
-                const clearFields = () => {
-                    ddEl.value = '';
-                    mmEl.value = '';
-                    yyyyEl.value = '';
-                    hhEl.value = '';
-                    minEl.value = '';
-                    secEl.value = '';
-                    if (summaryVal) summaryVal.textContent = isTh ? 'ไม่ระบุ (Unset)' : 'Unset';
-                    setReactInputValue(input, '');
-                };
-
-                const syncToReact = () => {
-                    if (isOptional && !ddEl.value && !mmEl.value && !yyyyEl.value && !hhEl.value && !minEl.value) {
-                        if (summaryVal) summaryVal.textContent = isTh ? 'ไม่ระบุ (Unset)' : 'Unset';
-                        setReactInputValue(input, '');
-                        return;
-                    }
-                    const nowRef = typeof window.getTrackerServerNow === 'function' ? window.getTrackerServerNow() : new Date(Date.now() + state.serverOffset);
-                    let day = parseInt(ddEl.value, 10);
-                    let month = parseInt(mmEl.value, 10);
-                    let year = parseInt(yyyyEl.value, 10);
-                    let hour = parseInt(hhEl.value, 10);
-                    let min = parseInt(minEl.value, 10);
-                    let sec = parseInt(secEl.value, 10);
-
-                    if (!Number.isFinite(day) || day < 1) day = nowRef.getDate();
-                    if (day > 31) day = 31;
-                    if (!Number.isFinite(month) || month < 1) month = nowRef.getMonth() + 1;
-                    if (month > 12) month = 12;
-                    if (!Number.isFinite(year) || year < 1000) year = nowRef.getFullYear();
-                    // Automatically convert Thai Buddhist Era (พ.ศ. >= 2400) to Christian Era (ค.ศ.)
-                    if (year >= 2400) year -= 543;
-
-                    if (!Number.isFinite(hour) || hour < 0) hour = 0;
-                    if (hour > 23) hour = 23;
-                    if (!Number.isFinite(min) || min < 0) min = 0;
-                    if (min > 59) min = 59;
-                    if (!Number.isFinite(sec) || sec < 0) sec = 0;
-                    if (sec > 59) sec = 59;
-
-                    const dStr = pad2(day);
-                    const mStr = pad2(month);
-                    const yStr = String(year).padStart(4, '0');
-                    const hStr = pad2(hour);
-                    const minStr = pad2(min);
-                    const sStr = pad2(sec);
-
-                    if (summaryVal) {
-                        summaryVal.textContent = `${dStr}/${mStr}/${yStr} ${hStr}:${minStr}:${sStr}`;
-                    }
-                    const isoStr = `${yStr}-${mStr}-${dStr}T${hStr}:${minStr}:${sStr}`;
-                    setReactInputValue(input, isoStr);
-                };
-
-                const fieldsOrder = [ddEl, mmEl, yyyyEl, hhEl, minEl, secEl];
-                fieldsOrder.forEach((f, idx) => {
-                    f.addEventListener('focus', () => {
-                        setTimeout(() => f.select(), 10);
-                    });
-                    f.addEventListener('input', () => {
-                        f.value = f.value.replace(/\D/g, '');
-                        const maxLen = Number(f.getAttribute('maxlength')) || 2;
-                        if (f.value.length >= maxLen && idx < fieldsOrder.length - 1) {
-                            fieldsOrder[idx + 1].focus();
-                            fieldsOrder[idx + 1].select();
-                        }
-                        syncToReact();
-                    });
-                    f.addEventListener('blur', () => {
-                        if (!f.value && isOptional) {
-                            syncToReact();
-                            return;
-                        }
-                        if (f === yyyyEl) {
-                            let y = parseInt(f.value, 10);
-                            if (Number.isFinite(y) && y >= 2400) y -= 543;
-                            if (Number.isFinite(y) && y >= 1900) f.value = String(y);
-                        } else if (f.value) {
-                            let v = parseInt(f.value, 10);
-                            if (f === ddEl) v = Math.max(1, Math.min(31, v || 1));
-                            if (f === mmEl) v = Math.max(1, Math.min(12, v || 1));
-                            if (f === hhEl) v = Math.max(0, Math.min(23, v || 0));
-                            if (f === minEl || f === secEl) v = Math.max(0, Math.min(59, v || 0));
-                            f.value = pad2(v);
-                        }
-                        syncToReact();
-                    });
-                    f.addEventListener('keydown', (e) => {
-                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                            e.preventDefault();
-                            const delta = e.key === 'ArrowUp' ? 1 : -1;
-                            let v = parseInt(f.value, 10) || 0;
-                            if (f === ddEl) v = ((v - 1 + delta + 31) % 31) + 1;
-                            else if (f === mmEl) v = ((v - 1 + delta + 12) % 12) + 1;
-                            else if (f === yyyyEl) v = (v || new Date().getFullYear()) + delta;
-                            else if (f === hhEl) v = (v + delta + 24) % 24;
-                            else v = (v + delta + 60) % 60;
-                            f.value = f === yyyyEl ? String(v) : pad2(v);
-                            syncToReact();
-                        }
-                    });
-                });
-
-                const btnToday = widget.querySelector('.dmy-btn-today');
-                if (btnToday) {
-                    btnToday.addEventListener('click', () => {
-                        const now = typeof window.getTrackerServerNow === 'function' ? window.getTrackerServerNow() : new Date(Date.now() + state.serverOffset);
-                        ddEl.value = pad2(now.getDate());
-                        mmEl.value = pad2(now.getMonth() + 1);
-                        yyyyEl.value = String(now.getFullYear());
-                        if (!hhEl.value) hhEl.value = pad2(now.getHours());
-                        if (!minEl.value) minEl.value = pad2(now.getMinutes());
-                        if (!secEl.value) secEl.value = pad2(now.getSeconds());
-                        syncToReact();
-                    });
-                }
-
-                const btnYest = widget.querySelector('.dmy-btn-yesterday');
-                if (btnYest) {
-                    btnYest.addEventListener('click', () => {
-                        const now = typeof window.getTrackerServerNow === 'function' ? window.getTrackerServerNow() : new Date(Date.now() + state.serverOffset);
-                        const yest = new Date(now.getTime() - 86400000);
-                        ddEl.value = pad2(yest.getDate());
-                        mmEl.value = pad2(yest.getMonth() + 1);
-                        yyyyEl.value = String(yest.getFullYear());
-                        if (!hhEl.value) hhEl.value = pad2(now.getHours());
-                        if (!minEl.value) minEl.value = pad2(now.getMinutes());
-                        if (!secEl.value) secEl.value = pad2(now.getSeconds());
-                        syncToReact();
-                    });
-                }
-
-                const btnNow = widget.querySelector('.dmy-btn-now');
-                if (btnNow) {
-                    btnNow.addEventListener('click', () => {
-                        const now = typeof window.getTrackerServerNow === 'function' ? window.getTrackerServerNow() : new Date(Date.now() + state.serverOffset);
-                        populateFromDate(now);
-                    });
-                }
-
-                const btnClear = widget.querySelector('.dmy-btn-clear');
-                if (btnClear) {
-                    btnClear.addEventListener('click', () => {
-                        clearFields();
-                    });
-                }
-
-                if (hasValue) {
-                    populateFromDate(initDate);
-                } else {
-                    clearFields();
-                }
-
-                input.insertAdjacentElement('afterend', widget);
             }
         }
     }

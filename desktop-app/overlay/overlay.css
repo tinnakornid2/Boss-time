@@ -533,9 +533,27 @@ body {
 .boss-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: flex-end;
+    gap: 5px;
     flex-shrink: 0;
     margin-left: 6px;
+}
+
+.hud-auto-icon, .hud-maint-icon {
+    font-size: 10px;
+    opacity: 0.72;
+    line-height: 1;
+    cursor: default;
+    user-select: none;
+    pointer-events: none;
+}
+
+.boss-timer-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    line-height: 1.12;
 }
 
 /* Discord Style Micro Action Buttons */
@@ -593,30 +611,40 @@ body {
 
 /* Timer Display */
 .boss-timer {
-    font-size: calc(var(--hud-font-size, 11px) * 0.95);
+    font-size: calc(var(--hud-font-size, 11px) * 0.96);
     font-weight: 700;
-    font-family: "Consolas", monospace;
+    font-family: var(--hud-font, ui-sans-serif, system-ui, sans-serif);
     font-variant-numeric: tabular-nums;
     min-width: 44px;
     text-align: right;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
+}
+
+.boss-spawn-clock {
+    font-size: calc(var(--hud-font-size, 11px) * 0.78);
+    color: rgba(255, 255, 255, 0.38);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    text-align: right;
+    line-height: 1.05;
+    margin-top: 1px;
 }
 
 .timer-now {
-    color: #f23f43;
+    color: #ef4444;
     font-weight: 800;
 }
 
 .timer-soon {
-    color: #f0b232;
+    color: #fb923c;
 }
 
 .timer-normal {
-    color: #949ba4;
+    color: rgba(255, 255, 255, 0.92);
 }
 
 .timer-unset {
-    color: #64748b;
+    color: rgba(255, 255, 255, 0.38);
     font-size: 10px;
 }
 

@@ -23,6 +23,8 @@ app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
+// Force native <input type="datetime-local"> to display dd/mm/yyyy (ว/ด/ป) and 24-hour clock
+app.commandLine.appendSwitch('lang', 'en-GB');
 
 const PRODUCTION_URL = 'https://boss-time-eloni.vercel.app/';
 
@@ -621,6 +623,7 @@ async function fetchTrackerDataFromMainWindow() {
                     } catch (_) {}
                     const lang = localStorage.getItem('tracker_lang') || document.documentElement.lang || 'th';
                     const showLocation = localStorage.getItem('dashboard.showLocation') === 'true';
+                    const timeZoneOffset = localStorage.getItem('dashboard.timeZoneOffset') === '8' ? 8 : 7;
                     let hideInvasion = Boolean(data.hideInvasionBosses);
                     if (typeof window.isInvasionHidden === 'function') {
                         hideInvasion = Boolean(window.isInvasionHidden());
@@ -631,7 +634,7 @@ async function fetchTrackerDataFromMainWindow() {
                         }
                     }
                     data.hideInvasionBosses = hideInvasion;
-                    return { ok: true, data, isAdmin, lang, showLocation, hideInvasionBosses: hideInvasion };
+                    return { ok: true, data, isAdmin, lang, showLocation, timeZoneOffset, hideInvasionBosses: hideInvasion };
                 } catch (err) {
                     return { ok: false, error: err.message };
                 }
