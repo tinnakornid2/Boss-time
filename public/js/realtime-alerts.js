@@ -196,7 +196,7 @@
             invasion_sync_all: '🌐 Synced to all screens',
             download_app_tooltip: 'Download Windows Desktop App (HUD Overlay)',
             download_modal_title: 'Boss Tracker for Windows',
-            download_modal_badge: 'Portable v1.3.44',
+            download_modal_badge: 'Portable v1.3.45',
             download_feat_hud: 'Mini HUD Overlay: In-game floating boss timer on top of Lineage 2',
             download_feat_clickthrough: 'Click-Through Mode: Press Alt+F12 to click through into the game without stealing focus',
             download_feat_audio: 'Integrated Audio: Spawn and pre-spawn alerts directly on your desktop',
@@ -336,7 +336,7 @@
             sheets_script_guide: '📖 <b>ไฟล์สคริปต์:</b> อยู่ที่ <code>google_apps_script/Code.gs</code> พร้อมคู่มือใน <code>google_apps_script/README.md</code>',
             download_app_tooltip: 'ดาวน์โหลดแอปเดสก์ท็อป Windows (HUD Overlay)',
             download_modal_title: 'Boss Tracker สำหรับ Windows',
-            download_modal_badge: 'แบบพกพา v1.3.44 (Portable)',
+            download_modal_badge: 'แบบพกพา v1.3.45 (Portable)',
             download_feat_hud: 'Mini HUD Overlay: หน้าต่างลอยแสดงเวลานับถอยหลังบอสทับบนเกม Lineage 2',
             download_feat_clickthrough: 'โหมดคลิกทะลุ: กดปุ่ม Alt+F12 เพื่อคลิกทะลุเข้าเกมได้ 100% ไม่กวนการเล่น',
             download_feat_audio: 'ระบบเสียงเตือน: แจ้งเตือนบอสเกิดและเตือนล่วงหน้าตรงถึงเดสก์ท็อป',
@@ -774,7 +774,7 @@ function ensureDownloadAppButton() {
     function updateDownloadAppButton() {
         const button = document.getElementById('header-download-app-control');
         if (!button) return;
-        const currentVer = state.appVersion || '1.3.44';
+        const currentVer = state.appVersion || '1.3.45';
         const dismissedVer = localStorage.getItem('bossTracker.dismissedAppUpdate');
         const hasUpdate = Boolean(state.appVersion && dismissedVer !== state.appVersion);
 
@@ -793,7 +793,7 @@ function ensureDownloadAppButton() {
     }
 
     function openDownloadAppModal() {
-        const currentVer = state.appVersion || '1.3.44';
+        const currentVer = state.appVersion || '1.3.45';
         try {
             localStorage.setItem('bossTracker.dismissedAppUpdate', currentVer);
         } catch (_) {}
@@ -1109,8 +1109,7 @@ function ensureDownloadAppButton() {
     }
 
     function showNotice(message, urgent, targetId = null, alertType = null, options = null) {
-        // Native Windows Notification disabled per user request: keep only custom in-app/HUD toast popups
-        if (false && 'Notification' in window && Notification.permission === 'granted') {
+        if (!window.electronAPI && (!document.hasFocus() || document.hidden) && 'Notification' in window && Notification.permission === 'granted') {
             try {
                 new Notification('Boss Tracker', {
                     body: message,
@@ -1151,6 +1150,7 @@ function ensureDownloadAppButton() {
 
         toast.style.cssText = `pointer-events:auto;transition:all 0.25s ease-out;padding:6px 11px;border-radius:6px;background:${bgStyle};border:1px solid ${borderStyle};color:white;font:700 11.5px/1.3 system-ui,-apple-system,sans-serif;box-shadow:${glowStyle};text-shadow:0 1px 2px rgba(0,0,0,0.9);white-space:nowrap;cursor:pointer`;
 
+        let toastHtml = '';
         if (options && (customColor || isInvasion || true)) {
             const fontColor = customColor || (isInvasion ? invColor : '#ffffff');
             const shadow = (fontColor && fontColor !== '#ffffff' && fontColor !== '#f4f4f5') ? `text-shadow:0 0 8px ${fontColor}80;` : '';
@@ -1169,15 +1169,27 @@ function ensureDownloadAppButton() {
                 actionText = isThai ? 'เตรียมตัว!' : 'Get Ready!';
             }
 
-            toast.innerHTML = `
+            toastHtml = `
                 <div style="display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                     <span style="flex-shrink:0;">${icon}</span>
                     <span style="color:${fontColor};${shadow}font-weight:bold;">${tag}${rawName}${loc ? `<span style="opacity:0.75;font-weight:normal;font-size:10.5px;">${loc}</span>` : ''}</span>
                     ${actionText ? `<span style="opacity:0.6;margin:0 2px;">•</span><span style="font-weight:600;flex-shrink:0;">${actionText}</span>` : ''}
                 </div>
             `.trim();
+            toast.innerHTML = toastHtml;
         } else {
             toast.textContent = message;
+        }
+
+        if (window.electronAPI && typeof window.electronAPI.showTopToast === 'function') {
+            window.electronAPI.showTopToast({
+                message,
+                urgent,
+                targetId,
+                alertType,
+                options,
+                html: toastHtml
+            });
         }
 
         toast.onclick = () => toast.remove();
@@ -1463,7 +1475,7 @@ function ensureDownloadAppButton() {
                 return; // FORBID alert when invasion visibility is off
             }
             if (!initial && fresh && !isMuted(event.bossId, 'boss')) {
-                if (document.visibilityState !== 'visible') {
+                if (document.visibilityState !== 'visible' || !document.hasFocus() || window.electronAPI) {
                     const key = setting('preSpawnSound', 'pop2');
                     playSound(soundPath(key, '/pop2.mp3'));
                 }
@@ -2592,6 +2604,328 @@ function ensureDownloadAppButton() {
         }
     }
 
+    function attachCustomTimeFormatToDialog() {
+        const dialogs = document.querySelectorAll('[role="dialog"]');
+        if (!dialogs.length) return;
+
+        const isTh = getLanguage() === 'th';
+        const pad2 = (n) => String(Math.max(0, Math.floor(Number(n) || 0))).padStart(2, '0');
+        const setReactInputValue = (el, val) => {
+            const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+            if (setter) {
+                setter.call(el, val);
+            } else {
+                el.value = val;
+            }
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        const formatToIsoLocal = (d) => {
+            return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+        };
+
+        for (const dialog of dialogs) {
+            const dtInputs = dialog.querySelectorAll('input[type="datetime-local"]');
+            for (const input of dtInputs) {
+                const parent = input.parentElement;
+                if (!parent) continue;
+
+                const inputId = input.id || 'dt-custom';
+                let widget = parent.querySelector(`.custom-dmy-24h-widget[data-for-id="${inputId}"]`);
+
+                if (widget) {
+                    if (widget.getAttribute('data-lang') !== getLanguage()) {
+                        widget.setAttribute('data-lang', getLanguage());
+                        const lblDate = widget.querySelector('.dmy-label-date');
+                        const lblTime = widget.querySelector('.dmy-label-time');
+                        const btnToday = widget.querySelector('.dmy-btn-today');
+                        const btnYest = widget.querySelector('.dmy-btn-yesterday');
+                        const btnNow = widget.querySelector('.dmy-btn-now');
+                        const btnClear = widget.querySelector('.dmy-btn-clear');
+                        const subDd = widget.querySelector('.dmy-sub-dd');
+                        const subMm = widget.querySelector('.dmy-sub-mm');
+                        const subYyyy = widget.querySelector('.dmy-sub-yyyy');
+                        const subHh = widget.querySelector('.dmy-sub-hh');
+                        const subMin = widget.querySelector('.dmy-sub-min');
+                        const subSec = widget.querySelector('.dmy-sub-sec');
+                        const sumLbl = widget.querySelector('.dmy-summary-label');
+
+                        if (lblDate) lblDate.textContent = isTh ? '📅 วันที่ (ว/ด/ป)' : '📅 Date (DD/MM/YYYY)';
+                        if (lblTime) lblTime.textContent = isTh ? '⏰ เวลา (24 ชม.)' : '⏰ Time (24-Hour)';
+                        if (btnToday) btnToday.textContent = isTh ? 'วันนี้' : 'Today';
+                        if (btnYest) btnYest.textContent = isTh ? 'เมื่อวาน' : 'Yesterday';
+                        if (btnNow) btnNow.textContent = isTh ? '⚡ เวลาตอนนี้' : '⚡ Now';
+                        if (btnClear) btnClear.textContent = isTh ? 'ล้างค่า' : 'Clear';
+                        if (subDd) subDd.textContent = isTh ? 'วัน (01-31)' : 'Day (01-31)';
+                        if (subMm) subMm.textContent = isTh ? 'เดือน (01-12)' : 'Month (01-12)';
+                        if (subYyyy) subYyyy.textContent = isTh ? 'ปี (ค.ศ.)' : 'Year (YYYY)';
+                        if (subHh) subHh.textContent = isTh ? 'ชม. (00-23)' : 'Hour (00-23)';
+                        if (subMin) subMin.textContent = isTh ? 'นาที (00-59)' : 'Min (00-59)';
+                        if (subSec) subSec.textContent = isTh ? 'วินาที (00-59)' : 'Sec (00-59)';
+                        if (sumLbl) sumLbl.textContent = isTh ? '📌 รูปแบบ ว/ด/ป (24 ชม.):' : '📌 Format DD/MM/YYYY (24h):';
+                    }
+                    continue;
+                }
+
+                // Hide native locale-dependent datetime-local input while keeping it mounted for React
+                input.style.cssText = 'position:absolute!important;opacity:0!important;pointer-events:none!important;width:0!important;height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;';
+
+                const isOptional = (inputId === 'b-kill-time');
+                const serverNow = typeof window.getTrackerServerNow === 'function' ? window.getTrackerServerNow() : new Date(Date.now() + state.serverOffset);
+
+                // Sync initial value to server clock for shared-kt / shared-st
+                let initDate = serverNow;
+                let hasValue = true;
+                if (isOptional && !input.value) {
+                    hasValue = false;
+                } else if (inputId === 'shared-kt' || inputId === 'shared-st') {
+                    setReactInputValue(input, formatToIsoLocal(serverNow));
+                } else if (input.value) {
+                    const parsed = new Date(input.value);
+                    if (!isNaN(parsed.getTime())) initDate = parsed;
+                }
+
+                widget = document.createElement('div');
+                widget.className = 'custom-dmy-24h-widget';
+                widget.setAttribute('data-for-id', inputId);
+                widget.setAttribute('data-lang', getLanguage());
+                widget.style.cssText = 'background:rgba(24,24,27,0.92);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;margin-top:2px;';
+
+                widget.innerHTML = `
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <span class="dmy-label-date" style="font-size:11px;font-weight:700;color:#38bdf8;">${isTh ? '📅 วันที่ (ว/ด/ป)' : '📅 Date (DD/MM/YYYY)'}</span>
+                            <div style="display:flex;gap:4px;">
+                                <button type="button" class="dmy-btn-today" style="padding:2px 7px;font-size:10px;font-weight:600;border-radius:4px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.35);color:#38bdf8;cursor:pointer;">${isTh ? 'วันนี้' : 'Today'}</button>
+                                <button type="button" class="dmy-btn-yesterday" style="padding:2px 7px;font-size:10px;font-weight:600;border-radius:4px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#d4d4d8;cursor:pointer;">${isTh ? 'เมื่อวาน' : 'Yesterday'}</button>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+                                <input type="text" inputmode="numeric" maxlength="2" class="dmy-field dmy-dd" placeholder="DD" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(56,189,248,0.35);border-radius:5px;padding:5px 4px;color:#ffffff;font-family:monospace;font-size:13px;font-weight:700;outline:none;">
+                                <span class="dmy-sub-dd" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'วัน (01-31)' : 'Day (01-31)'}</span>
+                            </div>
+                            <span style="color:#71717a;font-weight:800;font-size:14px;margin-bottom:14px;">/</span>
+                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+                                <input type="text" inputmode="numeric" maxlength="2" class="dmy-field dmy-mm" placeholder="MM" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(56,189,248,0.35);border-radius:5px;padding:5px 4px;color:#ffffff;font-family:monospace;font-size:13px;font-weight:700;outline:none;">
+                                <span class="dmy-sub-mm" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'เดือน (01-12)' : 'Month (01-12)'}</span>
+                            </div>
+                            <span style="color:#71717a;font-weight:800;font-size:14px;margin-bottom:14px;">/</span>
+                            <div style="flex:1.3;display:flex;flex-direction:column;align-items:center;">
+                                <input type="text" inputmode="numeric" maxlength="4" class="dmy-field dmy-yyyy" placeholder="YYYY" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(56,189,248,0.35);border-radius:5px;padding:5px 4px;color:#ffffff;font-family:monospace;font-size:13px;font-weight:700;outline:none;">
+                                <span class="dmy-sub-yyyy" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'ปี (ค.ศ.)' : 'Year (YYYY)'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;flex-direction:column;gap:4px;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <span class="dmy-label-time" style="font-size:11px;font-weight:700;color:#fbbf24;">${isTh ? '⏰ เวลา (24 ชม.)' : '⏰ Time (24-Hour)'}</span>
+                            <div style="display:flex;gap:4px;">
+                                <button type="button" class="dmy-btn-now" style="padding:2px 7px;font-size:10px;font-weight:600;border-radius:4px;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.35);color:#fbbf24;cursor:pointer;">${isTh ? '⚡ เวลาตอนนี้' : '⚡ Now'}</button>
+                                ${isOptional ? `<button type="button" class="dmy-btn-clear" style="padding:2px 7px;font-size:10px;font-weight:600;border-radius:4px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);color:#f87171;cursor:pointer;">${isTh ? 'ล้างค่า' : 'Clear'}</button>` : ''}
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+                                <input type="text" inputmode="numeric" maxlength="2" class="dmy-field dmy-hh" placeholder="HH" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(251,191,36,0.45);border-radius:5px;padding:5px 4px;color:#fde68a;font-family:monospace;font-size:14px;font-weight:700;outline:none;">
+                                <span class="dmy-sub-hh" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'ชม. (00-23)' : 'Hour (00-23)'}</span>
+                            </div>
+                            <span style="color:#fbbf24;font-weight:800;font-size:14px;margin-bottom:14px;">:</span>
+                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+                                <input type="text" inputmode="numeric" maxlength="2" class="dmy-field dmy-min" placeholder="mm" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(251,191,36,0.45);border-radius:5px;padding:5px 4px;color:#fde68a;font-family:monospace;font-size:14px;font-weight:700;outline:none;">
+                                <span class="dmy-sub-min" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'นาที (00-59)' : 'Min (00-59)'}</span>
+                            </div>
+                            <span style="color:#fbbf24;font-weight:800;font-size:14px;margin-bottom:14px;">:</span>
+                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+                                <input type="text" inputmode="numeric" maxlength="2" class="dmy-field dmy-sec" placeholder="ss" style="width:100%;text-align:center;background:#09090b;border:1px solid rgba(255,255,255,0.18);border-radius:5px;padding:5px 4px;color:#d4d4d8;font-family:monospace;font-size:13px;font-weight:700;outline:none;">
+                                <span class="dmy-sub-sec" style="font-size:9px;color:#a1a1aa;margin-top:2px;">${isTh ? 'วินาที (00-59)' : 'Sec (00-59)'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="font-size:10.5px;color:#a1a1aa;padding:4px 8px;background:rgba(255,255,255,0.04);border-radius:5px;border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;">
+                        <span class="dmy-summary-label">${isTh ? '📌 รูปแบบ ว/ด/ป (24 ชม.):' : '📌 Format DD/MM/YYYY (24h):'}</span>
+                        <b class="dmy-summary-value" style="color:#38bdf8;font-family:monospace;font-size:11.5px;">--/--/---- --:--:--</b>
+                    </div>
+                `;
+
+                const ddEl = widget.querySelector('.dmy-dd');
+                const mmEl = widget.querySelector('.dmy-mm');
+                const yyyyEl = widget.querySelector('.dmy-yyyy');
+                const hhEl = widget.querySelector('.dmy-hh');
+                const minEl = widget.querySelector('.dmy-min');
+                const secEl = widget.querySelector('.dmy-sec');
+                const summaryVal = widget.querySelector('.dmy-summary-value');
+
+                const populateFromDate = (d) => {
+                    ddEl.value = pad2(d.getDate());
+                    mmEl.value = pad2(d.getMonth() + 1);
+                    yyyyEl.value = String(d.getFullYear());
+                    hhEl.value = pad2(d.getHours());
+                    minEl.value = pad2(d.getMinutes());
+                    secEl.value = pad2(d.getSeconds());
+                    syncToReact();
+                };
+
+                const clearFields = () => {
+                    ddEl.value = '';
+                    mmEl.value = '';
+                    yyyyEl.value = '';
+                    hhEl.value = '';
+                    minEl.value = '';
+                    secEl.value = '';
+                    if (summaryVal) summaryVal.textContent = isTh ? 'ไม่ระบุ (Unset)' : 'Unset';
+                    setReactInputValue(input, '');
+                };
+
+                const syncToReact = () => {
+                    if (isOptional && !ddEl.value && !mmEl.value && !yyyyEl.value && !hhEl.value && !minEl.value) {
+                        if (summaryVal) summaryVal.textContent = isTh ? 'ไม่ระบุ (Unset)' : 'Unset';
+                        setReactInputValue(input, '');
+                        return;
+                    }
+                    const nowRef = typeof window.getTrackerServerNow === 'function' ? window.getTrackerServerNow() : new Date(Date.now() + state.serverOffset);
+                    let day = parseInt(ddEl.value, 10);
+                    let month = parseInt(mmEl.value, 10);
+                    let year = parseInt(yyyyEl.value, 10);
+                    let hour = parseInt(hhEl.value, 10);
+                    let min = parseInt(minEl.value, 10);
+                    let sec = parseInt(secEl.value, 10);
+
+                    if (!Number.isFinite(day) || day < 1) day = nowRef.getDate();
+                    if (day > 31) day = 31;
+                    if (!Number.isFinite(month) || month < 1) month = nowRef.getMonth() + 1;
+                    if (month > 12) month = 12;
+                    if (!Number.isFinite(year) || year < 1000) year = nowRef.getFullYear();
+                    // Automatically convert Thai Buddhist Era (พ.ศ. >= 2400) to Christian Era (ค.ศ.)
+                    if (year >= 2400) year -= 543;
+
+                    if (!Number.isFinite(hour) || hour < 0) hour = 0;
+                    if (hour > 23) hour = 23;
+                    if (!Number.isFinite(min) || min < 0) min = 0;
+                    if (min > 59) min = 59;
+                    if (!Number.isFinite(sec) || sec < 0) sec = 0;
+                    if (sec > 59) sec = 59;
+
+                    const dStr = pad2(day);
+                    const mStr = pad2(month);
+                    const yStr = String(year).padStart(4, '0');
+                    const hStr = pad2(hour);
+                    const minStr = pad2(min);
+                    const sStr = pad2(sec);
+
+                    if (summaryVal) {
+                        summaryVal.textContent = `${dStr}/${mStr}/${yStr} ${hStr}:${minStr}:${sStr}`;
+                    }
+                    const isoStr = `${yStr}-${mStr}-${dStr}T${hStr}:${minStr}:${sStr}`;
+                    setReactInputValue(input, isoStr);
+                };
+
+                const fieldsOrder = [ddEl, mmEl, yyyyEl, hhEl, minEl, secEl];
+                fieldsOrder.forEach((f, idx) => {
+                    f.addEventListener('focus', () => {
+                        setTimeout(() => f.select(), 10);
+                    });
+                    f.addEventListener('input', () => {
+                        f.value = f.value.replace(/\D/g, '');
+                        const maxLen = Number(f.getAttribute('maxlength')) || 2;
+                        if (f.value.length >= maxLen && idx < fieldsOrder.length - 1) {
+                            fieldsOrder[idx + 1].focus();
+                            fieldsOrder[idx + 1].select();
+                        }
+                        syncToReact();
+                    });
+                    f.addEventListener('blur', () => {
+                        if (!f.value && isOptional) {
+                            syncToReact();
+                            return;
+                        }
+                        if (f === yyyyEl) {
+                            let y = parseInt(f.value, 10);
+                            if (Number.isFinite(y) && y >= 2400) y -= 543;
+                            if (Number.isFinite(y) && y >= 1900) f.value = String(y);
+                        } else if (f.value) {
+                            let v = parseInt(f.value, 10);
+                            if (f === ddEl) v = Math.max(1, Math.min(31, v || 1));
+                            if (f === mmEl) v = Math.max(1, Math.min(12, v || 1));
+                            if (f === hhEl) v = Math.max(0, Math.min(23, v || 0));
+                            if (f === minEl || f === secEl) v = Math.max(0, Math.min(59, v || 0));
+                            f.value = pad2(v);
+                        }
+                        syncToReact();
+                    });
+                    f.addEventListener('keydown', (e) => {
+                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            const delta = e.key === 'ArrowUp' ? 1 : -1;
+                            let v = parseInt(f.value, 10) || 0;
+                            if (f === ddEl) v = ((v - 1 + delta + 31) % 31) + 1;
+                            else if (f === mmEl) v = ((v - 1 + delta + 12) % 12) + 1;
+                            else if (f === yyyyEl) v = (v || new Date().getFullYear()) + delta;
+                            else if (f === hhEl) v = (v + delta + 24) % 24;
+                            else v = (v + delta + 60) % 60;
+                            f.value = f === yyyyEl ? String(v) : pad2(v);
+                            syncToReact();
+                        }
+                    });
+                });
+
+                const btnToday = widget.querySelector('.dmy-btn-today');
+                if (btnToday) {
+                    btnToday.addEventListener('click', () => {
+                        const now = typeof window.getTrackerServerNow === 'function' ? window.getTrackerServerNow() : new Date(Date.now() + state.serverOffset);
+                        ddEl.value = pad2(now.getDate());
+                        mmEl.value = pad2(now.getMonth() + 1);
+                        yyyyEl.value = String(now.getFullYear());
+                        if (!hhEl.value) hhEl.value = pad2(now.getHours());
+                        if (!minEl.value) minEl.value = pad2(now.getMinutes());
+                        if (!secEl.value) secEl.value = pad2(now.getSeconds());
+                        syncToReact();
+                    });
+                }
+
+                const btnYest = widget.querySelector('.dmy-btn-yesterday');
+                if (btnYest) {
+                    btnYest.addEventListener('click', () => {
+                        const now = typeof window.getTrackerServerNow === 'function' ? window.getTrackerServerNow() : new Date(Date.now() + state.serverOffset);
+                        const yest = new Date(now.getTime() - 86400000);
+                        ddEl.value = pad2(yest.getDate());
+                        mmEl.value = pad2(yest.getMonth() + 1);
+                        yyyyEl.value = String(yest.getFullYear());
+                        if (!hhEl.value) hhEl.value = pad2(now.getHours());
+                        if (!minEl.value) minEl.value = pad2(now.getMinutes());
+                        if (!secEl.value) secEl.value = pad2(now.getSeconds());
+                        syncToReact();
+                    });
+                }
+
+                const btnNow = widget.querySelector('.dmy-btn-now');
+                if (btnNow) {
+                    btnNow.addEventListener('click', () => {
+                        const now = typeof window.getTrackerServerNow === 'function' ? window.getTrackerServerNow() : new Date(Date.now() + state.serverOffset);
+                        populateFromDate(now);
+                    });
+                }
+
+                const btnClear = widget.querySelector('.dmy-btn-clear');
+                if (btnClear) {
+                    btnClear.addEventListener('click', () => {
+                        clearFields();
+                    });
+                }
+
+                if (hasValue) {
+                    populateFromDate(initDate);
+                } else {
+                    clearFields();
+                }
+
+                input.insertAdjacentElement('afterend', widget);
+            }
+        }
+    }
+
     function enhanceUi() {
         if (!document.getElementById('action-toast-position')) {
             const s = document.createElement('style');
@@ -2625,6 +2959,7 @@ function ensureDownloadAppButton() {
         }
         attachBossColorPickerToDialog();
         attachEventColorPickerToDialog();
+        attachCustomTimeFormatToDialog();
         syncInvasionSettingsAdminLock();
         translateVisibleTooltips();
         translateVisibleUi();
@@ -2663,7 +2998,8 @@ function ensureDownloadAppButton() {
                 continue;
             }
 
-            const handledByDashboard = kind === 'boss' && document.visibilityState === 'visible';
+            const isCoveredOrBlurred = !document.hasFocus() || document.visibilityState !== 'visible' || Boolean(window.electronAPI);
+            const handledByDashboard = kind === 'boss' && !isCoveredOrBlurred && document.visibilityState === 'visible';
             if (diff > 0 && diff <= threshold && !state.alerted.has(preKey)) {
                 state.alerted.add(preKey);
                 if (!handledByDashboard) {
@@ -2713,6 +3049,68 @@ function ensureDownloadAppButton() {
         }
         state.initialAlertScanDone = true;
     }
+
+    let wakeLockSentinel = null;
+    let wakeLockFallbackVideo = null;
+
+    async function requestScreenWakeLock() {
+        if (document.visibilityState !== 'visible') return;
+
+        // 1. Standard W3C Screen Wake Lock API (Android Chrome, iOS/iPadOS Safari 16.4+, Edge)
+        if ('wakeLock' in navigator && navigator.wakeLock && typeof navigator.wakeLock.request === 'function') {
+            try {
+                if (!wakeLockSentinel || wakeLockSentinel.released) {
+                    wakeLockSentinel = await navigator.wakeLock.request('screen');
+                    wakeLockSentinel.addEventListener('release', () => {
+                        wakeLockSentinel = null;
+                    });
+                }
+                return;
+            } catch (_) {}
+        }
+
+        // 2. Fallback for older iOS/Android WebViews using a tiny silent looping playsinline video
+        try {
+            if (!wakeLockFallbackVideo) {
+                const v = document.createElement('video');
+                v.setAttribute('playsinline', '');
+                v.setAttribute('webkit-playsinline', '');
+                v.setAttribute('muted', '');
+                v.setAttribute('loop', '');
+                v.muted = true;
+                v.loop = true;
+                v.style.cssText = 'position:fixed;top:-10px;left:-10px;width:1px;height:1px;opacity:0.001;pointer-events:none;z-index:-1;';
+                // Minimal valid MP4 base64 stream to keep mobile display awake
+                v.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAu1tZGF0AAACrgYF//+q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE0OCByMjc5NSA2YThhOWI2IC0gSC4yNjQvTVBFRy00 AVCIGNvZGVjIC0gQ29weXJpZ2h0IDIwMDMtMjAxNyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTEgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MToweDExMSBtZT1oZXggc3VibWU9MiBwcyk9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0wIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MCBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0wIHRocmVhZHM9NiBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVSYXl9Y29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD0yNTAga2V5aW50X21pbj0yNSBzY2VuZWN1dD00MCBpbnRyYV9yZWZyZXNoPTAgcmNfbG9va2FoZWFkPTAgcmM9Y3JmIG1idHJlZT0wIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCB2YnZfbWF4cmF0ZT0wIHZidl9idWZzaXplPTAgY3JmX21heD0wLjAgbmFsX2hyZD1ub25lIGZpbGxlcj0wIGlwX3JhdGlvPTEuNDAgYXE9MToxLjAw ';
+                document.body.appendChild(v);
+                wakeLockFallbackVideo = v;
+            }
+            if (wakeLockFallbackVideo.paused) {
+                wakeLockFallbackVideo.play().catch(() => {});
+            }
+        } catch (_) {}
+    }
+
+    function initScreenWakeLock() {
+        requestScreenWakeLock();
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                requestScreenWakeLock();
+            }
+        });
+        const onUserGesture = () => {
+            requestScreenWakeLock();
+        };
+        document.addEventListener('touchstart', onUserGesture, { passive: true });
+        document.addEventListener('pointerdown', onUserGesture, { passive: true });
+        document.addEventListener('click', onUserGesture, { passive: true });
+        setInterval(() => {
+            if (document.visibilityState === 'visible' && (!wakeLockSentinel || wakeLockSentinel.released)) {
+                requestScreenWakeLock();
+            }
+        }, 20000);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         readInitialData();
         ensureStatusButton();
@@ -2724,6 +3122,7 @@ function ensureDownloadAppButton() {
         applyTimezoneDisplay(false);
         state.audioUnlocked = localStorage.getItem('dashboard.audioUnlocked') === 'true';
         updateStatus();
+        initScreenWakeLock();
         const unlockOnFirstInteraction = () => unlockAudio();
         document.addEventListener('pointerdown', unlockOnFirstInteraction, { once: true, passive: true });
         document.addEventListener('keydown', unlockOnFirstInteraction, { once: true });

@@ -46,9 +46,30 @@ console.log('app.asar created successfully at:', asarFile);
 // Clean staging dir
 fs.rmSync(stagingDir, { recursive: true, force: true });
 
+// Ensure BossTracker.exe has requireAdministrator execution level in its PE manifest
+const unpackedDir = path.join(desktopDir, 'dist', 'win-unpacked');
+const exePath = path.join(unpackedDir, 'BossTracker.exe');
+if (fs.existsSync(exePath)) {
+    try {
+        const cacheDir = path.join(process.env.LOCALAPPDATA || '', 'electron-builder', 'Cache', 'winCodeSign');
+        if (fs.existsSync(cacheDir)) {
+            const subDirs = fs.readdirSync(cacheDir);
+            for (const sub of subDirs) {
+                const candidate = path.join(cacheDir, sub, 'rcedit-x64.exe');
+                if (fs.existsSync(candidate)) {
+                    execSync(`"${candidate}" "${exePath}" --set-requested-execution-level requireAdministrator`, { stdio: 'inherit' });
+                    console.log('Verified requireAdministrator execution level on BossTracker.exe');
+                    break;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Warning: rcedit skipped:', e.message);
+    }
+}
+
 // Create portable zip
 const zipPath = path.join(desktopDir, 'dist', 'BossTracker-Windows-Portable.zip');
-const unpackedDir = path.join(desktopDir, 'dist', 'win-unpacked');
 console.log('Creating portable zip at:', zipPath);
 try {
     if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);

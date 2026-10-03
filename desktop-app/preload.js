@@ -37,5 +37,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     syncLanguage: (lang) => ipcRenderer.invoke('sync-language', lang),
     onLanguageChanged: (callback) => {
         ipcRenderer.on('language-changed', (_, lang) => callback(lang));
+    },
+    showDesktopNotification: (payload) => ipcRenderer.invoke('show-desktop-notification', payload),
+    showTopToast: (payload) => ipcRenderer.invoke('show-top-toast', payload),
+    hideToastOverlay: () => ipcRenderer.invoke('hide-toast-overlay'),
+    onDisplayToast: (callback) => {
+        ipcRenderer.on('display-toast', (_, payload) => callback(payload));
     }
 });

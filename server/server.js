@@ -188,11 +188,13 @@ function renderLoginHtml(pageData, title) {
 .lang-toggle:hover{background:rgba(56,189,248,0.15);border-color:rgba(56,189,248,0.35);color:#7dd3fc}
 .brand{text-align:center;color:#d97706;font-weight:800;margin-bottom:22px}
 .tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:18px}
-.tabs label{padding:9px;text-align:center;border-radius:8px;background:#18181b;cursor:pointer;font-size:12px;font-weight:700}
+.tabs label{padding:9px;text-align:center;border-radius:8px;background:#18181b;cursor:pointer;font-size:12px;font-weight:700;user-select:none;-webkit-user-select:none}
 .tabs input{position:absolute;opacity:0}
-.tabs label:has(input:checked){background:#78350f;color:#fcd34d}
+.tabs label.active, .tabs label:has(input:checked){background:#78350f;color:#fcd34d}
 .field{display:block;margin-bottom:7px;color:#a1a1aa;font-size:11px;font-weight:700}
-.password{width:100%;padding:12px;border:1px solid #52525b;border-radius:9px;background:#09090b;color:#fff;font-size:16px}
+.pwd-wrap{position:relative;width:100%}
+.password{width:100%;padding:12px;padding-right:44px;border:1px solid #52525b;border-radius:9px;background:#09090b;color:#fff;font-size:16px}
+.pwd-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:#a1a1aa;cursor:pointer;padding:6px;font-size:16px;user-select:none;-webkit-user-select:none}
 .submit{width:100%;margin-top:16px;padding:12px;border:0;border-radius:9px;background:#d97706;color:#fff;font-weight:800;cursor:pointer}
 .submit:disabled{opacity:.55}
 .error{margin:12px 0 0;color:#f87171;font-size:13px}
@@ -201,14 +203,29 @@ function renderLoginHtml(pageData, title) {
 <button type="button" class="lang-toggle" id="login-lang-btn" onclick="toggleLoginLang()">🌐 EN</button>
 <div class="brand">#madebyelon</div>
 <form method="post" action="/login" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent=window.loginLang==='th'?'กำลังเข้าสู่ระบบ...':'Signing in...'">
-<div class="tabs"><label><input type="radio" name="name" value="kain7" checked>MEMBER</label><label><input type="radio" name="name" value="guest">GUEST</label><label><input type="radio" name="name" value="admin">ADMIN</label></div>
+<div class="tabs"><label class="active"><input type="radio" name="name" value="kain7" checked>MEMBER</label><label><input type="radio" name="name" value="guest">GUEST</label><label><input type="radio" name="name" value="admin">ADMIN</label></div>
 <label class="field" id="label-pwd" for="password">PASSWORD</label>
-<input class="password" id="password" name="password" type="password" required autocomplete="current-password" placeholder="Enter password" autofocus onkeydown="if(event.key==='Enter'){event.preventDefault();this.form.requestSubmit()}">
+<div class="pwd-wrap">
+<input class="password" id="password" name="password" type="password" required autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" placeholder="Enter password" autofocus onkeydown="if(event.key==='Enter'){event.preventDefault();this.form.requestSubmit()}">
+<button type="button" class="pwd-toggle" id="btn-toggle-pwd" onclick="togglePasswordVisibility()" title="Show/Hide Password">👁️</button>
+</div>
 ${error ? `<p class="error">${error}</p>` : ''}
 <button class="submit" id="btn-submit" type="submit">SIGN IN</button>
 </form><div class="note" id="login-footer-note">Boss Tracker ${APP_VERSION}</div></main>
 <script>
 window.loginLang = localStorage.getItem('tracker_lang') === 'th' ? 'th' : 'en';
+function togglePasswordVisibility() {
+    const pwd = document.getElementById('password');
+    const btn = document.getElementById('btn-toggle-pwd');
+    if (!pwd) return;
+    if (pwd.type === 'password') {
+        pwd.type = 'text';
+        if (btn) btn.textContent = '🙈';
+    } else {
+        pwd.type = 'password';
+        if (btn) btn.textContent = '👁️';
+    }
+}
 function updateLoginLangUi() {
     const isTh = window.loginLang === 'th';
     document.documentElement.lang = window.loginLang;
@@ -231,6 +248,12 @@ function toggleLoginLang() {
     localStorage.setItem('tracker_lang', window.loginLang);
     updateLoginLangUi();
 }
+document.querySelectorAll('.tabs input[type="radio"]').forEach(r => {
+    r.addEventListener('change', () => {
+        document.querySelectorAll('.tabs label').forEach(l => l.classList.remove('active'));
+        if (r.checked && r.parentElement) r.parentElement.classList.add('active');
+    });
+});
 updateLoginLangUi();
 </script>
 </body></html>`;
@@ -1942,51 +1965,31 @@ app.post('/login', limitLogin, async (req, res) => {
         }
     }
 
-    if (user === 'admin') {
-        if (isAdminPass) {
-            sessionRole = 'admin';
+    // Smart role resolution: verify password and grant matching role
+    if (user === 'admin' && isAdminPass) {
+        sessionRole = 'admin';
+    } else if (user === 'kain7' && isMemberPass) {
+        sessionRole = 'member';
+    } else if (user === 'guest' && guestEntry) {
+        if (new Date(guestEntry.expiresAt).getTime() <= Date.now()) {
+            errorMessage = 'รหัสผ่านชั่วคราวหมดอายุแล้ว (Guest Access Expired)';
         } else {
-            errorMessage = 'รหัสผ่าน Admin ไม่ถูกต้อง';
+            sessionRole = 'guest';
         }
-    } else if (user === 'guest') {
-        if (guestEntry) {
-            if (new Date(guestEntry.expiresAt).getTime() <= Date.now()) {
-                errorMessage = 'รหัสผ่านชั่วคราวหมดอายุแล้ว (Guest Access Expired)';
-            } else {
-                sessionRole = 'guest';
-            }
+    } else if (isAdminPass) {
+        // Admin password always grants Admin access regardless of active tab
+        sessionRole = 'admin';
+    } else if (isMemberPass) {
+        // Member password always grants Member access even if Admin or Guest tab was accidentally tapped
+        sessionRole = 'member';
+    } else if (guestEntry) {
+        if (new Date(guestEntry.expiresAt).getTime() <= Date.now()) {
+            errorMessage = 'รหัสผ่านชั่วคราวหมดอายุแล้ว (Guest Access Expired)';
         } else {
-            errorMessage = 'รหัสผ่าน Guest ไม่ถูกต้อง';
-        }
-    } else if (user === 'kain7' || user === 'member') {
-        if (isMemberPass) {
-            sessionRole = 'member';
-        } else if (isAdminPass) {
-            // Admin password also lets into admin mode even if on member tab
-            sessionRole = 'admin';
-        } else if (guestEntry) {
-            if (new Date(guestEntry.expiresAt).getTime() <= Date.now()) {
-                errorMessage = 'รหัสผ่านชั่วคราวหมดอายุแล้ว (Guest Access Expired)';
-            } else {
-                sessionRole = 'guest';
-            }
-        } else {
-            errorMessage = 'รหัสผ่าน Member ไม่ถูกต้อง';
+            sessionRole = 'guest';
         }
     } else {
-        if (isAdminPass) {
-            sessionRole = 'admin';
-        } else if (isMemberPass) {
-            sessionRole = 'member';
-        } else if (guestEntry) {
-            if (new Date(guestEntry.expiresAt).getTime() <= Date.now()) {
-                errorMessage = 'รหัสผ่านชั่วคราวหมดอายุแล้ว (Guest Access Expired)';
-            } else {
-                sessionRole = 'guest';
-            }
-        } else {
-            errorMessage = 'รหัสผ่านไม่ถูกต้อง';
-        }
+        errorMessage = 'รหัสผ่านไม่ถูกต้อง';
     }
 
     if (sessionRole === 'guest' && guestEntry) {
@@ -2032,9 +2035,10 @@ app.post('/login', limitLogin, async (req, res) => {
 
 // POST /logout
 app.post('/logout', (req, res) => {
+    const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader('Set-Cookie', [
-        'boss_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
-        'remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+        `boss_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=Lax${secure}`,
+        `remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=Lax${secure}`
     ]);
     if (req.headers['x-inertia']) {
         res.setHeader('X-Inertia-Location', '/login');

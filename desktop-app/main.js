@@ -1,14 +1,34 @@
-const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, nativeImage, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
+
+// Automatically elevate to Administrator on Windows if not already elevated
+if (process.platform === 'win32' && !process.argv.includes('--elevated')) {
+    try {
+        execSync('fltmc >nul 2>&1');
+    } catch (_) {
+        try {
+            const exePath = process.execPath.replace(/'/g, "''");
+            execSync(`powershell -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath '${exePath}' -ArgumentList '--elevated' -Verb RunAs"`);
+            app.exit(0);
+        } catch (_) {}
+    }
+}
 
 // Disable hardware acceleration to eliminate Windows GPU 0xC0000005 crashes with transparent windows
 app.disableHardwareAcceleration();
+
+// Ensure audio alerts and timers continue unthrottled even when occluded by fullscreen games/apps
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
 
 const PRODUCTION_URL = 'https://boss-time-eloni.vercel.app/';
 
 let mainWindow = null;
 let hudWindow = null;
+let toastOverlayWindow = null;
 let tray = null;
 let isClickThrough = false;
 let isHudVisible = true;
@@ -99,7 +119,8 @@ function createMainWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js'),
+            backgroundThrottling: false // Keep timers and audio active when occluded by other windows/games
         }
     });
 
@@ -161,7 +182,8 @@ function createHudWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js'),
+            backgroundThrottling: false
         }
     });
 
@@ -180,6 +202,46 @@ function createHudWindow() {
     hudWindow.on('resized', () => {
         saveHudBounds(hudWindow.getBounds());
     });
+}
+
+function createToastOverlayWindow() {
+    if (toastOverlayWindow && !toastOverlayWindow.isDestroyed()) return toastOverlayWindow;
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+
+    const overlayWidth = 460;
+    const overlayHeight = 240;
+    const targetX = 12;
+    const targetY = Math.max(0, screenHeight - overlayHeight - 24);
+
+    toastOverlayWindow = new BrowserWindow({
+        width: overlayWidth,
+        height: overlayHeight,
+        x: targetX,
+        y: targetY,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        focusable: false,
+        resizable: false,
+        hasShadow: false,
+        show: false,
+        icon: path.join(__dirname, 'assets', 'icon.png'),
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js'),
+            backgroundThrottling: false
+        }
+    });
+
+    toastOverlayWindow.setAlwaysOnTop(true, 'screen-saver');
+    toastOverlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    toastOverlayWindow.setIgnoreMouseEvents(true, { forward: true });
+
+    toastOverlayWindow.loadFile(path.join(__dirname, 'overlay', 'toast.html'));
+    return toastOverlayWindow;
 }
 
 function setClickThrough(enable) {
@@ -340,6 +402,7 @@ function applyHotkeys() {
 app.whenReady().then(() => {
     createMainWindow();
     createHudWindow();
+    createToastOverlayWindow();
     createTray();
     registerHotkeys();
     startTrackerSync();
@@ -348,6 +411,7 @@ app.whenReady().then(() => {
         if (BrowserWindow.getAllWindows().length === 0) {
             createMainWindow();
             createHudWindow();
+            createToastOverlayWindow();
         }
     });
 });
@@ -396,6 +460,45 @@ ipcMain.handle('sync-invasion-visibility', async (_, hide) => {
         `).catch(() => {});
     }
     return { ok: true, hideInvasionBosses: shouldHide };
+});
+
+ipcMain.handle('show-desktop-notification', (_, { title, body }) => {
+    try {
+        if (Notification && Notification.isSupported()) {
+            const notif = new Notification({
+                title: title || 'Boss Tracker',
+                body: body || '',
+                icon: path.join(__dirname, 'assets', 'icon.png'),
+                silent: true // Audio is already handled cleanly by main audio master
+            });
+            notif.show();
+        }
+    } catch (_) {}
+    return { ok: true };
+});
+
+ipcMain.handle('show-top-toast', (_, payload) => {
+    try {
+        if (!toastOverlayWindow || toastOverlayWindow.isDestroyed()) {
+            createToastOverlayWindow();
+        }
+        if (toastOverlayWindow && !toastOverlayWindow.isDestroyed()) {
+            toastOverlayWindow.setAlwaysOnTop(true, 'screen-saver');
+            toastOverlayWindow.setIgnoreMouseEvents(true, { forward: true });
+            toastOverlayWindow.showInactive();
+            toastOverlayWindow.webContents.send('display-toast', payload);
+        }
+    } catch (_) {}
+    return { ok: true };
+});
+
+ipcMain.handle('hide-toast-overlay', () => {
+    try {
+        if (toastOverlayWindow && !toastOverlayWindow.isDestroyed()) {
+            toastOverlayWindow.hide();
+        }
+    } catch (_) {}
+    return { ok: true };
 });
 
 ipcMain.handle('set-ignore-mouse-events', (_, ignore, options) => {

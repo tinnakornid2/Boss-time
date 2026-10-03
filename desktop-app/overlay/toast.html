@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Boss Tracker Alert Overlay</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            pointer-events: none;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            overflow: hidden;
+            pointer-events: none;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        #top-toast-container {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+            max-width: 440px;
+            pointer-events: none;
+        }
+        .top-toast-item {
+            pointer-events: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: #ffffff;
+            font: 700 12px/1.35 system-ui, -apple-system, sans-serif;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+            white-space: nowrap;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+        }
+        .top-toast-item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div id="top-toast-container"></div>
+    <script>
+        const container = document.getElementById('top-toast-container');
+        let hideTimer = null;
+
+        function removeTargetToast(targetId) {
+            if (!targetId || !container) return;
+            const existing = container.querySelectorAll(`[data-alert-target="${targetId}"]`);
+            for (const el of existing) el.remove();
+        }
+
+        function checkHideWindow() {
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(() => {
+                if (container && container.children.length === 0) {
+                    if (window.electronAPI && typeof window.electronAPI.hideToastOverlay === 'function') {
+                        window.electronAPI.hideToastOverlay();
+                    }
+                }
+            }, 300);
+        }
+
+        function renderToast(payload) {
+            if (!payload || !container) return;
+            const { message, urgent, targetId, alertType, options, html } = payload;
+
+            if (targetId) {
+                removeTargetToast(targetId);
+            }
+            while (container.children.length >= 3) {
+                container.firstElementChild.remove();
+            }
+
+            const toast = document.createElement('div');
+            toast.className = 'top-toast-item';
+            if (targetId) toast.setAttribute('data-alert-target', String(targetId));
+            if (alertType) toast.setAttribute('data-alert-type', String(alertType));
+
+            const customColor = options?.color;
+            const isInvasion = Boolean(options?.isInvasion);
+            const invColor = options?.invColor || '#facc15';
+
+            let borderStyle = urgent ? '#ef4444' : '#38bdf8';
+            let glowStyle = urgent
+                ? '0 0 12px rgba(239,68,68,0.55), 0 4px 18px rgba(0,0,0,0.9)'
+                : '0 0 12px rgba(56,189,248,0.45), 0 4px 18px rgba(0,0,0,0.9)';
+            let bgStyle = urgent ? 'rgba(127,29,29,0.96)' : 'rgba(15,23,42,0.96)';
+
+            if (isInvasion && !urgent) {
+                borderStyle = invColor;
+                glowStyle = `0 0 12px ${invColor}77, 0 4px 18px rgba(0,0,0,0.9)`;
+            }
+
+            toast.style.background = bgStyle;
+            toast.style.border = `1px solid ${borderStyle}`;
+            toast.style.boxShadow = glowStyle;
+
+            if (html) {
+                toast.innerHTML = html;
+            } else {
+                toast.textContent = message || '';
+            }
+
+            container.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.classList.add('visible');
+            });
+
+            setTimeout(() => {
+                toast.classList.remove('visible');
+                setTimeout(() => {
+                    toast.remove();
+                    checkHideWindow();
+                }, 260);
+            }, 6000);
+        }
+
+        if (window.electronAPI && typeof window.electronAPI.onDisplayToast === 'function') {
+            window.electronAPI.onDisplayToast((payload) => {
+                renderToast(payload);
+            });
+        }
+    </script>
+</body>
+</html>

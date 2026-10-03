@@ -75,10 +75,10 @@ function getCachedBossColor(id) {
 const I18N_HUD = {
     th: {
         boss_hud: 'BOSS HUD',
-        group_spawned: '🔥 บอสเกิดแล้ว',
-        group_upcoming: '⏳ บอสกำลังจะเกิด',
-        group_unset: '💤 ยังไม่ตั้งเวลา',
-        empty: 'ไม่มีข้อมูลบอส',
+        group_spawned: '🔥 เกิดแล้ว (Spawned)',
+        group_upcoming: '⏳ กำลังจะเกิด (Upcoming)',
+        group_unset: '💤 ยังไม่ตั้งเวลา (Unset)',
+        empty: 'ไม่มีข้อมูลบอสและกิจกรรม',
         connecting: 'กำลังเชื่อมต่อข้อมูลบอส...',
         label_font_size: 'ขนาดตัวอักษร:',
         label_font_family: 'แบบอักษร:',
@@ -955,14 +955,16 @@ function formatCountdown(ms) {
     const h = Math.floor(totalSec / 3600);
     const m = Math.floor((totalSec % 3600) / 60);
     const s = totalSec % 60;
-    if (h > 0) {
-        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    const parts = [];
+    if (h > 0) parts.push(`${h}h`);
+    parts.push(`${String(m).padStart(2, '0')}m`);
+    parts.push(`${String(s).padStart(2, '0')}s`);
+    return parts.join(' ');
 }
 
 function renderBossList() {
-    if (!state.bosses || state.bosses.length === 0) {
+    const totalCount = (state.bosses?.length || 0) + (state.events?.length || 0);
+    if (totalCount === 0) {
         dom.bossListContainer.innerHTML = `
             <div class="hud-empty" style="padding: 24px 12px; text-align: center; color: #949ba4;">
                 <div style="font-size: 20px; margin-bottom: 8px;">⏳</div>
@@ -979,7 +981,8 @@ function renderBossList() {
     const upcomingBosses = [];
     const unsetBosses = [];
 
-    for (const b of state.bosses) {
+    // 1. Process Bosses
+    for (const b of (state.bosses || [])) {
         if (b.is_invasion && state.settings.hideInvasionBosses) continue;
 
         const isInv = Boolean(b.is_invasion);
@@ -990,15 +993,35 @@ function renderBossList() {
             const isNow = b.pinned_alive || (diff <= 0 && diff > -300000);
 
             if (isNow) {
-                nowBosses.push({ item: b, targetTs, diff, isNow: true, isInv });
+                nowBosses.push({ item: b, targetTs, diff, isNow: true, isInv, isEvent: false });
             } else if (diff > 0) {
-                upcomingBosses.push({ item: b, targetTs, diff, isNow: false, isInv });
+                upcomingBosses.push({ item: b, targetTs, diff, isNow: false, isInv, isEvent: false });
             } else {
                 // Passed over 5 mins
-                upcomingBosses.push({ item: b, targetTs, diff, isNow: false, isInv });
+                upcomingBosses.push({ item: b, targetTs, diff, isNow: false, isInv, isEvent: false });
             }
         } else {
-            unsetBosses.push({ item: b, targetTs: null, diff: Infinity, isNow: false, isInv });
+            unsetBosses.push({ item: b, targetTs: null, diff: Infinity, isNow: false, isInv, isEvent: false });
+        }
+    }
+
+    // 2. Process Events
+    for (const e of (state.events || [])) {
+        if (e.next_spawn) {
+            const targetTs = new Date(e.next_spawn).getTime();
+            const diff = targetTs - now;
+            const autoDoneMs = (e.auto_done_minutes || 10) * 60000;
+            const isNow = e.pinned_alive || (diff <= 0 && diff > -autoDoneMs);
+
+            if (isNow) {
+                nowBosses.push({ item: e, targetTs, diff, isNow: true, isInv: false, isEvent: true });
+            } else if (diff > 0) {
+                upcomingBosses.push({ item: e, targetTs, diff, isNow: false, isInv: false, isEvent: true });
+            } else {
+                upcomingBosses.push({ item: e, targetTs, diff, isNow: false, isInv: false, isEvent: true });
+            }
+        } else {
+            unsetBosses.push({ item: e, targetTs: null, diff: Infinity, isNow: false, isInv: false, isEvent: true });
         }
     }
 
@@ -1010,10 +1033,16 @@ function renderBossList() {
 
     let html = '';
 
-    function renderItemCard({ item, isNow, diff, isInv }) {
-        const fontColor = getEffectiveColor(item, isInv);
+    function renderItemCard({ item, isNow, diff, isInv, isEvent }) {
+        const isEventItem = Boolean(isEvent || item.is_event);
+        let fontColor = '#ffffff';
+        if (isEventItem) {
+            fontColor = item.color ? String(item.color).trim() : '#38bdf8';
+        } else {
+            fontColor = getEffectiveColor(item, isInv);
+        }
         const glow = (fontColor && fontColor !== '#ffffff') ? `text-shadow: 0 0 8px ${fontColor}80;` : '';
-        const tag = isInv ? `[${state.settings.invasionLabel}] ` : '';
+        const tag = isInv ? `[${state.settings.invasionLabel || 'L3'}] ` : (isEventItem ? `<span class="badge-event" style="background:rgba(56,189,248,0.2);color:#38bdf8;font-size:9px;padding:1px 4px;border-radius:4px;margin-right:4px;font-weight:700;">EVENT</span>` : '');
         const loc = (state.showLocation && item.location) ? `<div class="boss-loc">(${item.location})</div>` : '';
 
         let timerClass = 'timer-normal';
@@ -1022,7 +1051,7 @@ function renderBossList() {
             timerClass = 'timer-now';
             timerText = 'NOW';
         } else if (Number.isFinite(diff) && diff !== Infinity) {
-            if (diff <= 60000) timerClass = 'timer-soon';
+            if (diff <= 120000) timerClass = 'timer-soon';
             timerText = formatCountdown(diff);
         } else {
             timerClass = 'timer-unset';
@@ -1031,7 +1060,13 @@ function renderBossList() {
         const isPreSpawned = Boolean(item.pre_spawned);
         const alertBadge = isPreSpawned ? `<span class="badge-alert">🔔 ALERT</span>` : '';
         const maintBadge = item.post_maintenance ? `<span class="badge-alert" style="background:#475569;color:#e2e8f0;">MAINT</span>` : '';
-        const cardClass = `boss-card ${isNow ? 'now' : ''} ${isPreSpawned ? 'pre-spawned' : ''}`;
+        const autoIcon = (item.auto_advanced && !item.post_maintenance) 
+            ? `<span class="hud-auto-icon" style="opacity:0.75;font-size:10px;margin-left:3px;cursor:default;">⚠️</span>` 
+            : '';
+        const maintIcon = item.post_maintenance 
+            ? `<span class="hud-maint-icon" style="opacity:0.75;font-size:10px;margin-left:3px;cursor:default;">🔧</span>` 
+            : '';
+        const cardClass = `boss-card ${isNow ? 'now' : ''} ${isPreSpawned ? 'pre-spawned' : ''} ${isEventItem ? 'event-card' : ''}`;
 
         return `
             <div class="boss-card-wrapper" data-wrapper-boss-id="${item.id}">
@@ -1041,7 +1076,7 @@ function renderBossList() {
                              data-boss-id="${item.id}" 
                              data-boss-name="${item.name}" 
                              style="color: ${fontColor}; ${glow}">
-                            ${tag}${item.name}${maintBadge}${alertBadge}
+                            ${tag}${item.name}${autoIcon}${maintIcon}${maintBadge}${alertBadge}
                         </div>
                         ${loc}
                     </div>
@@ -1077,25 +1112,36 @@ function renderBossList() {
 function checkAlerts() {
     const now = Date.now() + state.serverOffset;
 
-    for (const b of state.bosses) {
+    const allItems = [
+        ...(state.bosses || []).map(b => ({ item: b, kind: 'boss' })),
+        ...(state.events || []).map(e => ({ item: e, kind: 'event' }))
+    ];
+
+    for (const { item: b, kind } of allItems) {
         if (!b.next_spawn || b.post_maintenance) continue;
-        if (b.is_invasion && state.settings.hideInvasionBosses) continue;
+        if (kind === 'boss' && b.is_invasion && state.settings.hideInvasionBosses) continue;
 
         const targetTs = new Date(b.next_spawn).getTime();
         const diff = targetTs - now;
-        const preKey = `pre:${b.id}:${b.next_spawn}`;
-        const spawnKey = `spawn:${b.id}:${b.next_spawn}`;
+        const preKey = `pre:${kind}:${b.id}:${b.next_spawn}`;
+        const spawnKey = `spawn:${kind}:${b.id}:${b.next_spawn}`;
 
         const isInv = Boolean(b.is_invasion);
-        const fontColor = getEffectiveColor(b, isInv);
-        const tag = isInv ? `[${state.settings.invasionLabel}] ` : '';
+        const isEvent = kind === 'event';
+        let fontColor = '#ffffff';
+        if (isEvent) {
+            fontColor = b.color ? String(b.color).trim() : '#38bdf8';
+        } else {
+            fontColor = getEffectiveColor(b, isInv);
+        }
+        const tag = isInv ? `[${state.settings.invasionLabel || 'L3'}] ` : (isEvent ? `[EVENT] ` : '');
         const loc = b.location ? ` (${b.location})` : '';
 
         // 1-minute alert
         if (diff > 0 && diff <= 60000 && !state.alerted.has(preKey)) {
             state.alerted.add(preKey);
             const actionText = t('time_in_1min');
-            showHudToast(`${ICONS.bell} <span style="color:${fontColor}">${tag}${b.name}${loc}</span> • ${actionText}`, '#38bdf8');
+            showHudToast(`${ICONS.bell} <span style="color:${fontColor}">${tag}${b.name}${loc}</span> • ${actionText}`, isEvent ? '#38bdf8' : '#f59e0b');
             playAlertSound('alert.mp3');
         }
 
