@@ -4,8 +4,8 @@ Read this file completely before changing the project. This is a production boss
 
 ## Stable recovery point
 
-- Primary stable release: `stable-v1.3.47`
-- Previous recovery releases: `stable-v1.3.46`, `stable-v1.3.45`, `stable-v1.3.44`, `stable-v1.3.43`, `stable-v1.3.34`, `stable-v1.3.30`, `stable-v1.3.29`, `stable-v1.3.28`, `stable-v1.3.27`, `stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` (keep unchanged for historical rollback)
+- Primary stable release: `stable-v1.3.48`
+- Previous recovery releases: `stable-v1.3.47`, `stable-v1.3.46`, `stable-v1.3.45`, `stable-v1.3.44`, `stable-v1.3.43`, `stable-v1.3.34`, `stable-v1.3.30`, `stable-v1.3.29`, `stable-v1.3.28`, `stable-v1.3.27`, `stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` (keep unchanged for historical rollback)
 - Stable commit is recorded by the annotated Git tag on GitHub.
 - Production URL: `https://boss-time-eloni.vercel.app/`
 - Firebase RTDB project: `boss-timel2m`
@@ -116,6 +116,14 @@ Before production deployment:
 - Live Realtime Sync: Saves via `PUT /bosses/:id/color` and `PUT /events/:id/color`, updates Firebase RTDB with atomic revision bump, and mirrors to Google Sheets.
 - Client Reconcile: `reconcileBossRows()` and `reconcileEventRows()` automatically apply font colors and glowing text-shadows without reordering React DOM nodes.
 
+## Windows Desktop App, NSIS Installer & Zero-Vercel-Deploy Release
+
+- Windows Installer: `scripts/build-installer.js` compiles native NSIS `BossTracker-Setup.exe` with desktop shortcut icon (`Boss Tracker.lnk`) and Start Menu entry.
+- Zero Vercel Deploy Rule: When changing desktop app/HUD code, DO NOT deploy Vercel. Release desktop app independently using `npm run release:desktop` (`scripts/release-desktop-app.js`) to GitHub Releases.
+- In-App Auto-Update: Polling checks GitHub releases every 20 minutes. Shows update banner in Main Window and glowing golden badge in Mini HUD. User clicking update triggers background download with percentage progress, silent NSIS execution (`/S`), and seamless app restart.
+- Authentication-Gated HUD: Mini HUD (`hudWindow`) remains completely hidden and displays nothing until the user logs in at `mainWindow`. On logout or unauthenticated session, HUD closes immediately.
+- Comprehensive Guide: See `docs/DESKTOP_APP_DEVELOPER_GUIDE.md` for full developer onboarding.
+
 ## Files that define the system
 
 - `server/server.js`: authentication, roles, routes, dashboard data, cold-start handling.
@@ -124,7 +132,10 @@ Before production deployment:
 - `server/google-sheets.js`: parallel database adapter, async queue, and failover fetcher.
 - `google_apps_script/Code.gs`: Google Apps Script Web App implementation.
 - `public/js/realtime-alerts.js`: client revision guard, clock offset, audio, tooltips, and dynamic language switcher.
-- `docs/HANDOVER_DEVELOPER_GUIDE.md`: fast onboarding and architecture handover guide for future developers/agents.
+- `desktop-app/main.js`: Electron main process, Administrator elevation, window orchestration, and auto-update downloader.
+- `desktop-app/overlay/`: frameless, transparent Mini Game HUD overlay.
+- `scripts/build-installer.js` & `scripts/release-desktop-app.js`: NSIS installer builder and desktop release pipeline.
+- `docs/HANDOVER_DEVELOPER_GUIDE.md` & `docs/DESKTOP_APP_DEVELOPER_GUIDE.md`: architecture handover guides.
 - `test/boss-timer.test.js` & `test/parallel-sheets-and-guest.test.js`: regression and behavioral test suites.
 - `server/data/store.json`: user-owned local data; never treat it as current production truth.
 

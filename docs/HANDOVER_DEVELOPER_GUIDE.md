@@ -1,4 +1,4 @@
-# 🧭 คู่มือการส่งต่องานสำหรับผู้พัฒนาและ AI (Developer Handover Guide) - v1.3.27
+# 🧭 คู่มือการส่งต่องานสำหรับผู้พัฒนาและ AI (Developer Handover Guide) - v1.3.47
 
 > **สำหรับผู้พัฒนาและ AI ที่เข้ามารับช่วงต่อ:** เอกสารนี้สรุปโครงสร้าง สถาปัตยกรรม และจุดสำคัญทั้งหมดของระบบ เพื่อให้คุณเข้าใจและทำงานต่อได้ทันที **โดยไม่ต้องเสียเวลาอ่านโค้ดทีละบรรทัดทั้งโปรเจกต์**
 
@@ -7,7 +7,8 @@
 ## 📌 1. ภาพรวมระบบ (High-Level Architecture)
 
 - **โปรดักชัน URL:** https://boss-time-eloni.vercel.app/
-- **จุดกู้คืนหลัก (Stable Tag):** `stable-v1.3.27` (Recovery points: `stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
+- **จุดกู้คืนหลัก (Stable Tag):** `stable-v1.3.47` (Recovery points: `stable-v1.3.46`, `stable-v1.3.45`, `stable-v1.3.34`, `stable-v1.3.30`, `stable-v1.3.29`, `stable-v1.3.28`, `stable-v1.3.27`, `stable-v1.3.26`, `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, `stable-v1.3.13`)
+- **ระบบ Desktop & Mini HUD:** ดูคู่มือเฉพาะทางได้ที่ [DESKTOP_APP_DEVELOPER_GUIDE.md](DESKTOP_APP_DEVELOPER_GUIDE.md)
 - **ระบบ Cloud หลัก:** Firebase Realtime Database (RTDB) โปรเจกต์ `boss-timel2m`
 - **ระบบ Cloud สำรองคู่ขนาน:** Google Sheets + Google Apps Script Web App (Parallel Mirror & Instant Failover)
 
@@ -45,6 +46,10 @@ flowchart TD
 | `test/boss-timer.test.js` | ชุดทดสอบลอจิกเวลาบอส (Unset, 5-minute NOW, Still Alive, Catch-up) | รัน `npm test` ต้องผ่าน 100% เสมอ |
 | `test/parallel-sheets-and-guest.test.js` | ชุดทดสอบระบบ Google Sheets, Guest Passwords, Active Source, Dual-Language | รัน `npm test` ต้องผ่าน 100% เสมอ |
 | `test/boss-color.test.js` | ชุดทดสอบระบบเปลี่ยนสีฟอนต์บอส (CRUD, Default Null, Countdown Immunity) | รัน `npm test` ต้องผ่าน 100% เสมอ |
+| `desktop-app/main.js` | Electron Main process: จัดการหน้าต่าง, คีย์ลัด, Auto-Elevate, และ In-App Auto-Update | ห้ามลบคำสั่ง Elevate Administrator และ Audio master |
+| `desktop-app/overlay/` | หน้าต่าง Mini Game HUD (HTML/CSS/JS) ลอยทับเกม แสดงบอส/กิจกรรม | ปรับฟอนต์ได้ 10-18px, สลับคลิกทะลุ Alt+F12, มีปุ่มกดอัปเดต |
+| `scripts/build-installer.js` | คอมไพล์ตัวติดตั้ง Windows Installer (`BossTracker-Setup.exe`) ด้วย NSIS | สร้างไอคอนหน้าจอเดสก์ท็อปและเมนู Start อัตโนมัติ |
+| `scripts/release-desktop-app.js` | สคริปต์ปล่อยเวอร์ชันใหม่ของ Desktop App ขึ้น GitHub Releases | **Zero Vercel Deploy:** ปล่อยแอพโดยไม่ต้องแตะต้อง Vercel |
 | `server/data/store.json` | ⚠️ **ไฟล์ข้อมูล Local ของผู้ใช้** | **ห้ามคอมมิต ห้ามรีเซ็ต ห้ามเขียนทับข้อมูลจริงของโปรดักชัน** |
 
 ---

@@ -88,6 +88,7 @@ body {
     font-weight: 600;
     line-height: 1.3;
     flex-shrink: 0;
+    overflow: hidden;
 }
 
 .hud-announcement.urgent {
@@ -101,12 +102,40 @@ body {
     flex-shrink: 0;
 }
 
-.announcement-text {
+.announcement-track {
     flex: 1;
     min-width: 0;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.announcement-text {
+    display: inline-block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    will-change: transform;
+}
+
+.announcement-text.marquee-active {
+    overflow: visible;
+    text-overflow: clip;
+    animation: hudMarqueeBounce var(--marquee-duration, 8s) ease-in-out infinite alternate;
+}
+
+.hud-announcement:hover .announcement-text.marquee-active {
+    animation-play-state: paused;
+}
+
+@keyframes hudMarqueeBounce {
+    0%, 15% {
+        transform: translateX(0);
+    }
+    85%, 100% {
+        transform: translateX(calc(-1 * var(--marquee-overflow, 50px)));
+    }
 }
 
 .hud-panel.click-through-active .hud-announcement {
@@ -178,6 +207,32 @@ body {
     color: #23a55a;
     border-color: rgba(35, 165, 90, 0.4);
     background: rgba(35, 165, 90, 0.15);
+}
+
+.btn-hud-update {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.28), rgba(234, 179, 8, 0.38)) !important;
+    border: 1px solid rgba(245, 158, 11, 0.65) !important;
+    color: #fef08a !important;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+    animation: hudUpdatePulse 1.8s infinite ease-in-out;
+}
+
+.btn-hud-update:hover {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.45), rgba(234, 179, 8, 0.55)) !important;
+    color: #ffffff !important;
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.8);
+}
+
+@keyframes hudUpdatePulse {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(245, 158, 11, 0.3);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.75);
+        transform: scale(1.04);
+    }
 }
 
 /* Font and Size Settings Drawer */
@@ -769,6 +824,8 @@ body {
     display: flex;
     align-items: center;
     gap: 5px;
+    flex-shrink: 0;
+    box-sizing: border-box;
     animation: discordToastIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 

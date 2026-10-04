@@ -196,7 +196,7 @@
             invasion_sync_all: '🌐 Synced to all screens',
             download_app_tooltip: 'Download Windows Desktop App (HUD Overlay)',
             download_modal_title: 'Boss Tracker for Windows',
-            download_modal_badge: 'Portable v1.3.47',
+            download_modal_badge: 'Portable v1.3.48',
             download_feat_hud: 'Mini HUD Overlay: In-game floating boss timer on top of Lineage 2',
             download_feat_clickthrough: 'Click-Through Mode: Press Alt+F12 to click through into the game without stealing focus',
             download_feat_audio: 'Integrated Audio: Spawn and pre-spawn alerts directly on your desktop',
@@ -336,7 +336,7 @@
             sheets_script_guide: '📖 <b>ไฟล์สคริปต์:</b> อยู่ที่ <code>google_apps_script/Code.gs</code> พร้อมคู่มือใน <code>google_apps_script/README.md</code>',
             download_app_tooltip: 'ดาวน์โหลดแอปเดสก์ท็อป Windows (HUD Overlay)',
             download_modal_title: 'Boss Tracker สำหรับ Windows',
-            download_modal_badge: 'แบบพกพา v1.3.47 (Portable)',
+            download_modal_badge: 'แบบพกพา v1.3.48 (Portable)',
             download_feat_hud: 'Mini HUD Overlay: หน้าต่างลอยแสดงเวลานับถอยหลังบอสทับบนเกม Lineage 2',
             download_feat_clickthrough: 'โหมดคลิกทะลุ: กดปุ่ม Alt+F12 เพื่อคลิกทะลุเข้าเกมได้ 100% ไม่กวนการเล่น',
             download_feat_audio: 'ระบบเสียงเตือน: แจ้งเตือนบอสเกิดและเตือนล่วงหน้าตรงถึงเดสก์ท็อป',
@@ -777,7 +777,7 @@ function ensureDownloadAppButton() {
     function updateDownloadAppButton() {
         const button = document.getElementById('header-download-app-control');
         if (!button) return;
-        const currentVer = state.appVersion || '1.3.47';
+        const currentVer = state.appVersion || '1.3.48';
         const dismissedVer = localStorage.getItem('bossTracker.dismissedAppUpdate');
         const hasUpdate = Boolean(state.appVersion && dismissedVer !== state.appVersion);
 
@@ -796,7 +796,7 @@ function ensureDownloadAppButton() {
     }
 
     function openDownloadAppModal() {
-        const currentVer = state.appVersion || '1.3.47';
+        const currentVer = state.appVersion || '1.3.48';
         try {
             localStorage.setItem('bossTracker.dismissedAppUpdate', currentVer);
         } catch (_) {}
@@ -845,13 +845,18 @@ function ensureDownloadAppButton() {
                     </div>
                 </div>
 
-                <div style="display:flex;gap:10px;margin-top:18px;">
-                    <a href="${downloadUrl}" target="_blank" rel="noopener noreferrer" style="flex:1;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#0284c7,#2563eb);color:#ffffff;font-weight:700;font-size:13.5px;padding:10px 18px;border-radius:8px;box-shadow:0 0 18px rgba(37,99,235,0.4);border:1px solid rgba(147,197,253,0.3);transition:all 0.2s;" onmouseover="this.style.opacity='0.9';this.style.transform='translateY(-1px)'" onmouseout="this.style.opacity='1';this.style.transform='none'">
-                        ${t('download_modal_cta')}
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
+                    <a href="https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Setup.exe" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#0284c7,#2563eb);color:#ffffff;font-weight:700;font-size:13px;padding:10px 16px;border-radius:8px;box-shadow:0 0 18px rgba(37,99,235,0.4);border:1px solid rgba(147,197,253,0.3);transition:all 0.2s;">
+                        <span>📥 ติดตั้งลงวินโดวส์ (Setup .exe มีไอคอนหน้าจอ)</span>
                     </a>
-                    <button type="button" id="dismiss-download-modal-btn" style="padding:10px 16px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:#94a3b8;font-weight:600;font-size:13px;border-radius:8px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#fff';this.style.background='rgba(255,255,255,0.14)'" onmouseout="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'">
-                        ${t('download_modal_close')}
-                    </button>
+                    <div style="display:flex;gap:8px;">
+                        <a href="https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Windows-Portable.zip" target="_blank" rel="noopener noreferrer" style="flex:1;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,0.08);color:#e2e8f0;font-weight:600;font-size:12px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.14);transition:all 0.2s;">
+                            <span>📦 โหมดพกพา (.zip)</span>
+                        </a>
+                        <button type="button" id="dismiss-download-modal-btn" style="padding:8px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;font-weight:600;font-size:12px;border-radius:8px;cursor:pointer;">
+                            ${t('download_modal_close')}
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -1022,6 +1027,16 @@ function ensureDownloadAppButton() {
         })();
     }
 
+    function updateToastStackOffset() {
+        const container = document.getElementById('realtime-toast-container');
+        if (!container) return;
+        const visibleChildren = Array.from(container.children).filter(el => el.style.display !== 'none');
+        const count = visibleChildren.length;
+        const height = count > 0 ? container.offsetHeight : 0;
+        const offset = count > 0 ? (height + 8) : 0;
+        document.documentElement.style.setProperty('--realtime-toast-offset', `${offset}px`);
+    }
+
     function ensureToastContainer() {
         let container = document.getElementById('realtime-toast-container');
         if (!container) {
@@ -1029,6 +1044,10 @@ function ensureDownloadAppButton() {
             container.id = 'realtime-toast-container';
             container.style.cssText = 'position:fixed;left:12px;bottom:12px;right:auto;top:auto;display:flex;flex-direction:column;gap:6px;z-index:100001;pointer-events:none;max-width:min(440px,92vw);';
             document.body.appendChild(container);
+            if (typeof MutationObserver !== 'undefined') {
+                const obs = new MutationObserver(() => updateToastStackOffset());
+                obs.observe(container, { childList: true, subtree: true });
+            }
         }
         return container;
     }
@@ -1039,6 +1058,7 @@ function ensureDownloadAppButton() {
         if (!container) return;
         const existing = container.querySelectorAll(`[data-alert-target="${targetId}"]`);
         for (const el of existing) el.remove();
+        updateToastStackOffset();
     }
 
         function isInvasionHidden() {
@@ -1193,10 +1213,13 @@ function ensureDownloadAppButton() {
                 options,
                 html: toastHtml
             });
+            // Suppress duplicate visual toast inside mainWindow to prevent desktop screen collision
+            toast.style.display = 'none';
         }
 
-        toast.onclick = () => toast.remove();
+        toast.onclick = () => { toast.remove(); updateToastStackOffset(); };
         container.appendChild(toast);
+        updateToastStackOffset();
         setTimeout(() => toast.remove(), 10000);
     }
     function isRowEvent(row) {
@@ -1500,8 +1523,12 @@ function ensureDownloadAppButton() {
                 );
             }
         } else if (event.type === 'boss_pre_spawn_cleared') {
+            removeTargetNotice(`boss_${event.bossId}`);
             reconcileBossRows();
         } else if (event.type === 'boss_time_unset' || event.type === 'boss_updated') {
+            if (event.type === 'boss_time_unset') {
+                removeTargetNotice(`boss_${event.bossId}`);
+            }
             reconcileBossRows();
         }
     }
@@ -1601,6 +1628,10 @@ function ensureDownloadAppButton() {
     window.fetch = async function (...args) {
         const response = await nativeFetch(...args);
         const requestUrl = String(args[0]?.url || args[0] || '');
+        if (response.status === 401 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+            window.location.href = '/login';
+            return response;
+        }
         if (requestUrl.includes('/settings/invasion-visibility')) {
             try {
                 const bodyStr = args[1]?.body;
@@ -2661,7 +2692,30 @@ function ensureDownloadAppButton() {
         if (!document.getElementById('action-toast-position')) {
             const s = document.createElement('style');
             s.id = 'action-toast-position';
-            s.textContent = '.fixed.bottom-4.left-4{left:12px!important;bottom:52px!important;right:auto!important}';
+            s.textContent = `
+                .fixed.bottom-4.left-4 {
+                    left: 12px !important;
+                    bottom: calc(16px + var(--realtime-toast-offset, 0px)) !important;
+                    right: auto !important;
+                    transition: bottom 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                }
+                .fixed.bottom-4.left-4 + .fixed.bottom-4.left-4 {
+                    bottom: calc(64px + var(--realtime-toast-offset, 0px)) !important;
+                }
+                @keyframes webMarqueeBounce {
+                    0%, 15% { transform: translateX(0); }
+                    85%, 100% { transform: translateX(calc(-1 * var(--web-marquee-overflow, 50px))); }
+                }
+                .web-announcement-marquee {
+                    display: inline-block !important;
+                    white-space: nowrap !important;
+                    animation: webMarqueeBounce var(--web-marquee-duration, 8s) ease-in-out infinite alternate !important;
+                    will-change: transform;
+                }
+                .web-announcement-marquee:hover {
+                    animation-play-state: paused !important;
+                }
+            `.trim();
             document.head.appendChild(s);
         }
         for (const link of document.querySelectorAll('a[href="/download"]')) link.style.display = 'none';
@@ -2694,6 +2748,23 @@ function ensureDownloadAppButton() {
         syncInvasionSettingsAdminLock();
         translateVisibleTooltips();
         translateVisibleUi();
+
+        // Ensure web announcement banner smoothly scrolls horizontally if window is resized narrow
+        const annP = document.querySelector('div[class*="border-violet-400"] p');
+        if (annP) {
+            const annParent = annP.parentElement;
+            if (annParent) annParent.style.overflow = 'hidden';
+            annP.classList.remove('web-announcement-marquee');
+            annP.style.removeProperty('--web-marquee-overflow');
+            annP.style.removeProperty('--web-marquee-duration');
+            if (annP.scrollWidth > annP.clientWidth + 4 && annP.clientWidth > 0) {
+                const overflow = annP.scrollWidth - annP.clientWidth + 16;
+                const duration = Math.max(6, Math.min(30, Math.round(overflow / 30) + 4));
+                annP.style.setProperty('--web-marquee-overflow', `${overflow}px`);
+                annP.style.setProperty('--web-marquee-duration', `${duration}s`);
+                annP.classList.add('web-announcement-marquee');
+            }
+        }
     }
 
     function checkScheduledAlerts() {
@@ -2864,6 +2935,7 @@ function ensureDownloadAppButton() {
         setInterval(reconcileBossRows, 1000);
         window.addEventListener('offline', () => updateStatus(t('offline_notice')));
         window.addEventListener('online', () => updateStatus());
+        window.addEventListener('resize', () => enhanceUi());
         window.addEventListener('storage', (e) => {
             if (e.key === 'dashboard.invasionColor') reconcileBossRows();
         });

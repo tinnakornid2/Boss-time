@@ -486,3 +486,32 @@ test('Desktop App: Main window shrinks and expands dynamically according to Pane
     assert.match(overlayJs, /function applyPanelWidth\(val,/);
     assert.match(overlayJs, /window\.electronAPI\.onPanelWidthChanged/);
 });
+
+test('Mini HUD Overlay: authentication-gated display (hidden until login at main window, auto-closes on logout)', () => {
+    const mainJs = fs.readFileSync(path.join(__dirname, '../desktop-app/main.js'), 'utf8');
+    const overlayJs = fs.readFileSync(path.join(__dirname, '../desktop-app/overlay/overlay.js'), 'utf8');
+
+    // 1. Initial state has isUserLoggedIn = false and hudWindow created with show: false
+    assert.match(mainJs, /let\s+isUserLoggedIn\s*=\s*false;/);
+    assert.match(mainJs, /hudWindow\s*=\s*new\s+BrowserWindow\(\{[\s\S]*show:\s*false/);
+
+    // 2. updateHudAuthState hides HUD when unauthenticated and restores when authenticated
+    assert.match(mainJs, /function\s+updateHudAuthState\(loggedIn\)/);
+    assert.match(mainJs, /if\s*\(!isUserLoggedIn\)\s*\{[\s\S]*hudWindow\.hide\(\)/);
+    assert.match(mainJs, /if\s*\(isHudVisible\s*&&\s*isUserLoggedIn\)/);
+
+    // 3. Navigation listeners detect /login and update auth state
+    assert.match(mainJs, /mainWindow\.webContents\.on\('did-navigate'/);
+    assert.match(mainJs, /function\s+handleMainWindowNavigation\(url\)/);
+    assert.match(mainJs, /url\.includes\('\/login'\)/);
+
+    // 4. Polling tracker sync checks authentication and auto-updates HUD state
+    assert.match(mainJs, /function\s+startTrackerSync\(\)/);
+    assert.match(mainJs, /updateHudAuthState\(true\)/);
+    assert.match(mainJs, /updateHudAuthState\(false\)/);
+
+    // 5. Overlay clears cards and displays nothing if not authenticated
+    assert.match(overlayJs, /state\.bosses\s*=\s*\[\];/);
+    assert.match(overlayJs, /state\.events\s*=\s*\[\];/);
+    assert.match(overlayJs, /dom\.bossListContainer\.innerHTML\s*=\s*''/);
+});

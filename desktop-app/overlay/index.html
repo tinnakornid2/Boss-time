@@ -21,6 +21,10 @@
                 <span>BOSS HUD</span>
             </div>
             <div class="hud-controls">
+                <button type="button" class="btn-icon btn-hud-update interactive-element" id="btnHudUpdate" style="display: none;" title="🚀 มีการอัปเดตเวอร์ชันใหม่! คลิกเพื่อดาวน์โหลดและอัปเดตอัตโนมัติ">
+                    <span class="icon-wrap" style="color: #f59e0b;">🚀</span>
+                    <span id="hudUpdateBadgeText" style="font-weight: 700; color: #facc15; font-size: 10px; margin-left: 2px;">อัปเดต</span>
+                </button>
                 <button type="button" class="btn-icon interactive-element" id="btnFontSettings" title="ตั้งค่าตัวอักษร, ความโปร่งแสง และปุ่มคีย์ลัด (HUD Settings)">
                     <span class="icon-wrap">
                         <!-- Lucide Settings / Sliders -->
@@ -46,8 +50,10 @@
 
         <!-- Announcement Banner (ข้อความประกาศ) -->
         <div id="hudAnnouncement" class="hud-announcement interactive-element" style="display: none;">
-            <span class="announcement-icon">📢</span>
-            <span class="announcement-text" id="hudAnnouncementText"></span>
+            <span class="announcement-icon" id="hudAnnouncementIcon">📢</span>
+            <div class="announcement-track" id="hudAnnouncementTrack">
+                <span class="announcement-text" id="hudAnnouncementText"></span>
+            </div>
         </div>
 
         <!-- Dropdown drawer for adjusting font, size, opacity, location and hotkey -->
@@ -129,11 +135,17 @@
                     <button type="button" class="btn-stepper interactive-element" id="btnSaveCustomHotkey" title="บันทึกปุ่มนี้">✓</button>
                 </div>
             </div>
+            <!-- App Version and Auto Update Status -->
+            <div class="font-panel-row" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px; margin-top: 2px;">
+                <span class="font-panel-label" id="labelAppVersion">เวอร์ชันแอพ:</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span class="stepper-value" id="hudAppVersionDisplay" style="min-width: 44px; color: #38bdf8; font-weight: 700; font-size: 10px;">v1.3.47</span>
+                    <button type="button" class="btn-stepper interactive-element" id="btnCheckAppUpdate" title="ตรวจสอบเวอร์ชันใหม่" style="width: auto; padding: 2px 7px; font-size: 10px; cursor: pointer;">🔄 เช็คอัปเดต</button>
+                </div>
+            </div>
         </div>
 
-        <main class="hud-body" id="bossListContainer">
-            <div class="hud-empty">กำลังเชื่อมต่อข้อมูลบอส...</div>
-        </main>
+        <main class="hud-body" id="bossListContainer"></main>
 
         <div class="toast-container" id="toastContainer"></div>
     </div>

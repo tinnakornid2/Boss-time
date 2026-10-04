@@ -52,9 +52,37 @@ function sessionSecret() {
     return cachedSessionSecret;
 }
 
-function createSession(role, maxAgeSeconds = SESSION_MAX_AGE_SECONDS) {
+function getPasswordFingerprint(role, guestId = null) {
+    const settings = db.getSettings() || {};
+    if (role === 'admin') {
+        const raw = settings.adminPasswordHash || settings.adminPassword || '@777999';
+        return crypto.createHash('sha256').update(`admin:${raw}`).digest('hex').slice(0, 16);
+    }
+    if (role === 'member') {
+        const raw = settings.memberPasswordHash || settings.memberPassword || 'password777999';
+        return crypto.createHash('sha256').update(`member:${raw}`).digest('hex').slice(0, 16);
+    }
+    if (role === 'guest') {
+        const tempPasswords = settings.temporaryPasswords || [];
+        const entry = tempPasswords.find(t => t.id === guestId);
+        if (!entry) return null;
+        if (new Date(entry.expiresAt).getTime() <= Date.now()) return null;
+        const raw = entry.passwordHash || entry.password || '';
+        return crypto.createHash('sha256').update(`guest:${entry.id}:${raw}`).digest('hex').slice(0, 16);
+    }
+    return null;
+}
+
+function createSession(role, maxAgeSeconds = SESSION_MAX_AGE_SECONDS, extra = {}) {
     const effectiveAge = Math.max(60, Number(maxAgeSeconds) || SESSION_MAX_AGE_SECONDS);
-    const payload = Buffer.from(JSON.stringify({ role, exp: Date.now() + effectiveAge * 1000 })).toString('base64url');
+    const pfp = extra.pfp || getPasswordFingerprint(role, extra.guestId);
+    const payloadData = {
+        role,
+        exp: Date.now() + effectiveAge * 1000,
+        pfp: pfp || ''
+    };
+    if (extra.guestId) payloadData.guestId = extra.guestId;
+    const payload = Buffer.from(JSON.stringify(payloadData)).toString('base64url');
     const signature = crypto.createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
     return `${payload}.${signature}`;
 }
@@ -67,11 +95,20 @@ function readSession(value) {
     try {
         const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
         if (!['admin', 'member', 'guest'].includes(data.role) || Number(data.exp) <= Date.now()) return null;
+        
+        // Enforce password fingerprint validation to immediately invalidate sessions when password changes
+        const currentPfp = getPasswordFingerprint(data.role, data.guestId);
+        if (!currentPfp || data.pfp !== currentPfp) return null;
+
         return data;
     } catch (_) {
         return null;
     }
 }
+
+app.set('createSession', createSession);
+app.set('readSession', readSession);
+app.set('getPasswordFingerprint', getPasswordFingerprint);
 
 function verifyPassword(password, plaintext, storedHash, fallback) {
     if (plaintext && password === plaintext) return true;
@@ -2034,7 +2071,7 @@ app.post('/login', limitLogin, async (req, res) => {
         ? Math.max(60, Math.floor((new Date(guestEntry.expiresAt).getTime() - Date.now()) / 1000))
         : SESSION_MAX_AGE_SECONDS;
 
-    const sessionVal = createSession(sessionRole, maxAgeSeconds);
+    const sessionVal = createSession(sessionRole, maxAgeSeconds, { guestId: guestEntry?.id });
     const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader('Set-Cookie', [
         `boss_session=${sessionVal}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure}`,
@@ -2738,11 +2775,14 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const targetPort = process.env.PORT ? Number(process.env.PORT) : 3000;
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && require.main === module) {
     startServer(targetPort);
-} else {
+} else if (process.env.VERCEL) {
     // In Vercel serverless environment, initialize Firebase DB directly
     db.initFirebase();
 }
 
 module.exports = app;
+module.exports.createSession = createSession;
+module.exports.readSession = readSession;
+module.exports.getPasswordFingerprint = getPasswordFingerprint;

@@ -218,6 +218,7 @@ const dom = {
     bossListContainer: document.getElementById('bossListContainer'),
     toastContainer: document.getElementById('toastContainer'),
     hudAnnouncement: document.getElementById('hudAnnouncement'),
+    hudAnnouncementTrack: document.getElementById('hudAnnouncementTrack'),
     hudAnnouncementText: document.getElementById('hudAnnouncementText'),
     btnClickThrough: document.getElementById('btnClickThrough'),
     clickThroughIcon: document.getElementById('clickThroughIcon'),
@@ -303,6 +304,12 @@ if (window.electronAPI) {
                     if (dom.invasionStatusText) dom.invasionStatusText.textContent = !res.hideInvasionBosses ? t('loc_show') : t('loc_hide');
                 }
                 applyTrackerSnapshot(res.data);
+            } else {
+                state.bosses = [];
+                state.events = [];
+                if (dom.bossListContainer) {
+                    dom.bossListContainer.innerHTML = '';
+                }
             }
         });
     }
@@ -788,6 +795,31 @@ function applyFontSettings(fontSize, font, syncIPC = true) {
     if (syncIPC && window.electronAPI && typeof window.electronAPI.syncFontSettings === 'function') {
         window.electronAPI.syncFontSettings({ fontSize: state.fontSize, font: state.font });
     }
+    updateAnnouncementMarquee();
+}
+
+function updateAnnouncementMarquee() {
+    if (!dom.hudAnnouncement || !dom.hudAnnouncementText) return;
+    if (dom.hudAnnouncement.style.display === 'none') {
+        dom.hudAnnouncementText.classList.remove('marquee-active');
+        return;
+    }
+
+    const track = dom.hudAnnouncementTrack || dom.hudAnnouncement;
+    dom.hudAnnouncementText.classList.remove('marquee-active');
+    dom.hudAnnouncementText.style.removeProperty('--marquee-overflow');
+    dom.hudAnnouncementText.style.removeProperty('--marquee-duration');
+
+    const trackWidth = track.clientWidth;
+    const textWidth = dom.hudAnnouncementText.scrollWidth;
+
+    if (textWidth > trackWidth + 4 && trackWidth > 0) {
+        const overflow = textWidth - trackWidth + 12;
+        const duration = Math.max(5, Math.min(25, Math.round(overflow / 30) + 4));
+        dom.hudAnnouncementText.style.setProperty('--marquee-overflow', `${overflow}px`);
+        dom.hudAnnouncementText.style.setProperty('--marquee-duration', `${duration}s`);
+        dom.hudAnnouncementText.classList.add('marquee-active');
+    }
 }
 
 // -------------------------------------------------------------
@@ -855,11 +887,13 @@ function applyTrackerSnapshot(data) {
 
     // Server Announcement Banner
     let annText = '';
+    let isUrgent = false;
     if (data.announcement) {
         if (typeof data.announcement === 'string') {
             annText = data.announcement.trim();
         } else if (typeof data.announcement === 'object' && data.announcement !== null) {
             annText = (data.announcement.message || data.announcement.text || '').trim();
+            isUrgent = Boolean(data.announcement.urgent);
         }
     }
 
@@ -867,12 +901,17 @@ function applyTrackerSnapshot(data) {
         state.announcement = annText;
         if (dom.hudAnnouncement && dom.hudAnnouncementText) {
             dom.hudAnnouncementText.textContent = annText;
+            dom.hudAnnouncement.classList.toggle('urgent', isUrgent);
             dom.hudAnnouncement.style.display = 'flex';
+            requestAnimationFrame(() => updateAnnouncementMarquee());
         }
     } else {
         state.announcement = null;
         if (dom.hudAnnouncement) {
             dom.hudAnnouncement.style.display = 'none';
+        }
+        if (dom.hudAnnouncementText) {
+            dom.hudAnnouncementText.classList.remove('marquee-active');
         }
     }
 
@@ -929,10 +968,18 @@ async function fetchPollData() {
                 }
                 applyTrackerSnapshot(res.data);
                 return;
+            } else {
+                // Not authenticated or error from main window: Clear data so nothing displays
+                state.bosses = [];
+                state.events = [];
+                if (dom.bossListContainer) {
+                    dom.bossListContainer.innerHTML = '';
+                }
+                return;
             }
         }
 
-        // Fallback for standalone preview
+        // Fallback for standalone preview (running in browser directly without Electron)
         const res = await fetch(POLL_URL, { cache: 'no-store' });
         if (res.ok) {
             const data = await res.json();
@@ -1157,29 +1204,23 @@ function checkAlerts() {
         const tag = isInv ? `[${state.settings.invasionLabel || 'L3'}] ` : (isEvent ? `[EVENT] ` : '');
         const loc = b.location ? ` (${b.location})` : '';
 
-        // 1-minute alert
+        // 1-minute alert: Handled by desktop corner toast overlay (toastOverlayWindow)
         if (diff > 0 && diff <= 60000 && !state.alerted.has(preKey)) {
             state.alerted.add(preKey);
-            const actionText = t('time_in_1min');
-            showHudToast(`${ICONS.bell} <span style="color:${fontColor}">${tag}${b.name}${loc}</span> • ${actionText}`, isEvent ? '#38bdf8' : '#f59e0b');
-            playAlertSound('alert.mp3');
         }
 
-        // Spawned alert
+        // Spawned alert: Handled by desktop corner toast overlay (toastOverlayWindow)
         if (diff <= 0 && diff > -60000 && !state.alerted.has(spawnKey)) {
             state.alerted.add(spawnKey);
-            const actionText = t('time_spawned');
-            showHudToast(`${ICONS.flame} <span style="color:${fontColor}">${tag}${b.name}${loc}</span> • ${actionText}`, '#ef4444');
-            playAlertSound('just-spawned.mp3');
         }
     }
 }
 
 function showHudToast(htmlMessage, borderColor) {
     if (!dom.toastContainer) return;
-    // Keep max 1 active toast at a time in Discord HUD overlay to never block gameplay
-    while (dom.toastContainer.firstChild) {
-        dom.toastContainer.firstChild.remove();
+    // Keep max 3 active toasts stacked cleanly in Discord HUD overlay without wiping each other out
+    while (dom.toastContainer.children.length >= 3) {
+        dom.toastContainer.firstElementChild.remove();
     }
     const toast = document.createElement('div');
     toast.className = 'toast-item';
@@ -1192,7 +1233,7 @@ function showHudToast(htmlMessage, borderColor) {
         toast.style.transform = 'translateY(4px)';
         toast.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
         setTimeout(() => toast.remove(), 250);
-    }, 3200);
+    }, 4500);
 }
 
 function playAlertSound(path) {
@@ -1217,3 +1258,102 @@ setInterval(() => {
 // Poll server every 2.5 seconds
 fetchPollData();
 setInterval(fetchPollData, 2500);
+
+// Auto-Update integration for Mini HUD
+function initHudAutoUpdate() {
+    const btnUpdate = document.getElementById('btnHudUpdate');
+    const updateText = document.getElementById('hudUpdateBadgeText');
+    const versionDisplay = document.getElementById('hudAppVersionDisplay');
+    const btnCheckUpdate = document.getElementById('btnCheckAppUpdate');
+
+    if (window.electronAPI && typeof window.electronAPI.getCurrentAppVersion === 'function') {
+        window.electronAPI.getCurrentAppVersion().then(v => {
+            if (v && versionDisplay) versionDisplay.textContent = `v${v}`;
+        }).catch(() => {});
+    }
+
+    if (btnCheckUpdate) {
+        btnCheckUpdate.addEventListener('click', async () => {
+            btnCheckUpdate.disabled = true;
+            btnCheckUpdate.textContent = '⏳ กำลังเช็ค...';
+            try {
+                if (window.electronAPI && typeof window.electronAPI.checkForUpdates === 'function') {
+                    const res = await window.electronAPI.checkForUpdates();
+                    if (!res || !res.hasUpdate) {
+                        showHudToast('✅ เวอร์ชันปัจจุบันเป็นเวอร์ชันล่าสุดแล้ว', '#22c55e');
+                    }
+                }
+            } catch (_) {}
+            setTimeout(() => {
+                btnCheckUpdate.disabled = false;
+                btnCheckUpdate.textContent = '🔄 เช็คอัปเดต';
+            }, 3000);
+        });
+    }
+
+    if (!btnUpdate) return;
+
+    btnUpdate.addEventListener('click', async () => {
+        btnUpdate.disabled = true;
+        btnUpdate.style.opacity = '0.7';
+        if (updateText) updateText.textContent = 'กำลังโหลด...';
+        showHudToast('⏳ กำลังดาวน์โหลดตัวติดตั้งอัตโนมัติ...', '#38bdf8');
+        try {
+            if (window.electronAPI && typeof window.electronAPI.startDesktopUpdate === 'function') {
+                await window.electronAPI.startDesktopUpdate();
+            }
+        } catch (err) {
+            btnUpdate.disabled = false;
+            btnUpdate.style.opacity = '1';
+            showHudToast('⚠️ ไม่สามารถดาวน์โหลดได้', '#ef4444');
+        }
+    });
+
+    if (window.electronAPI && typeof window.electronAPI.onUpdateAvailable === 'function') {
+        window.electronAPI.onUpdateAvailable((info) => {
+            btnUpdate.style.display = 'inline-flex';
+            if (updateText) updateText.textContent = `v${info.version}`;
+            showHudToast(`🚀 มีอัปเดตใหม่ v${info.version}! (คลิกปุ่ม 🚀 เพื่ออัปเดต)`, '#f59e0b');
+        });
+    }
+
+    if (window.electronAPI && typeof window.electronAPI.onUpdateProgress === 'function') {
+        window.electronAPI.onUpdateProgress((p) => {
+            btnUpdate.style.display = 'inline-flex';
+            const pct = p.percent || 0;
+            if (updateText) updateText.textContent = `${pct}%`;
+        });
+    }
+
+    if (window.electronAPI && typeof window.electronAPI.onUpdateComplete === 'function') {
+        window.electronAPI.onUpdateComplete(() => {
+            if (updateText) updateText.textContent = 'ติดตั้ง...';
+            showHudToast('✅ ดาวน์โหลดสำเร็จ กำลังติดตั้งและเริ่มใหม่...', '#22c55e');
+        });
+    }
+
+    if (window.electronAPI && typeof window.electronAPI.onUpdateError === 'function') {
+        window.electronAPI.onUpdateError((err) => {
+            btnUpdate.disabled = false;
+            btnUpdate.style.opacity = '1';
+            if (updateText) updateText.textContent = 'ลองใหม่';
+            showHudToast(`⚠️ อัปเดตไม่สำเร็จ: ${err || 'ข้อผิดพลาด'}`, '#ef4444');
+        });
+    }
+}
+
+initHudAutoUpdate();
+
+// Announcement banner marquee responsiveness on resize
+window.addEventListener('resize', () => {
+    updateAnnouncementMarquee();
+});
+if (typeof ResizeObserver !== 'undefined') {
+    const annRo = new ResizeObserver(() => {
+        updateAnnouncementMarquee();
+    });
+    if (dom.hudAnnouncementTrack) annRo.observe(dom.hudAnnouncementTrack);
+    else if (dom.hudAnnouncement) annRo.observe(dom.hudAnnouncement);
+}
+
+

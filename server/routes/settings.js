@@ -45,6 +45,17 @@ router.post('/passwords', requireAdmin, async (req, res) => {
     }
 
     await db.updateSettings(updates);
+
+    const createSessionFn = req.app?.get('createSession');
+    if (typeof createSessionFn === 'function') {
+        const newAdminSession = createSessionFn('admin');
+        const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
+        res.setHeader('Set-Cookie', [
+            `boss_session=${newAdminSession}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}${secure}`,
+            `remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d=${newAdminSession}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}${secure}`
+        ]);
+    }
+
     res.json({
         success: true,
         message: 'บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว'
