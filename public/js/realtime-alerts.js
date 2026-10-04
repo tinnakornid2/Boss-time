@@ -196,7 +196,7 @@
             invasion_sync_all: '🌐 Synced to all screens',
             download_app_tooltip: 'Download Windows Desktop App (HUD Overlay)',
             download_modal_title: 'Boss Tracker for Windows',
-            download_modal_badge: 'Portable v1.3.46',
+            download_modal_badge: 'Portable v1.3.47',
             download_feat_hud: 'Mini HUD Overlay: In-game floating boss timer on top of Lineage 2',
             download_feat_clickthrough: 'Click-Through Mode: Press Alt+F12 to click through into the game without stealing focus',
             download_feat_audio: 'Integrated Audio: Spawn and pre-spawn alerts directly on your desktop',
@@ -336,7 +336,7 @@
             sheets_script_guide: '📖 <b>ไฟล์สคริปต์:</b> อยู่ที่ <code>google_apps_script/Code.gs</code> พร้อมคู่มือใน <code>google_apps_script/README.md</code>',
             download_app_tooltip: 'ดาวน์โหลดแอปเดสก์ท็อป Windows (HUD Overlay)',
             download_modal_title: 'Boss Tracker สำหรับ Windows',
-            download_modal_badge: 'แบบพกพา v1.3.46 (Portable)',
+            download_modal_badge: 'แบบพกพา v1.3.47 (Portable)',
             download_feat_hud: 'Mini HUD Overlay: หน้าต่างลอยแสดงเวลานับถอยหลังบอสทับบนเกม Lineage 2',
             download_feat_clickthrough: 'โหมดคลิกทะลุ: กดปุ่ม Alt+F12 เพื่อคลิกทะลุเข้าเกมได้ 100% ไม่กวนการเล่น',
             download_feat_audio: 'ระบบเสียงเตือน: แจ้งเตือนบอสเกิดและเตือนล่วงหน้าตรงถึงเดสก์ท็อป',
@@ -777,7 +777,7 @@ function ensureDownloadAppButton() {
     function updateDownloadAppButton() {
         const button = document.getElementById('header-download-app-control');
         if (!button) return;
-        const currentVer = state.appVersion || '1.3.46';
+        const currentVer = state.appVersion || '1.3.47';
         const dismissedVer = localStorage.getItem('bossTracker.dismissedAppUpdate');
         const hasUpdate = Boolean(state.appVersion && dismissedVer !== state.appVersion);
 
@@ -796,7 +796,7 @@ function ensureDownloadAppButton() {
     }
 
     function openDownloadAppModal() {
-        const currentVer = state.appVersion || '1.3.46';
+        const currentVer = state.appVersion || '1.3.47';
         try {
             localStorage.setItem('bossTracker.dismissedAppUpdate', currentVer);
         } catch (_) {}

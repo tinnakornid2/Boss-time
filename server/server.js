@@ -151,7 +151,12 @@ app.use(async (req, res, next) => {
         return next();
     }
     if (!firebaseInitPromise) {
-        firebaseInitPromise = db.initFirebase();
+        firebaseInitPromise = (async () => {
+            await db.initFirebase();
+            if (process.env.VERCEL) {
+                await db.ensureCloudDataReady();
+            }
+        })();
     }
     try {
         await firebaseInitPromise;
@@ -1945,6 +1950,11 @@ app.get('/login', (req, res) => {
 
 // POST /login -> Authenticate
 app.post('/login', limitLogin, async (req, res) => {
+    if (process.env.VERCEL || !db.isCloudDataReady()) {
+        try {
+            await db.ensureCloudDataReady();
+        } catch (_) {}
+    }
     const { name, username, password } = req.body;
     const user = (name || username || '').trim().toLowerCase();
     const pass = (password || '').trim();
@@ -2033,8 +2043,8 @@ app.post('/login', limitLogin, async (req, res) => {
     return res.redirect(303, '/');
 });
 
-// POST /logout
-app.post('/logout', (req, res) => {
+// GET & POST /logout -> Clear cookies and redirect to /login
+app.all('/logout', (req, res) => {
     const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader('Set-Cookie', [
         `boss_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=Lax${secure}`,

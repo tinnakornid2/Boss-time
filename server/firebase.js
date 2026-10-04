@@ -187,8 +187,6 @@ function init(onRemoteDataChange) {
 
     // 3. Check cloud runtime credentials (for Vercel / Serverless deployments)
     if (!serviceAccount) {
-        lastErrorCode = 'configuration_error';
-        lastErrorAt = Date.now();
         try {
             const cloudCred = require('./cloud-credentials');
             if (typeof cloudCred.getCredentials === 'function') {
@@ -201,6 +199,8 @@ function init(onRemoteDataChange) {
     }
 
     if (!serviceAccount) {
+        lastErrorCode = 'configuration_error';
+        lastErrorAt = Date.now();
         console.log('----------------------------------------------------');
         console.log('⚠️  [Firebase RTDB] serviceAccountKey not found yet.');
         console.log(`📌  Target Project: ${config.projectId}`);
@@ -214,6 +214,9 @@ function init(onRemoteDataChange) {
         console.log('----------------------------------------------------');
         return false;
     }
+
+    lastErrorCode = null;
+    lastErrorAt = null;
 
     try {
         serviceAccountPathUsed = keySource;
@@ -236,6 +239,7 @@ function init(onRemoteDataChange) {
         const rootNode = config.rootPath || 'tracker';
         dbRef = getDatabase(app).ref(rootNode);
         isInitialized = true;
+        lastSuccessfulOperationAt = Date.now();
 
         getDatabase(app).ref('.info/connected').on('value', (snapshot) => {
             isConnected = snapshot.val() === true;

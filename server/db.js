@@ -288,7 +288,7 @@ module.exports = {
             return 'firebase';
         }
 
-        if (health.initialized && hasCloudSnapshot && !health.lastErrorCode) {
+        if (health.initialized && !health.lastErrorCode) {
             return 'firebase';
         }
 
@@ -310,7 +310,7 @@ module.exports = {
         let status = 'offline';
         if (health.lastErrorCode === 'quota_exceeded') status = 'quota_exceeded';
         else if (health.lastErrorCode === 'configuration_error' || health.lastErrorCode === 'permission_denied') status = 'configuration_error';
-        else if (health.connected) status = 'connected';
+        else if (health.connected || (health.initialized && !health.lastErrorCode)) status = 'connected';
         else if (health.initialized && hasCloudSnapshot && health.lastErrorCode) status = 'stale';
         else if (health.initialized) status = 'connecting';
         return {
