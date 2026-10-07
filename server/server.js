@@ -2417,27 +2417,15 @@ app.post('/bosses/reset-invasion-kill-times', requireAdmin, async (req, res) => 
 });
 
 const { normalizeResetConfigs, getResetConfig } = require('./reset-time-configs');
+const { parseMaintenanceEndTime } = require('./maintenance-time');
 
 // POST /bosses/apply-reset-boss-time
 app.post('/bosses/apply-reset-boss-time', requireAdmin, async (req, res) => {
     const { maintenance_end_time, configs } = req.body;
     if (maintenance_end_time) {
-        let baseDate = new Date();
-        let savedTimeStr = '14:00';
-        if (typeof maintenance_end_time === 'string') {
-            if (maintenance_end_time.includes('T')) {
-                const parsed = new Date(maintenance_end_time);
-                if (!isNaN(parsed.getTime())) baseDate = parsed;
-                const timePart = maintenance_end_time.split('T')[1];
-                savedTimeStr = timePart.substring(0, 5);
-            } else if (maintenance_end_time.includes(':')) {
-                const [h, m] = maintenance_end_time.split(':').map(Number);
-                if (!isNaN(h) && !isNaN(m)) {
-                    baseDate.setHours(h, m, 0, 0);
-                    savedTimeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-                }
-            }
-        }
+        const parsedTime = parseMaintenanceEndTime(maintenance_end_time);
+        if (!parsedTime) return res.status(400).json({ error: 'Invalid maintenance end time' });
+        const { date: baseDate, timeLabel: savedTimeStr } = parsedTime;
 
         const savedConfigs = db.getResetConfigs();
         const configsMap = configs == null ? savedConfigs : normalizeResetConfigs(configs);
