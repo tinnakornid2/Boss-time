@@ -69,3 +69,14 @@ test('Download links never open an empty window inside the desktop app', () => {
     assert.ok(main.includes("shell.openExternal(url)"));
     assert.ok(main.includes("return { action: 'deny' };"));
 });
+
+test('Desktop updater retries the installer launch and falls back to the shell', () => {
+    const main = read('desktop-app/main.js');
+    assert.ok(main.includes('async function launchInstaller(installerPath, attempts = 3, retryDelayMs = 2000)'));
+    assert.ok(main.includes("child.once('spawn'"));
+    assert.ok(main.includes('await shell.openPath(installerPath)'));
+    const update = main.slice(main.indexOf('async function startDesktopUpdate()'));
+    assert.ok(update.includes('const launched = await launchInstaller(tempPath);'));
+    // Never quit the app unless an installer actually started
+    assert.ok(update.indexOf('if (launched) {') < update.indexOf('app.quit();'));
+});

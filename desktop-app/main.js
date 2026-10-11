@@ -1155,6 +1155,39 @@ function sha256File(filePath) {
     });
 }
 
+// Windows can briefly refuse to start a just-downloaded installer (antivirus still
+// scanning it -> "spawn UNKNOWN"). Retry the silent install a few times, then fall back
+// to opening it through the shell so Windows can show its own prompt to the user.
+function spawnInstallerOnce(installerPath) {
+    return new Promise((resolve) => {
+        let child;
+        try {
+            child = spawn(installerPath, ['/S'], { detached: true, stdio: 'ignore' });
+        } catch (err) {
+            console.error('Installer spawn failed:', err.code || err.message);
+            return resolve(false);
+        }
+        child.once('error', (err) => {
+            console.error('Installer spawn failed:', err.code || err.message);
+            resolve(false);
+        });
+        child.once('spawn', () => {
+            child.unref();
+            resolve(true);
+        });
+    });
+}
+
+async function launchInstaller(installerPath, attempts = 3, retryDelayMs = 2000) {
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        if (await spawnInstallerOnce(installerPath)) return true;
+        if (attempt < attempts) await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+    }
+    const shellError = await shell.openPath(installerPath);
+    if (shellError) console.error('Installer shell open failed:', shellError);
+    return !shellError;
+}
+
 let isUpdating = false;
 
 async function startDesktopUpdate() {
@@ -1200,23 +1233,17 @@ async function startDesktopUpdate() {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-download-complete', { path: tempPath });
 
         // Wait 1.2s so UI displays completion message, then launch installer and exit
-        setTimeout(() => {
-            try {
-                // Launch installer silently to update files and automatically restart
-                const child = spawn(tempPath, ['/S'], {
-                    detached: true,
-                    stdio: 'ignore'
-                });
-                child.unref();
-
+        setTimeout(async () => {
+            const launched = await launchInstaller(tempPath);
+            if (launched) {
                 app.isQuitting = true;
                 app.quit();
-            } catch (err) {
-                console.error('Failed to launch installer:', err);
-                if (hudWindow && !hudWindow.isDestroyed()) hudWindow.webContents.send('update-download-error', err.message);
-                if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-download-error', err.message);
-                isUpdating = false;
+                return;
             }
+            const message = `เปิดตัวติดตั้งไม่ได้ (อาจถูก Windows Defender บล็อก) ไฟล์อยู่ที่: ${tempPath}`;
+            if (hudWindow && !hudWindow.isDestroyed()) hudWindow.webContents.send('update-download-error', message);
+            if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-download-error', message);
+            isUpdating = false;
         }, 1200);
 
         return { ok: true, status: 'installing' };
