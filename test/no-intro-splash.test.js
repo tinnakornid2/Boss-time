@@ -11,3 +11,11 @@ test('Dashboard opens directly without the timed intro splash', () => {
     assert.equal(bundle.includes('[re,ge]=M.useState(!0)'), false);
     assert.equal(bundle.includes('const P=2500,X=Date.now()'), false);
 });
+
+test('Stale "New Feature" popover never shows on the settings gear', () => {
+    const bundle = fs.readFileSync(path.join(__dirname, '..', 'public', 'build', 'assets', 'dashboard-B9CVP--8.js'), 'utf8');
+
+    // The Admin tab that used to dismiss it no longer exists in the settings panel
+    assert.ok(bundle.includes('[Y,ne]=M.useState(!1)'));
+    assert.equal(bundle.includes('return localStorage.getItem("dashboard.adminPopoverVersion")!==ia'), false);
+});
