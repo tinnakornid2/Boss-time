@@ -92,12 +92,24 @@ router.delete('/guest-passwords/:id', requireAdmin, async (req, res) => {
     res.json({ success: true, message: 'ลบรหัสผ่านชั่วคราวเรียบร้อยแล้ว' });
 });
 
-// GOOGLE SHEETS PARALLEL DB (Admin + PIN 0386231334 required)
-const GOOGLE_SHEETS_ACCESS_PIN = '0386231334';
+// GOOGLE SHEETS PARALLEL DB (Admin + PIN required)
+// The PIN is stored only as a scrypt hash. Set GOOGLE_SHEETS_PIN_HASH (format: scrypt$<salt>$<hex>)
+// in the Vercel environment to rotate it; the legacy hash keeps the existing PIN working until then.
+const LEGACY_GOOGLE_SHEETS_PIN_HASH = 'scrypt$56c5416a93b02f6601bcdea92bc9768e$73e1bee1592b61eb8d65d9477c296007a4d9b911fde577cca8dc9fe86539d6ea3db9a0b0745c1e4414c63454cf796a71f19ab689cda5ba416255573cad58e87d';
+const GOOGLE_SHEETS_PIN_HASH = String(process.env.GOOGLE_SHEETS_PIN_HASH || '').trim() || LEGACY_GOOGLE_SHEETS_PIN_HASH;
+
+function verifySheetsPin(pin) {
+    if (pin === undefined || pin === null) return false;
+    const parts = GOOGLE_SHEETS_PIN_HASH.split('$');
+    if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
+    const expected = Buffer.from(parts[2], 'hex');
+    const actual = crypto.scryptSync(String(pin).trim(), parts[1], expected.length);
+    return expected.length > 0 && crypto.timingSafeEqual(expected, actual);
+}
 
 router.post('/google-sheets/verify-pin', requireAdmin, (req, res) => {
     const { pin } = req.body || {};
-    if (pin && String(pin).trim() === GOOGLE_SHEETS_ACCESS_PIN) {
+    if (verifySheetsPin(pin)) {
         return res.json({
             success: true,
             authorized: true,
@@ -121,7 +133,7 @@ router.get('/google-sheets', requireAdmin, (req, res) => {
 
 router.post('/google-sheets', requireAdmin, async (req, res) => {
     const { webAppUrl, secretToken, enabled, autoFailover, pin } = req.body || {};
-    if (pin !== GOOGLE_SHEETS_ACCESS_PIN) {
+    if (!verifySheetsPin(pin)) {
         return res.status(401).json({ success: false, message: 'รหัสผ่านไม่ถูกต้อง กรุณายืนยันรหัสผ่านเพื่อแก้ไขการตั้งค่า' });
     }
 
@@ -143,7 +155,7 @@ router.post('/google-sheets', requireAdmin, async (req, res) => {
 
 router.post('/google-sheets/test', requireAdmin, async (req, res) => {
     const { webAppUrl, secretToken, pin } = req.body || {};
-    if (pin && pin !== GOOGLE_SHEETS_ACCESS_PIN) {
+    if (!verifySheetsPin(pin)) {
         return res.status(401).json({ success: false, message: 'รหัสผ่านไม่ถูกต้อง' });
     }
 
@@ -153,7 +165,7 @@ router.post('/google-sheets/test', requireAdmin, async (req, res) => {
 
 router.post('/google-sheets/sync', requireAdmin, async (req, res) => {
     const { pin } = req.body || {};
-    if (pin && pin !== GOOGLE_SHEETS_ACCESS_PIN) {
+    if (!verifySheetsPin(pin)) {
         return res.status(401).json({ success: false, message: 'รหัสผ่านไม่ถูกต้อง' });
     }
 

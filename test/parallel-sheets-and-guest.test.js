@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('crypto');
 const googleSheets = require('../server/google-sheets');
+const fs = require('fs');
 const db = require('../server/db');
 
 test('Google Sheets parallel adapter rejects countdown ticks', () => {
@@ -14,16 +15,17 @@ test('Google Sheets parallel adapter rejects countdown ticks', () => {
     assert.equal(st.consecutiveFailures, 0);
 });
 
-test('Google Sheets access requires PIN 0386231334', () => {
-    const ACCESS_PIN = '0386231334';
-    
-    // Invalid PIN
-    const wrongPin = '123456';
-    assert.notEqual(wrongPin, ACCESS_PIN);
-    
-    // Valid PIN
-    const correctPin = '0386231334';
-    assert.equal(correctPin, ACCESS_PIN);
+test('Google Sheets access PIN is stored only as a hash and enforced on every route', () => {
+    const settingsRoutesSrc = fs.readFileSync('server/routes/settings.js', 'utf8');
+
+    // No plaintext PIN constant in source; hash may be rotated via env var
+    assert.equal(/GOOGLE_SHEETS_ACCESS_PIN\s*=\s*'\d+'/.test(settingsRoutesSrc), false);
+    assert.ok(settingsRoutesSrc.includes('process.env.GOOGLE_SHEETS_PIN_HASH'));
+    assert.ok(settingsRoutesSrc.includes('crypto.timingSafeEqual'));
+
+    // Every Google Sheets mutation route rejects a missing or wrong PIN (no optional `pin &&` bypass)
+    assert.equal(settingsRoutesSrc.includes('if (pin && pin !=='), false);
+    assert.equal((settingsRoutesSrc.match(/if \(!verifySheetsPin\(pin\)\)/g) || []).length, 3);
 });
 
 test('Temporary Guest Access: creation, expiration, and validation', async () => {

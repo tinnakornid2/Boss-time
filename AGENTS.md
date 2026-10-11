@@ -92,7 +92,7 @@ Before production deployment:
 3. Review the staged file list and exclude `server/data/store.json` and secrets.
 4. Obtain explicit user permission to deploy. Do NOT deploy without this confirmation.
 5. Deploy through GitHub/Vercel and verify the production version, authentication boundary, Firebase readiness, browser console, and relevant user flow.
-6. For risky timer/data changes, create and validate a preview first. Keep `stable-v1.3.25`, `stable-v1.3.24`, `stable-v1.3.23`, `stable-v1.3.22`, and `stable-v1.3.13` unchanged; use `stable-v1.3.25` as the primary recovery point.
+6. For risky timer/data changes, create and validate a preview first. Keep every existing `stable-v*` tag unchanged; use the primary stable release listed at the top of this file as the recovery point.
 
 ## Parallel Google Sheets Mirror & Failover
 
@@ -100,7 +100,7 @@ Before production deployment:
 - Zero Countdown Traffic: Never mirror countdown ticks or second-level loops to Google Sheets.
 - Auto-Failover: If Firebase suffers quota exhaustion or service outage, `db.getActiveSource()` resolves to `'google-sheets'`, and the backend dynamically serves/fetches store snapshots from Google Sheets.
 - Active Source Indicator: `/poll` returns dynamic `source`. Top-bar badge visually renders `☁️ Firebase Live`, `📊 Google Sheets`, or `💾 Local Mode`.
-- PIN Security: Google Sheets configuration in settings requires PIN verification (`0386231334`).
+- PIN Security: Google Sheets configuration in settings requires PIN verification on every Sheets route (verify, save, test, sync). The PIN is stored only as a scrypt hash; set `GOOGLE_SHEETS_PIN_HASH` in Vercel to rotate it. Never document or commit the plaintext PIN.
 
 ## Temporary Guest Access & Dual Language
 

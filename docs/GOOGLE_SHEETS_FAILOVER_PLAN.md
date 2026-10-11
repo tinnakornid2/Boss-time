@@ -1,6 +1,9 @@
 # Future Google Sheets Failover Plan
 
-Planning status only. None of this behavior is implemented in `stable-v1.3.23`.
+Status (as of `stable-v1.3.49`):
+
+- Implemented: parallel Firebase-to-Sheets mirroring (`server/google-sheets.js`, `google_apps_script/Code.gs`), countdown-tick rejection, automatic read failover via `db.getActiveSource()`, and the active-source badge.
+- Not yet implemented: the `Owner` role, fallback-mode writes, `Synced`/`Pending`/`Backup Error` Owner status, and safe recovery replay back to Firebase. Sheets settings are currently protected by Admin + hashed PIN instead of Owner.
 
 ## Goal
 

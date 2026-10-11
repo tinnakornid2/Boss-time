@@ -66,7 +66,7 @@ flowchart TD
 ### 3.2 ฐานข้อมูลคู่ขนาน & Auto-Failover (Google Sheets)
 1. **Mirror:** เมื่อมีการแก้ไขข้อมูลบอส/อีเวนต์ ระบบจะส่งข้อมูลไปบันทึกลง Google Sheets แบบ Asynchronous Queue ทันที
 2. **Failover:** หาก Firebase เกิดปัญหา (เช่น Quota Exceeded 429 หรือตัดการเชื่อมต่อ) `db.getActiveSource()` จะเปลี่ยนเป็น `'google-sheets'` ทันที และเบราว์เซอร์จะแสดงป้าย `📊 Google Sheets`
-3. **PIN ป้องกัน:** แท็บการตั้งค่า Google Sheets ล็อกด้วย PIN: `0386231334`
+3. **PIN ป้องกัน:** แท็บการตั้งค่า Google Sheets ล็อกด้วย PIN (เก็บเป็น scrypt hash เท่านั้น เปลี่ยนได้ผ่าน env `GOOGLE_SHEETS_PIN_HASH` บน Vercel ห้ามเขียน PIN จริงลงเอกสาร)
 
 ### 3.3 แหล่งข้อมูลจริง (Active Data Source Indicator)
 - **Top Badge:**
