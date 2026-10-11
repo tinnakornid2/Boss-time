@@ -28,7 +28,7 @@ test('Session Password Invalidation: session includes password fingerprint and v
 test('Session Password Invalidation: changing member password immediately invalidates old member sessions', async () => {
     // 1. Issue member session with original password
     const origSettings = db.getSettings();
-    const origMemberPass = origSettings.memberPassword || 'password777999';
+    const origMemberPass = origSettings.memberPassword ?? null;
     const oldMemberSession = createSession('member');
     assert.ok(readSession(oldMemberSession), 'Old member session should initially be valid');
 
@@ -54,7 +54,7 @@ test('Session Password Invalidation: changing member password immediately invali
 
 test('Session Password Invalidation: changing admin password invalidates old admin sessions while allowing re-issued session', async () => {
     const origSettings = db.getSettings();
-    const origAdminPass = origSettings.adminPassword || '@777999';
+    const origAdminPass = origSettings.adminPassword ?? null;
     const oldAdminSession = createSession('admin');
     assert.ok(readSession(oldAdminSession), 'Old admin session should initially be valid');
 

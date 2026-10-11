@@ -143,7 +143,8 @@ function init(onRemoteDataChange) {
     if (isInitialized) return true;
 
     const config = getConfig();
-    if (config.offlineMode || config.enabled === false) {
+    // BOSS_TRACKER_OFFLINE=1 (set by `npm test`) guarantees tests never reach a real database.
+    if (config.offlineMode || config.enabled === false || process.env.BOSS_TRACKER_OFFLINE === '1') {
         console.log('----------------------------------------------------');
         console.log('💾 [Offline Mode] System is running in 100% Local Offline Mode.');
         console.log('📦 Data persistence: server/data/store.json');

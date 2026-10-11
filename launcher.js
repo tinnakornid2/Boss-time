@@ -39,8 +39,8 @@ function getLocalIp() {
 // Helper: Print the interactive server dashboard
 function printDashboard() {
     const localIp = getLocalIp();
-    let adminPass = '@777999';
-    let memberPass = 'password777999';
+    let adminPass = '(not set)';
+    let memberPass = '(not set)';
     try {
         const store = JSON.parse(fs.readFileSync(path.join(rootDir, 'server', 'data', 'store.json'), 'utf8'));
         if (store.settings) {

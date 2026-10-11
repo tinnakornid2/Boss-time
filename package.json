@@ -5,7 +5,7 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "test": "node --test test/*.test.js",
+    "test": "node scripts/run-tests.js",
     "backup": "node server/backup.js",
     "sync-live": "node sync_live_kain7.js",
     "build:desktop": "node scripts/pack-desktop.js && node scripts/build-installer.js",

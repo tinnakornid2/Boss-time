@@ -29,3 +29,7 @@ desktop-app/dist/
 scratch/
 
 *.sublime-workspace
+
+# Firebase service account must come from FIREBASE_SERVICE_ACCOUNT env, never git
+server/cloud-credentials.js
+server/serviceAccountKey.json

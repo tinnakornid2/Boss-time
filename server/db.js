@@ -3,7 +3,10 @@ const path = require('path');
 const firebase = require('./firebase');
 const googleSheets = require('./google-sheets');
 
-const dataFile = path.join(__dirname, 'data', 'store.json');
+// BOSS_TRACKER_DATA_FILE points the local store elsewhere (used by `npm test` so the
+// user-owned server/data/store.json is never rewritten).
+const bundledDataFile = path.join(__dirname, 'data', 'store.json');
+const dataFile = process.env.BOSS_TRACKER_DATA_FILE || bundledDataFile;
 let cache = null;
 let isInitializedFirebase = false;
 let hasCloudSnapshot = false;
@@ -16,6 +19,7 @@ const BOSS_NOW_WINDOW_MS = 5 * 60 * 1000;
 function load() {
     if (!cache) {
         try {
+            if (dataFile !== bundledDataFile) throw new Error('custom data file');
             cache = JSON.parse(JSON.stringify(require('./data/store.json')));
         } catch (e) {
             if (!fs.existsSync(dataFile)) {
@@ -173,7 +177,7 @@ async function initFirebase(onRemoteChange) {
 function watchForServiceAccountKey(onRemoteChange) {
     if (process.env.VERCEL) return; // Do not hold timer in serverless functions
     const config = firebase.getConfig();
-    if (config.offlineMode || config.enabled === false) return;
+    if (config.offlineMode || config.enabled === false || process.env.BOSS_TRACKER_OFFLINE === '1') return;
 
     let checkInterval = setInterval(async () => {
         const key = firebase.findServiceAccountKey();

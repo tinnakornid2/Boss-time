@@ -16,16 +16,40 @@ const INERTIA_VERSION = '55c7f37e0516ec0f9ab5340e89e90c20';
 const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const PRE_SPAWN_ALERT_WINDOW_MS = 5 * 60 * 1000;
 const loginAttempts = new Map();
+const LOGIN_FAILURE_WINDOW_MS = 10 * 60 * 1000;
+const LOGIN_MAX_FAILURES = 10;
 
-function limitLogin(req, res, next) {
-    const key = req.ip || req.socket?.remoteAddress || 'unknown';
-    const now = Date.now();
-    const recent = (loginAttempts.get(key) || []).filter(time => now - time < 10 * 60 * 1000);
-    if (recent.length >= 10) {
-        return res.status(429).json({ success: false, message: 'Too many attempts — กรุณารอแล้วลองใหม่' });
+// Vercel's proxy sets x-vercel-forwarded-for / x-real-ip to the real client address
+// (clients cannot spoof them). Without this every user shares the proxy's address.
+function clientIp(req) {
+    if (process.env.VERCEL) {
+        const forwarded = String(req.headers['x-vercel-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim();
+        if (forwarded) return forwarded;
     }
-    recent.push(now);
-    loginAttempts.set(key, recent);
+    return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+// Counts only failed logins, so a busy clan logging in from one place is not locked out.
+// Per-instance memory only: no Firebase traffic is added to the login path.
+function limitLogin(req, res, next) {
+    const key = clientIp(req);
+    const now = Date.now();
+    const recent = (loginAttempts.get(key) || []).filter(time => now - time < LOGIN_FAILURE_WINDOW_MS);
+    if (recent.length) loginAttempts.set(key, recent); else loginAttempts.delete(key);
+    if (recent.length >= LOGIN_MAX_FAILURES) {
+        const message = 'Too many failed attempts — กรุณารอ 10 นาทีแล้วลองใหม่';
+        if (req.method === 'POST' && req.path === '/login' && !req.headers['x-inertia'] && !req.is('json')) {
+            return res.status(429).send(renderLoginHtml({ component: 'auth/login', props: { errors: { password: message } } }, 'Boss Tracker'));
+        }
+        return res.status(429).json({ success: false, message });
+    }
+    res.on('finish', () => {
+        if (res.statusCode === 401 || res.statusCode === 422) {
+            const list = loginAttempts.get(key) || [];
+            list.push(Date.now());
+            loginAttempts.set(key, list);
+        }
+    });
     next();
 }
 
@@ -55,11 +79,11 @@ function sessionSecret() {
 function getPasswordFingerprint(role, guestId = null) {
     const settings = db.getSettings() || {};
     if (role === 'admin') {
-        const raw = settings.adminPasswordHash || settings.adminPassword || '@777999';
+        const raw = settings.adminPasswordHash || settings.adminPassword || '';
         return crypto.createHash('sha256').update(`admin:${raw}`).digest('hex').slice(0, 16);
     }
     if (role === 'member') {
-        const raw = settings.memberPasswordHash || settings.memberPassword || 'password777999';
+        const raw = settings.memberPasswordHash || settings.memberPassword || '';
         return crypto.createHash('sha256').update(`member:${raw}`).digest('hex').slice(0, 16);
     }
     if (role === 'guest') {
@@ -110,9 +134,8 @@ app.set('createSession', createSession);
 app.set('readSession', readSession);
 app.set('getPasswordFingerprint', getPasswordFingerprint);
 
-function verifyPassword(password, plaintext, storedHash, fallback) {
+function verifyPassword(password, plaintext, storedHash) {
     if (plaintext && password === plaintext) return true;
-    if (!plaintext && !storedHash && fallback && password === fallback) return true;
     if (!storedHash) return false;
     if (storedHash.startsWith('scrypt$')) {
         const [, salt, expectedHex] = storedHash.split('$');
@@ -1997,8 +2020,8 @@ app.post('/login', limitLogin, async (req, res) => {
     const pass = (password || '').trim();
     const settings = db.getSettings();
 
-    const isAdminPass = verifyPassword(pass, settings.adminPassword, settings.adminPasswordHash, '@777999');
-    const isMemberPass = verifyPassword(pass, settings.memberPassword, settings.memberPasswordHash, 'password777999');
+    const isAdminPass = verifyPassword(pass, settings.adminPassword, settings.adminPasswordHash);
+    const isMemberPass = verifyPassword(pass, settings.memberPassword, settings.memberPasswordHash);
 
     let sessionRole = null;
     let errorMessage = null;

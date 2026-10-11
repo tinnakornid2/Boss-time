@@ -29,8 +29,8 @@ const rl = readline.createInterface({
 });
 
 const store = loadStore();
-const currentMember = store.settings.memberPassword || 'password777999';
-const currentAdmin = store.settings.adminPassword || '@777999';
+const currentMember = store.settings.memberPassword || '(hashed / not shown)';
+const currentAdmin = store.settings.adminPassword || '(hashed / not shown)';
 
 console.clear();
 console.log('================================================================');

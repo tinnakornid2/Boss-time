@@ -8,9 +8,8 @@ function hashPassword(password) {
     return `scrypt$${salt}$${crypto.scryptSync(password, salt, 64).toString('hex')}`;
 }
 
-function verifyPassword(password, plaintext, storedHash, fallback) {
+function verifyPassword(password, plaintext, storedHash) {
     if (plaintext && password === plaintext) return true;
-    if (!plaintext && !storedHash && fallback && password === fallback) return true;
     if (!storedHash) return false;
     if (storedHash.startsWith('scrypt$')) {
         const [, salt, expectedHex] = storedHash.split('$');
@@ -51,8 +50,8 @@ router.post('/login', (req, res) => {
 
     const expectedAdmin = (settings.adminUsername || 'admin').toLowerCase();
     const expectedMember = (settings.memberUsername || 'kain7').toLowerCase();
-    const isAdminPass = verifyPassword(pass, settings.adminPassword, settings.adminPasswordHash, '@777999');
-    const isMemberPass = verifyPassword(pass, settings.memberPassword, settings.memberPasswordHash, 'password777999');
+    const isAdminPass = verifyPassword(pass, settings.adminPassword, settings.adminPasswordHash);
+    const isMemberPass = verifyPassword(pass, settings.memberPassword, settings.memberPasswordHash);
 
     if (user === expectedAdmin && isAdminPass) {
         const token = crypto.randomBytes(32).toString('hex');

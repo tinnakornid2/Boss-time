@@ -101,9 +101,9 @@ test('Single settings button, gear icon, embedded dialog tabs, and PIN security'
     // 3. Gear icon path exists in x-DoItGZdI.js (Lucide Settings)
     assert.ok(assetSrc.includes('circle') && assetSrc.includes('path') && assetSrc.includes('12.22'));
 
-    // 4. PIN 0386231334 must NOT be leaked in client-facing HTML or scripts
-    assert.equal(serverSrc.includes('0386231334'), false);
-    assert.equal(alertsSrc.includes('0386231334'), false);
+    // 4. The Sheets PIN must NOT be leaked in client-facing HTML or scripts (no 10-digit numeric literal)
+    assert.equal(/['"]0\d{9}['"]/.test(serverSrc), false);
+    assert.equal(/['"]0\d{9}['"]/.test(alertsSrc), false);
 });
 
 test('Dual-language EN/TH support: English default, top bar switcher, and boss names preservation', () => {
