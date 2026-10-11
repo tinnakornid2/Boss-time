@@ -29,3 +29,17 @@ test('HUD announcement marquee is not restarted by repeated polls', () => {
     const apply = overlay.slice(overlay.indexOf('function applyTrackerSnapshot('));
     assert.ok(apply.includes('dom.hudAnnouncementText.textContent !== annText'));
 });
+
+test('Firebase rules deny direct client access except the public live event stream', () => {
+    const rules = JSON.parse(read('database.rules.json')).rules;
+    assert.equal(rules['.read'], false);
+    assert.equal(rules['.write'], false);
+    assert.equal(rules.tracker.liveEvent['.read'], true);
+    assert.equal(rules.tracker.liveEvent['.write'], undefined);
+    assert.equal(JSON.stringify(rules).includes('"write":true'), false);
+});
+
+test('Vercel functions run next to Firebase in Singapore', () => {
+    const vercel = JSON.parse(read('vercel.json'));
+    assert.deepEqual(vercel.regions, ['sin1']);
+});

@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "regions": [
+    "sin1"
+  ],
   "functions": {
     "api/index.js": {
       "includeFiles": "public/**"
