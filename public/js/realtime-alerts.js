@@ -196,12 +196,13 @@
             invasion_sync_all: '🌐 Synced to all screens',
             download_app_tooltip: 'Download Windows Desktop App (HUD Overlay)',
             download_modal_title: 'Boss Tracker for Windows',
-            download_modal_badge: 'Portable v1.3.50',
+            download_modal_badge: 'Windows Installer (Setup)',
             download_feat_hud: 'Mini HUD Overlay: In-game floating boss timer on top of Lineage 2',
             download_feat_clickthrough: 'Click-Through Mode: Press Alt+F12 to click through into the game without stealing focus',
             download_feat_audio: 'Integrated Audio: Spawn and pre-spawn alerts directly on your desktop',
-            download_feat_light: 'Lightweight & Portable: Just extract and launch BossTracker.exe (No installation required)',
-            download_modal_cta: '⬇️ Download Portable (.zip)',
+            download_feat_light: 'Easy install: desktop shortcut, Start Menu entry, and in-app auto-update',
+            download_modal_cta: '📥 Install on Windows (Setup .exe)',
+            download_modal_portable: '📦 Portable (.zip)',
             download_modal_close: 'Close',
             download_app_update_tooltip: '✨ New update available: v{version} (Click to download)'
         },
@@ -336,12 +337,13 @@
             sheets_script_guide: '📖 <b>ไฟล์สคริปต์:</b> อยู่ที่ <code>google_apps_script/Code.gs</code> พร้อมคู่มือใน <code>google_apps_script/README.md</code>',
             download_app_tooltip: 'ดาวน์โหลดแอปเดสก์ท็อป Windows (HUD Overlay)',
             download_modal_title: 'Boss Tracker สำหรับ Windows',
-            download_modal_badge: 'แบบพกพา v1.3.50 (Portable)',
+            download_modal_badge: 'ตัวติดตั้ง Windows (Setup)',
             download_feat_hud: 'Mini HUD Overlay: หน้าต่างลอยแสดงเวลานับถอยหลังบอสทับบนเกม Lineage 2',
             download_feat_clickthrough: 'โหมดคลิกทะลุ: กดปุ่ม Alt+F12 เพื่อคลิกทะลุเข้าเกมได้ 100% ไม่กวนการเล่น',
             download_feat_audio: 'ระบบเสียงเตือน: แจ้งเตือนบอสเกิดและเตือนล่วงหน้าตรงถึงเดสก์ท็อป',
-            download_feat_light: 'เบาและพกพาสะดวก: แตกไฟล์ .zip แล้วเปิดใช้งาน BossTracker.exe ได้ทันทีโดยไม่ต้องติดตั้ง',
-            download_modal_cta: '⬇️ ดาวน์โหลดเวอร์ชันพกพา (.zip)',
+            download_feat_light: 'ติดตั้งง่าย: มีไอคอนบนหน้าจอและเมนู Start พร้อมอัปเดตอัตโนมัติในแอป',
+            download_modal_cta: '📥 ติดตั้งลงวินโดวส์ (Setup .exe มีไอคอนหน้าจอ)',
+            download_modal_portable: '📦 โหมดพกพา (.zip)',
             download_modal_close: 'ปิดหน้าต่าง',
             download_app_update_tooltip: '✨ มีอัปเดตใหม่เวอร์ชัน v{version} (คลิกเพื่อดาวน์โหลด)'
         }
@@ -811,7 +813,7 @@ function ensureDownloadAppButton() {
         overlay.id = 'download-app-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(5px);z-index:100005;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.2s ease-out;';
 
-        const defaultDownloadUrl = 'https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Windows-Portable.zip';
+        const defaultDownloadUrl = 'https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Setup.exe';
         const downloadUrl = (state.settings?.appDownloadUrl || localStorage.getItem('dashboard.appDownloadUrl') || defaultDownloadUrl).trim();
 
         overlay.innerHTML = `
@@ -846,12 +848,12 @@ function ensureDownloadAppButton() {
                 </div>
 
                 <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
-                    <a href="https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Setup.exe" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#0284c7,#2563eb);color:#ffffff;font-weight:700;font-size:13px;padding:10px 16px;border-radius:8px;box-shadow:0 0 18px rgba(37,99,235,0.4);border:1px solid rgba(147,197,253,0.3);transition:all 0.2s;">
-                        <span>📥 ติดตั้งลงวินโดวส์ (Setup .exe มีไอคอนหน้าจอ)</span>
+                    <a id="download-app-setup-link" href="${defaultDownloadUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#0284c7,#2563eb);color:#ffffff;font-weight:700;font-size:13px;padding:10px 16px;border-radius:8px;box-shadow:0 0 18px rgba(37,99,235,0.4);border:1px solid rgba(147,197,253,0.3);transition:all 0.2s;">
+                        <span>${t('download_modal_cta')}</span>
                     </a>
                     <div style="display:flex;gap:8px;">
                         <a href="https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Windows-Portable.zip" target="_blank" rel="noopener noreferrer" style="flex:1;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,0.08);color:#e2e8f0;font-weight:600;font-size:12px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.14);transition:all 0.2s;">
-                            <span>📦 โหมดพกพา (.zip)</span>
+                            <span>${t('download_modal_portable')}</span>
                         </a>
                         <button type="button" id="dismiss-download-modal-btn" style="padding:8px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;font-weight:600;font-size:12px;border-radius:8px;cursor:pointer;">
                             ${t('download_modal_close')}
@@ -865,6 +867,8 @@ function ensureDownloadAppButton() {
             if (e.target === overlay) overlay.remove();
         });
         overlay.querySelector('#close-download-modal-btn').addEventListener('click', () => overlay.remove());
+        // Admin may override the installer link in settings; only accept https URLs
+        if (/^https:\/\//i.test(downloadUrl)) overlay.querySelector('#download-app-setup-link').href = downloadUrl;
         overlay.querySelector('#dismiss-download-modal-btn').addEventListener('click', () => overlay.remove());
 
         document.body.appendChild(overlay);

@@ -2131,22 +2131,16 @@ app.get('/poll', async (req, res) => {
     });
 });
 
-// GET /download/app -> Download Windows Desktop App Portable
+// GET /download/app -> Download Windows Desktop App installer
 app.get(['/download/app', '/download/BossTracker.exe', '/download/BossTracker.zip'], (req, res) => {
     try {
         const settings = db.getSettings();
         if (settings && settings.appDownloadUrl) {
             return res.redirect(302, settings.appDownloadUrl);
         }
-        if (!process.env.VERCEL) {
-            const localZip = path.join(__dirname, '../desktop-app/dist/BossTracker-Windows-Portable.zip');
-            if (fs.existsSync(localZip)) {
-                return res.download(localZip, 'BossTracker-Windows-Portable.zip');
-            }
-        }
-        return res.redirect(302, 'https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Windows-Portable.zip');
+        return res.redirect(302, 'https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Setup.exe');
     } catch (_) {
-        return res.redirect(302, 'https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Windows-Portable.zip');
+        return res.redirect(302, 'https://github.com/tinnakornid2/Boss-time/releases/latest/download/BossTracker-Setup.exe');
     }
 });
 

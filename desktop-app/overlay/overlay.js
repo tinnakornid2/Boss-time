@@ -800,25 +800,38 @@ function applyFontSettings(fontSize, font, syncIPC = true) {
 
 function updateAnnouncementMarquee() {
     if (!dom.hudAnnouncement || !dom.hudAnnouncementText) return;
+    const text = dom.hudAnnouncementText;
     if (dom.hudAnnouncement.style.display === 'none') {
-        dom.hudAnnouncementText.classList.remove('marquee-active');
+        text.classList.remove('marquee-active');
+        text.dataset.marqueeKey = '';
         return;
     }
 
+    // Measure without toggling the class: the text is nowrap, so scrollWidth is its
+    // full width either way. Toggling here restarted the animation on every poll.
     const track = dom.hudAnnouncementTrack || dom.hudAnnouncement;
-    dom.hudAnnouncementText.classList.remove('marquee-active');
-    dom.hudAnnouncementText.style.removeProperty('--marquee-overflow');
-    dom.hudAnnouncementText.style.removeProperty('--marquee-duration');
-
     const trackWidth = track.clientWidth;
-    const textWidth = dom.hudAnnouncementText.scrollWidth;
+    const textWidth = text.scrollWidth;
 
+    let key = 'static';
+    let overflow = 0;
+    let duration = 0;
     if (textWidth > trackWidth + 4 && trackWidth > 0) {
-        const overflow = textWidth - trackWidth + 12;
-        const duration = Math.max(5, Math.min(25, Math.round(overflow / 30) + 4));
-        dom.hudAnnouncementText.style.setProperty('--marquee-overflow', `${overflow}px`);
-        dom.hudAnnouncementText.style.setProperty('--marquee-duration', `${duration}s`);
-        dom.hudAnnouncementText.classList.add('marquee-active');
+        overflow = textWidth - trackWidth + 12;
+        duration = Math.max(5, Math.min(25, Math.round(overflow / 30) + 4));
+        key = `${overflow}:${duration}`;
+    }
+    if (text.dataset.marqueeKey === key) return;
+    text.dataset.marqueeKey = key;
+
+    text.classList.remove('marquee-active');
+    text.style.removeProperty('--marquee-overflow');
+    text.style.removeProperty('--marquee-duration');
+    if (key !== 'static') {
+        text.style.setProperty('--marquee-overflow', `${overflow}px`);
+        text.style.setProperty('--marquee-duration', `${duration}s`);
+        void text.offsetWidth;
+        text.classList.add('marquee-active');
     }
 }
 
@@ -900,10 +913,15 @@ function applyTrackerSnapshot(data) {
     if (annText && annText !== '[object Object]') {
         state.announcement = annText;
         if (dom.hudAnnouncement && dom.hudAnnouncementText) {
-            dom.hudAnnouncementText.textContent = annText;
             dom.hudAnnouncement.classList.toggle('urgent', isUrgent);
-            dom.hudAnnouncement.style.display = 'flex';
-            requestAnimationFrame(() => updateAnnouncementMarquee());
+            // Polls repeat the same announcement every few seconds; only touch the
+            // text and marquee when it actually changes so scrolling is not restarted.
+            const wasHidden = dom.hudAnnouncement.style.display === 'none';
+            if (wasHidden || dom.hudAnnouncementText.textContent !== annText) {
+                dom.hudAnnouncementText.textContent = annText;
+                dom.hudAnnouncement.style.display = 'flex';
+                requestAnimationFrame(() => updateAnnouncementMarquee());
+            }
         }
     } else {
         state.announcement = null;
@@ -912,6 +930,7 @@ function applyTrackerSnapshot(data) {
         }
         if (dom.hudAnnouncementText) {
             dom.hudAnnouncementText.classList.remove('marquee-active');
+            dom.hudAnnouncementText.dataset.marqueeKey = '';
         }
     }
 
