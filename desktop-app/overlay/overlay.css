@@ -119,22 +119,32 @@ body {
     will-change: transform;
 }
 
+.announcement-text .ann-seg {
+    display: inline-block;
+}
+
+.announcement-text .ann-seg-copy {
+    margin-left: 48px; /* keep equal to MARQUEE_GAP_PX in overlay.js */
+}
+
 .announcement-text.marquee-active {
     overflow: visible;
     text-overflow: clip;
-    animation: hudMarqueeBounce var(--marquee-duration, 8s) ease-in-out infinite alternate;
+    animation: hudMarqueeLoop var(--marquee-duration, 10s) linear infinite;
 }
 
 .hud-announcement:hover .announcement-text.marquee-active {
     animation-play-state: paused;
 }
 
-@keyframes hudMarqueeBounce {
-    0%, 15% {
+/* Continuous loop: after moving one segment + gap, the copy sits exactly where the
+   original started, so the restart is invisible. */
+@keyframes hudMarqueeLoop {
+    from {
         transform: translateX(0);
     }
-    85%, 100% {
-        transform: translateX(calc(-1 * var(--marquee-overflow, 50px)));
+    to {
+        transform: translateX(calc(-1 * var(--marquee-distance, 200px)));
     }
 }
 

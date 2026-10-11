@@ -798,6 +798,24 @@ function applyFontSettings(fontSize, font, syncIPC = true) {
     updateAnnouncementMarquee();
 }
 
+const MARQUEE_GAP_PX = 48;
+const MARQUEE_SPEED_PX_PER_SEC = 40;
+
+// Shows the announcement as one segment, or as a seamless "train" loop when it is
+// wider than the banner: two copies scroll left continuously, and when the first copy
+// has fully passed, the loop restarts at a position that looks identical.
+function setAnnouncementText(annText) {
+    const text = dom.hudAnnouncementText;
+    text.dataset.annText = annText;
+    text.dataset.marqueeKey = '';
+    text.classList.remove('marquee-active');
+    text.textContent = '';
+    const seg = document.createElement('span');
+    seg.className = 'ann-seg';
+    seg.textContent = annText;
+    text.appendChild(seg);
+}
+
 function updateAnnouncementMarquee() {
     if (!dom.hudAnnouncement || !dom.hudAnnouncementText) return;
     const text = dom.hudAnnouncementText;
@@ -806,29 +824,35 @@ function updateAnnouncementMarquee() {
         text.dataset.marqueeKey = '';
         return;
     }
+    const firstSeg = text.querySelector('.ann-seg');
+    if (!firstSeg) return;
 
-    // Measure without toggling the class: the text is nowrap, so scrollWidth is its
-    // full width either way. Toggling here restarted the animation on every poll.
+    // Measuring does not toggle the animation, so repeated polls never restart it.
     const track = dom.hudAnnouncementTrack || dom.hudAnnouncement;
     const trackWidth = track.clientWidth;
-    const textWidth = text.scrollWidth;
+    const segWidth = Math.ceil(firstSeg.getBoundingClientRect().width);
 
     let key = 'static';
-    let overflow = 0;
+    let distance = 0;
     let duration = 0;
-    if (textWidth > trackWidth + 4 && trackWidth > 0) {
-        overflow = textWidth - trackWidth + 12;
-        duration = Math.max(5, Math.min(25, Math.round(overflow / 30) + 4));
-        key = `${overflow}:${duration}`;
+    if (segWidth > trackWidth + 4 && trackWidth > 0) {
+        distance = segWidth + MARQUEE_GAP_PX;
+        duration = Math.max(4, Math.round((distance / MARQUEE_SPEED_PX_PER_SEC) * 10) / 10);
+        key = `${distance}:${duration}`;
     }
     if (text.dataset.marqueeKey === key) return;
     text.dataset.marqueeKey = key;
 
     text.classList.remove('marquee-active');
-    text.style.removeProperty('--marquee-overflow');
+    text.querySelectorAll('.ann-seg-copy').forEach(el => el.remove());
+    text.style.removeProperty('--marquee-distance');
     text.style.removeProperty('--marquee-duration');
     if (key !== 'static') {
-        text.style.setProperty('--marquee-overflow', `${overflow}px`);
+        const copy = firstSeg.cloneNode(true);
+        copy.classList.add('ann-seg-copy');
+        copy.setAttribute('aria-hidden', 'true');
+        text.appendChild(copy);
+        text.style.setProperty('--marquee-distance', `${distance}px`);
         text.style.setProperty('--marquee-duration', `${duration}s`);
         void text.offsetWidth;
         text.classList.add('marquee-active');
@@ -917,8 +941,8 @@ function applyTrackerSnapshot(data) {
             // Polls repeat the same announcement every few seconds; only touch the
             // text and marquee when it actually changes so scrolling is not restarted.
             const wasHidden = dom.hudAnnouncement.style.display === 'none';
-            if (wasHidden || dom.hudAnnouncementText.textContent !== annText) {
-                dom.hudAnnouncementText.textContent = annText;
+            if (wasHidden || dom.hudAnnouncementText.dataset.annText !== annText) {
+                setAnnouncementText(annText);
                 dom.hudAnnouncement.style.display = 'flex';
                 requestAnimationFrame(() => updateAnnouncementMarquee());
             }

@@ -19,15 +19,22 @@ test('Download App points to the Setup installer, with Portable as the secondary
     assert.equal(route.includes('Portable.zip'), false);
 });
 
-test('HUD announcement marquee is not restarted by repeated polls', () => {
+test('HUD announcement marquee loops seamlessly and is not restarted by repeated polls', () => {
     const overlay = read('desktop-app/overlay/overlay.js');
     const fn = overlay.slice(overlay.indexOf('function updateAnnouncementMarquee() {'), overlay.indexOf('function applyTrackerSnapshot('));
     assert.ok(fn.includes('if (text.dataset.marqueeKey === key) return;'));
-    // Measurement happens before any class toggle
-    assert.ok(fn.indexOf('text.scrollWidth') < fn.indexOf("text.classList.remove('marquee-active');\n    text.style.removeProperty"));
+    // A second copy follows the first so the loop restart is invisible ("train" style)
+    assert.ok(fn.includes("copy.classList.add('ann-seg-copy')"));
+    assert.ok(fn.includes('distance = segWidth + MARQUEE_GAP_PX'));
 
     const apply = overlay.slice(overlay.indexOf('function applyTrackerSnapshot('));
-    assert.ok(apply.includes('dom.hudAnnouncementText.textContent !== annText'));
+    assert.ok(apply.includes('dom.hudAnnouncementText.dataset.annText !== annText'));
+
+    const css = read('desktop-app/overlay/overlay.css');
+    assert.ok(css.includes('animation: hudMarqueeLoop var(--marquee-duration, 10s) linear infinite;'));
+    assert.ok(css.includes('translateX(calc(-1 * var(--marquee-distance, 200px)))'));
+    assert.equal(css.includes('hudMarqueeBounce'), false);
+    assert.ok(css.includes('margin-left: 48px') && overlay.includes('const MARQUEE_GAP_PX = 48;'));
 });
 
 test('Firebase rules deny direct client access except the public live event stream', () => {
