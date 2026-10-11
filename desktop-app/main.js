@@ -1240,7 +1240,7 @@ async function startDesktopUpdate() {
                 app.quit();
                 return;
             }
-            const message = `เปิดตัวติดตั้งไม่ได้ (อาจถูก Windows Defender บล็อก) ไฟล์อยู่ที่: ${tempPath}`;
+            const message = `Could not start the installer (it may be blocked by Windows Defender). Run it manually: ${tempPath}`;
             if (hudWindow && !hudWindow.isDestroyed()) hudWindow.webContents.send('update-download-error', message);
             if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-download-error', message);
             isUpdating = false;

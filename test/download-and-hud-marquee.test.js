@@ -80,3 +80,15 @@ test('Desktop updater retries the installer launch and falls back to the shell',
     // Never quit the app unless an installer actually started
     assert.ok(update.indexOf('if (launched) {') < update.indexOf('app.quit();'));
 });
+
+test('Desktop update notifications are in English', () => {
+    const thai = /[฀-๿]/;
+    const updateWords = /update|Update|install|Install|download|Download/;
+    for (const file of ['desktop-app/preload.js', 'desktop-app/overlay/overlay.js', 'desktop-app/overlay/index.html']) {
+        read(file).split('\n').forEach((line, i) => {
+            if (updateWords.test(line)) assert.equal(thai.test(line), false, `${file}:${i + 1} has Thai update text`);
+        });
+    }
+    const main = read('desktop-app/main.js');
+    assert.ok(main.includes('Could not start the installer'));
+});

@@ -126,8 +126,8 @@ const I18N_HUD = {
         hotkey_custom: 'กดปุ่มกำหนดเอง...',
         ph_press_key: 'กดปุ่มที่ต้องการ...',
         tooltip_save_hotkey: 'บันทึกปุ่มนี้',
-        toast_update_available: '🚀 พบอัปเดตใหม่ (v{version}) [คลิกเพื่ออัปเดต]',
-        toast_reloading: '🔄 พบการอัปเดตระบบ ({version}) กำลังรีโหลดอัตโนมัติ...',
+        toast_update_available: '🚀 New update available: v{version} [Click to update]',
+        toast_reloading: '🔄 System update found ({version}) reloading automatically...',
         toast_server_reload: '🔄 รีโหลดข้อมูลล่าสุดจากเซิร์ฟเวอร์...',
         status_connecting_hint: 'กำลังเชื่อมต่อข้อมูลบอส...<br><span style="font-size: 10px; color: #64748b;">(หากยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบที่หน้าต่างหลัก)</span>',
         btn_open_main: '🪟 เปิดหน้าต่างหลัก',
@@ -1318,18 +1318,18 @@ function initHudAutoUpdate() {
     if (btnCheckUpdate) {
         btnCheckUpdate.addEventListener('click', async () => {
             btnCheckUpdate.disabled = true;
-            btnCheckUpdate.textContent = '⏳ กำลังเช็ค...';
+            btnCheckUpdate.textContent = '⏳ Checking...';
             try {
                 if (window.electronAPI && typeof window.electronAPI.checkForUpdates === 'function') {
                     const res = await window.electronAPI.checkForUpdates();
                     if (!res || !res.hasUpdate) {
-                        showHudToast('✅ เวอร์ชันปัจจุบันเป็นเวอร์ชันล่าสุดแล้ว', '#22c55e');
+                        showHudToast('✅ You are on the latest version', '#22c55e');
                     }
                 }
             } catch (_) {}
             setTimeout(() => {
                 btnCheckUpdate.disabled = false;
-                btnCheckUpdate.textContent = '🔄 เช็คอัปเดต';
+                btnCheckUpdate.textContent = '🔄 Check for updates';
             }, 3000);
         });
     }
@@ -1339,8 +1339,8 @@ function initHudAutoUpdate() {
     btnUpdate.addEventListener('click', async () => {
         btnUpdate.disabled = true;
         btnUpdate.style.opacity = '0.7';
-        if (updateText) updateText.textContent = 'กำลังโหลด...';
-        showHudToast('⏳ กำลังดาวน์โหลดตัวติดตั้งอัตโนมัติ...', '#38bdf8');
+        if (updateText) updateText.textContent = 'Loading...';
+        showHudToast('⏳ Downloading update...', '#38bdf8');
         try {
             if (window.electronAPI && typeof window.electronAPI.startDesktopUpdate === 'function') {
                 await window.electronAPI.startDesktopUpdate();
@@ -1348,7 +1348,7 @@ function initHudAutoUpdate() {
         } catch (err) {
             btnUpdate.disabled = false;
             btnUpdate.style.opacity = '1';
-            showHudToast('⚠️ ไม่สามารถดาวน์โหลดได้', '#ef4444');
+            showHudToast('⚠️ Download failed', '#ef4444');
         }
     });
 
@@ -1356,7 +1356,7 @@ function initHudAutoUpdate() {
         window.electronAPI.onUpdateAvailable((info) => {
             btnUpdate.style.display = 'inline-flex';
             if (updateText) updateText.textContent = `v${info.version}`;
-            showHudToast(`🚀 มีอัปเดตใหม่ v${info.version}! (คลิกปุ่ม 🚀 เพื่ออัปเดต)`, '#f59e0b');
+            showHudToast(`🚀 Update v${info.version} available! (click 🚀 to update)`, '#f59e0b');
         });
     }
 
@@ -1370,8 +1370,8 @@ function initHudAutoUpdate() {
 
     if (window.electronAPI && typeof window.electronAPI.onUpdateComplete === 'function') {
         window.electronAPI.onUpdateComplete(() => {
-            if (updateText) updateText.textContent = 'ติดตั้ง...';
-            showHudToast('✅ ดาวน์โหลดสำเร็จ กำลังติดตั้งและเริ่มใหม่...', '#22c55e');
+            if (updateText) updateText.textContent = 'Installing...';
+            showHudToast('✅ Download complete. Installing and restarting...', '#22c55e');
         });
     }
 
@@ -1379,8 +1379,8 @@ function initHudAutoUpdate() {
         window.electronAPI.onUpdateError((err) => {
             btnUpdate.disabled = false;
             btnUpdate.style.opacity = '1';
-            if (updateText) updateText.textContent = 'ลองใหม่';
-            showHudToast(`⚠️ อัปเดตไม่สำเร็จ: ${err || 'ข้อผิดพลาด'}`, '#ef4444');
+            if (updateText) updateText.textContent = 'Retry';
+            showHudToast(`⚠️ Update failed: ${err || 'Unknown error'}`, '#ef4444');
         });
     }
 }
