@@ -56,7 +56,7 @@ test('Desktop updater verifies the installer SHA-256 from the GitHub release bef
     assert.ok(main.includes("assetSha256: /^sha256:[0-9a-f]{64}$/i.test(setupAsset?.digest || '')"));
     const update = main.slice(main.indexOf('async function startDesktopUpdate()'));
     assert.ok(update.indexOf('await sha256File(tempPath)') > 0);
-    assert.ok(update.indexOf('await sha256File(tempPath)') < update.indexOf("spawn(tempPath, ['/S']"));
+    assert.ok(update.indexOf('await sha256File(tempPath)') < update.indexOf('await launchInstaller(tempPath)'));
 });
 
 test('Download links never open an empty window inside the desktop app', () => {
