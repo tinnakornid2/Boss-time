@@ -2,6 +2,7 @@ const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, nativeI
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const crypto = require('crypto');
 const { execSync, spawn } = require('child_process');
 
 // Automatically elevate to Administrator on Windows if not already elevated
@@ -1057,7 +1058,9 @@ async function checkForUpdates(manual = false) {
                 releaseBody: release.body || '',
                 downloadUrl: setupAsset?.browser_download_url || release.html_url,
                 assetName: setupAsset?.name || 'BossTracker-Setup.exe',
-                assetSize: setupAsset?.size || 0
+                assetSize: setupAsset?.size || 0,
+                // GitHub publishes "sha256:<hex>" for each release asset
+                assetSha256: /^sha256:[0-9a-f]{64}$/i.test(setupAsset?.digest || '') ? setupAsset.digest.slice(7).toLowerCase() : null
             };
 
             // Notify both Main Window and Mini HUD
@@ -1135,6 +1138,16 @@ function downloadFileWithRedirects(url, destPath, onProgress) {
     });
 }
 
+function sha256File(filePath) {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash('sha256');
+        fs.createReadStream(filePath)
+            .on('data', chunk => hash.update(chunk))
+            .on('end', () => resolve(hash.digest('hex')))
+            .on('error', reject);
+    });
+}
+
 let isUpdating = false;
 
 async function startDesktopUpdate() {
@@ -1165,6 +1178,15 @@ async function startDesktopUpdate() {
 
         if (!fs.existsSync(tempPath) || fs.statSync(tempPath).size < 1000000) {
             throw new Error('Downloaded installer file is incomplete or corrupt');
+        }
+
+        // Refuse to run an installer that does not match the release checksum
+        if (cachedUpdateInfo.assetSha256) {
+            const actualSha256 = await sha256File(tempPath);
+            if (actualSha256 !== cachedUpdateInfo.assetSha256) {
+                try { fs.unlinkSync(tempPath); } catch (_) {}
+                throw new Error('Installer checksum mismatch — download rejected');
+            }
         }
 
         if (hudWindow && !hudWindow.isDestroyed()) hudWindow.webContents.send('update-download-complete', { path: tempPath });
