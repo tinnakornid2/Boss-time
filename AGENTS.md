@@ -61,6 +61,8 @@ Read this file completely before changing the project. This is a production boss
 - Do not edit, commit, reset, seed, or restore `server/data/store.json` unless the owner explicitly asks to change production data.
 - Do not commit Firebase service-account credentials, passwords, session secrets, exported user data, or backups containing secrets.
 - Firebase rules must remain version-controlled once added. Member access must be read-only and Admin writes must be validated.
+- Rules live in `database.rules.json` (deploy with the Firebase console or `firebase deploy --only database`). Clients may only read `tracker/liveEvent`; everything else goes through the server's Admin SDK.
+- The Firebase service account comes only from the `FIREBASE_SERVICE_ACCOUNT` env var (Vercel, Sensitive). `server/cloud-credentials.js` and key files are gitignored and must never be committed.
 
 ## Authentication contract
 
@@ -88,7 +90,7 @@ Before production deployment:
 > Preserve `server/data/store.json` byte-for-byte around tests, verify its SHA-256 before/after, and never include it in staged or deployed files.
 
 1. Run syntax checks for changed JavaScript files.
-2. Run `npm test`; the Unset, five-minute NOW, Still Alive, and catch-up tests must pass.
+2. Run `npm test`; the Unset, five-minute NOW, Still Alive, and catch-up tests must pass. `npm test` (`scripts/run-tests.js`) runs against a temp copy of `store.json` with `BOSS_TRACKER_OFFLINE=1`, so it never touches user data or a real database.
 3. Review the staged file list and exclude `server/data/store.json` and secrets.
 4. Obtain explicit user permission to deploy. Do NOT deploy without this confirmation.
 5. Deploy through GitHub/Vercel and verify the production version, authentication boundary, Firebase readiness, browser console, and relevant user flow.
