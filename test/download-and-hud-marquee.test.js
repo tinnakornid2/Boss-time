@@ -51,3 +51,14 @@ test('Desktop updater verifies the installer SHA-256 from the GitHub release bef
     assert.ok(update.indexOf('await sha256File(tempPath)') > 0);
     assert.ok(update.indexOf('await sha256File(tempPath)') < update.indexOf("spawn(tempPath, ['/S']"));
 });
+
+test('Download links never open an empty window inside the desktop app', () => {
+    const alerts = read('public/js/realtime-alerts.js');
+    assert.ok(alerts.includes("if (/Electron/i.test(navigator.userAgent)) {"));
+    assert.ok(alerts.includes("link.removeAttribute('target')"));
+
+    const main = read('desktop-app/main.js');
+    assert.ok(main.includes('mainWindow.webContents.setWindowOpenHandler('));
+    assert.ok(main.includes("shell.openExternal(url)"));
+    assert.ok(main.includes("return { action: 'deny' };"));
+});

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, nativeImage, Notification } = require('electron');
+const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, nativeImage, Notification, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -175,6 +175,13 @@ function createMainWindow() {
     if (savedBounds?.isMaximized) {
         mainWindow.maximize();
     }
+
+    // Links that ask for a new window (target=_blank, window.open) go to the default
+    // browser instead of an empty Electron window.
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (/^https:\/\//i.test(url)) shell.openExternal(url).catch(() => {});
+        return { action: 'deny' };
+    });
 
     mainWindow.loadURL(PRODUCTION_URL);
 

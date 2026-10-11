@@ -870,6 +870,11 @@ function ensureDownloadAppButton() {
         // Admin may override the installer link in settings; only accept https URLs
         if (/^https:\/\//i.test(downloadUrl)) overlay.querySelector('#download-app-setup-link').href = downloadUrl;
         overlay.querySelector('#dismiss-download-modal-btn').addEventListener('click', () => overlay.remove());
+        // Inside the desktop app (Electron) a target=_blank link opens an empty window
+        // instead of downloading. Download in place there; browsers keep the new tab.
+        if (/Electron/i.test(navigator.userAgent)) {
+            overlay.querySelectorAll('a[target="_blank"]').forEach(link => link.removeAttribute('target'));
+        }
 
         document.body.appendChild(overlay);
     }
