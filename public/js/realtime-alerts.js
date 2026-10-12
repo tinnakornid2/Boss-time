@@ -27,6 +27,11 @@
         lawan: '/lawan.mp3', ultraman: '/ultraman.mp3', kuntilanak: '/kuntilanak.mp3',
         justSpawned: '/just-spawned.mp3', pop2: '/pop2.mp3', notification: '/notification.mp3'
     };
+    // Play alert clips one at a time across this script and the React dashboard.
+    // notification.mp3 is the audio-unlock clip and stays outside the queue.
+    window.BossTrackerAudioQueue?.installAlertAudioQueue({
+        paths: [...Object.values(SOUND_FILES).filter(path => path !== '/notification.mp3'), '/call.mp3']
+    });
 
     const state = {
         bosses: new Map(),

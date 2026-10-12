@@ -1592,6 +1592,7 @@ function renderHtml(pageData, title = '#Kain7') {
         <link rel="preload" as="style" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
         <link rel="modulepreload" as="script" href="/build/assets/app-CTdHufbH.js" />
         <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
+        <script src="/js/alert-audio-queue.js?v=${APP_VERSION}"></script>
         <script src="/js/realtime-alerts.js?v=${APP_VERSION}"></script>
         <script type="module" src="/build/assets/app-CTdHufbH.js?v=${APP_VERSION}"></script>
     </head>

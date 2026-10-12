@@ -1,3 +1,4 @@
+require('./helpers/isolated-data');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { _test } = require('../server/db');

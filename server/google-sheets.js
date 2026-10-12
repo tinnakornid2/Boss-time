@@ -19,7 +19,7 @@ let status = {
     consecutiveFailures: 0
 };
 
-const configFile = path.join(__dirname, 'google-sheets-config.json');
+const configFile = process.env.BOSS_TRACKER_SHEETS_CONFIG_FILE || path.join(__dirname, 'google-sheets-config.json');
 
 function loadLocalConfig() {
     if (fs.existsSync(configFile)) {
