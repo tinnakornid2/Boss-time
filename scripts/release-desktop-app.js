@@ -26,6 +26,14 @@ async function main() {
     const tagName = `v${version}`;
     console.log(`Target Release Version: ${version} (Tag: ${tagName})`);
 
+    // Tag the commit being built, not the default branch. GitHub can only tag a pushed commit.
+    const headCommit = execSync('git rev-parse HEAD', { cwd: rootDir }).toString().trim();
+    const remoteBranches = execSync(`git branch -r --contains ${headCommit}`, { cwd: rootDir }).toString().trim();
+    if (!remoteBranches) {
+        throw new Error(`Commit ${headCommit} is not pushed to origin. Push it before releasing.`);
+    }
+    console.log(`Release tag target commit: ${headCommit}`);
+
     // 1. Pack Desktop App (app.asar + Portable Zip)
     console.log('\n[1/4] Packing Desktop App files...');
     execSync('node scripts/pack-desktop.js', { cwd: rootDir, stdio: 'inherit' });
@@ -73,6 +81,7 @@ async function main() {
         console.log(`Release ${tagName} not found. Creating new release...`);
         release = await createRelease({
             tag_name: tagName,
+            target_commitish: headCommit,
             name: `Boss Tracker Windows Desktop ${tagName}`,
             body: releaseBody,
             draft: false,
