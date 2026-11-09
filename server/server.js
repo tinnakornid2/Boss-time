@@ -1517,6 +1517,58 @@ function renderHtml(pageData, title = '#Kain7') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <script>
+            // Blank-dashboard guard: if React has not rendered into #app after 8 seconds
+            // (script error or a chunk that failed to load), show the captured errors and a
+            // reload button instead of a black screen. Local only; no network traffic.
+            (function() {
+                var errors = [];
+                function note(text) {
+                    text = String(text || '').slice(0, 300);
+                    if (text && errors.indexOf(text) < 0 && errors.length < 6) errors.push(text);
+                }
+                window.addEventListener('error', function(e) {
+                    var t = e && e.target;
+                    if (t && t !== window && (t.src || t.href)) note('Failed to load ' + String(t.src || t.href).split('?')[0].split('/').pop());
+                    else note(e && (e.message || (e.error && e.error.message)));
+                }, true);
+                window.addEventListener('unhandledrejection', function(e) {
+                    var r = e && e.reason;
+                    note(r && (r.message || r));
+                });
+                setTimeout(function check() {
+                    var app = document.getElementById('app');
+                    if (!app || app.children.length > 0 || document.getElementById('blank-dashboard-guard')) return;
+                    var th = false;
+                    try { th = localStorage.getItem('tracker_lang') === 'th'; } catch (_) {}
+                    var box = document.createElement('div');
+                    box.id = 'blank-dashboard-guard';
+                    box.style.cssText = 'position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;background:#070708;color:#e4e4e7;font:14px/1.5 system-ui,-apple-system,sans-serif;text-align:center';
+                    var inner = document.createElement('div');
+                    inner.style.cssText = 'max-width:420px;width:100%';
+                    var title = document.createElement('p');
+                    title.style.cssText = 'margin:0 0 8px;font-weight:700;font-size:16px';
+                    title.textContent = th ? 'แดชบอร์ดโหลดไม่สำเร็จ' : 'The dashboard did not load';
+                    var detail = document.createElement('pre');
+                    detail.style.cssText = 'margin:8px 0 14px;padding:10px;max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-word;text-align:left;font:12px/1.4 ui-monospace,Menlo,monospace;color:#fca5a5;background:#18181b;border:1px solid #3f3f46;border-radius:10px';
+                    detail.textContent = (errors.length ? errors.join('\\n') : (th ? 'ไม่พบข้อความ error' : 'No error message captured')) + '\\n' + navigator.userAgent;
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = th ? 'โหลดใหม่' : 'Reload';
+                    btn.style.cssText = 'padding:11px 22px;border-radius:10px;border:1px solid #d97706;background:#d97706;color:#fff;font:600 15px system-ui,-apple-system,sans-serif';
+                    btn.onclick = function() { location.reload(); };
+                    inner.appendChild(title);
+                    inner.appendChild(detail);
+                    inner.appendChild(btn);
+                    box.appendChild(inner);
+                    document.body.appendChild(box);
+                    // Remove the notice if the dashboard renders after all.
+                    var timer = setInterval(function() {
+                        if (app.children.length > 0) { box.remove(); clearInterval(timer); }
+                    }, 1000);
+                }, 8000);
+            })();
+        </script>
+        <script>
             (function() {
                 const appearance = 'system';
                 if (appearance === 'system') {
