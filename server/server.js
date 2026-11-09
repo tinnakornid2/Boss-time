@@ -1669,7 +1669,7 @@ function renderHtml(pageData, title = '#Kain7') {
         <script src="/js/alert-audio-queue.js?v=${APP_VERSION}"></script>
         <script src="/js/realtime-alerts.js?v=${APP_VERSION}"></script>
         <script src="/js/push-notifications.js?v=${APP_VERSION}" defer></script>
-        <script type="module" src="/build/assets/app-CTdHufbH.js?v=${APP_VERSION}"></script>
+        <script type="module" src="/build/assets/app-CTdHufbH.js"></script>
     </head>
     <body class="font-sans antialiased">
         <div class="browser-shell">
