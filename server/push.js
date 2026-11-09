@@ -17,6 +17,7 @@ const DEFAULT_PREFS = Object.freeze({
     atSpawn: true,
     adminAlerts: true,
     events: true,
+    invasion: true,
     mutedIds: [],
     quietStart: null,
     quietEnd: null,
@@ -111,7 +112,7 @@ function normalizePrefs(input = {}, base = DEFAULT_PREFS) {
     if (Array.isArray(input.leads)) {
         prefs.leads = [...new Set(input.leads.map(Number).filter(n => LEAD_CHOICES.includes(n)))].sort((a, b) => b - a);
     }
-    for (const key of ['atSpawn', 'adminAlerts', 'events']) {
+    for (const key of ['atSpawn', 'adminAlerts', 'events', 'invasion']) {
         if (typeof input[key] === 'boolean') prefs[key] = input[key];
     }
     if (Array.isArray(input.mutedIds)) {
@@ -167,7 +168,7 @@ function collectItems({ bosses = [], events = [], hideInvasion = false, nowMs, c
         if (boss.is_invasion && hideInvasion) continue;
         const spawnMs = effectiveBossSpawnMs(boss, nowMs, calculateBossAutoAdvance);
         if (spawnMs === null) continue;
-        items.push({ key: `boss_${boss.id}`, kind: 'boss', id: boss.id, name: String(boss.name || ''), location: String(boss.location || ''), spawnMs });
+        items.push({ key: `boss_${boss.id}`, kind: 'boss', id: boss.id, invasion: Boolean(boss.is_invasion), name: String(boss.name || ''), location: String(boss.location || ''), spawnMs });
     }
     for (const event of events) {
         if (!event || !event.next_spawn || event.pinned_alive || event.post_maintenance) continue;
@@ -191,6 +192,7 @@ function dueAlertsForPrefs(prefs, items, windowStart, windowEnd) {
     for (const item of items) {
         if (muted.has(item.key)) continue;
         if (item.kind === 'event' && !prefs.events) continue;
+        if (item.invasion && prefs.invasion === false) continue;
         for (const lead of prefs.leads || []) {
             const at = item.spawnMs - lead * 60000;
             if (at > windowStart && at <= windowEnd) add(item, 'pre', lead);
@@ -448,6 +450,7 @@ async function sendAdminAlert(boss, { hideInvasion = false, nowMs = Date.now() }
             if (!isRecordAuthorized(record)) continue;
             const prefs = normalizePrefs(record.prefs);
             if (!prefs.adminAlerts || prefs.mutedIds.includes(`boss_${boss.id}`) || inQuietHours(prefs, nowMs)) continue;
+            if (boss.is_invasion && prefs.invasion === false) continue;
             jobs.push(sendToRecord(id, record, buildAdminMessage(boss, prefs.lang)));
         }
         const results = await Promise.allSettled(jobs);

@@ -113,6 +113,7 @@ Before production deployment:
 - Timing is computed in memory from the same boss state and auto-advance as the dashboard. A Google Apps Script trigger (`pushTick` in `google_apps_script/Code.gs`) calls `POST /api/push/tick` once a minute with the `x-push-tick-secret` header. The tick never reads Firebase on a warm instance and never writes Firebase on a timer; it refuses to run until the cloud snapshot is loaded.
 - Subscriptions and per-device preferences live outside the tracker root at `push/subscriptions` (`push_preview/` on previews, `push_local/` locally). Writes happen only on subscribe/update/remove and bump `tracker/meta/dataRevision` in the same write. They are per device, never part of shared settings.
 - Devices are authorized by the password fingerprint they logged in with; a password change or expired guest pass stops their alerts. Any logged-in role may manage its own device; only Admin can trigger the shared admin alert, which is pushed immediately from `POST /bosses/:id/notify`.
+- Invasion bosses follow the shared dashboard visibility (`hideInvasionBosses`): while hidden, no invasion alert of any kind is sent. Each device also has its own `invasion` switch, and the 🔔 panel lists invasion bosses separately.
 - Short message style; language follows the dashboard EN/TH switch (default English); boss names are never translated.
 - Required Vercel env (Sensitive): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_TICK_SECRET`. Without them the feature reports disabled and sends nothing.
 

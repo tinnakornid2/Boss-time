@@ -30,6 +30,9 @@
             at_spawn: 'Alert when it spawns (NOW)',
             admin_alerts: 'Admin alerts (double-click)',
             events: 'Events',
+            invasion: 'Invasion bosses',
+            invasion_list: 'Invasion bosses to alert',
+            invasion_hidden: 'Invasion is hidden on the dashboard, so invasion alerts are paused. They resume when Admin shows it again.',
             quiet: 'Quiet hours (Thailand time)',
             quiet_from: 'No alerts from',
             quiet_to: 'to',
@@ -95,6 +98,9 @@
             at_spawn: 'เตือนตอนเกิด (NOW)',
             admin_alerts: 'เมื่อ Admin กดเตือน (ดับเบิลคลิก)',
             events: 'กิจกรรม',
+            invasion: 'บอสอินเวชั่น',
+            invasion_list: 'บอสอินเวชั่นที่จะเตือน',
+            invasion_hidden: 'ตอนนี้ปิดการมองเห็นอินเวชั่นบนเว็บอยู่ จึงหยุดแจ้งเตือนบอสอินเวชั่นไว้ก่อน จะกลับมาเตือนเมื่อ Admin เปิดการมองเห็นอีกครั้ง',
             quiet: 'ช่วงไม่รบกวน (เวลาไทย)',
             quiet_from: 'ไม่แจ้งเตือนตั้งแต่',
             quiet_to: 'ถึง',
@@ -290,6 +296,7 @@
         injectStyles();
         view = 'main';
         notice = null;
+        catalog = null; // pick up boss list and invasion visibility changes since last open
         closeModal();
         modal = h('div', { id: 'push-alerts-overlay', role: 'dialog', 'aria-modal': 'true', onclick: (e) => { if (e.target === modal) closeModal(); } },
             h('div', { id: 'push-alerts-panel' }));
@@ -307,13 +314,16 @@
     function render(children) {
         const panel = document.getElementById('push-alerts-panel');
         if (!panel) return;
-        panel.replaceChildren(
+        // replaceChildren() would print null as "null" and arrays as "[object …]", so flatten
+        // nested lists (itemList returns an array) and drop empty slots first.
+        const nodes = [
             h('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:8px' },
                 h('h2', null, '🔔 ' + tr('title')),
                 h('button', { class: 'pa-link', type: 'button', onclick: closeModal }, tr('close'))),
             notice ? h('p', { class: notice.type === 'ok' ? 'pa-ok' : 'pa-err' }, notice.text) : null,
-            ...children
-        );
+            children
+        ].flat(Infinity).filter(node => node !== null && node !== undefined && node !== false);
+        panel.replaceChildren(...nodes);
     }
 
     function guideLink() {
@@ -364,10 +374,16 @@
     async function loadCatalog() {
         if (catalog) return catalog;
         const data = await api('GET', '/poll');
-        const hideInvasion = Boolean(data.hideInvasionBosses);
         const byName = (a, b) => String(a.name).localeCompare(String(b.name));
+        const toItem = b => ({ key: `boss_${b.id}`, name: String(b.name || ''), location: String(b.location || '') });
+        const bosses = data.bosses || [];
         catalog = {
-            bosses: (data.bosses || []).filter(b => !(b.is_invasion && hideInvasion)).map(b => ({ key: `boss_${b.id}`, name: String(b.name || ''), location: String(b.location || '') })).sort(byName),
+            // Invasion visibility is the shared dashboard setting; the server pauses invasion
+            // alerts while it is hidden, and the panel says so.
+            hideInvasion: Boolean(data.hideInvasionBosses),
+            invasionLabel: String(data.invasionLabel || '').trim(),
+            bosses: bosses.filter(b => !b.is_invasion).map(toItem).sort(byName),
+            invasionBosses: bosses.filter(b => b.is_invasion).map(toItem).sort(byName),
             events: (data.allEvents || data.events || []).map(e => ({ key: `event_${e.id}`, name: String(e.name || ''), location: String(e.event_time || '') })).sort(byName)
         };
         return catalog;
@@ -383,9 +399,11 @@
     }
 
     function itemList(title, items, draft) {
-        const muted = new Set(draft.mutedIds);
+        const initiallyMuted = new Set(draft.mutedIds);
         const rows = items.map(item => {
-            const input = h('input', { type: 'checkbox', checked: !muted.has(item.key), onchange: (e) => {
+            const input = h('input', { type: 'checkbox', checked: !initiallyMuted.has(item.key), onchange: (e) => {
+                // Read the current draft each time: several lists share draft.mutedIds.
+                const muted = new Set(draft.mutedIds);
                 if (e.target.checked) muted.delete(item.key); else muted.add(item.key);
                 draft.mutedIds = [...muted];
             } });
@@ -418,7 +436,7 @@
 
     async function renderPrefs() {
         const draft = { ...prefs, leads: [...prefs.leads], mutedIds: [...prefs.mutedIds] };
-        let items = { bosses: [], events: [] };
+        let items = { bosses: [], invasionBosses: [], events: [], hideInvasion: false, invasionLabel: '' };
         try { items = await loadCatalog(); } catch (_) {}
         if (!modal || view !== 'main') return;
         const quietOn = Boolean(draft.quietStart && draft.quietEnd);
@@ -434,10 +452,17 @@
             switchRow(tr('at_spawn'), draft.atSpawn, (on) => { draft.atSpawn = on; }),
             switchRow(tr('admin_alerts'), draft.adminAlerts, (on) => { draft.adminAlerts = on; }),
             switchRow(tr('events'), draft.events, (on) => { draft.events = on; }),
+            items.invasionBosses.length
+                ? switchRow(tr('invasion') + (items.invasionLabel ? ` (${items.invasionLabel})` : ''), draft.invasion !== false, (on) => { draft.invasion = on; })
+                : null,
+            items.invasionBosses.length && items.hideInvasion ? h('p', { class: 'pa-note' }, tr('invasion_hidden')) : null,
             h('h3', null, tr('quiet')),
             h('label', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px' },
                 quietToggle, tr('quiet_from'), quietStart, tr('quiet_to'), quietEnd),
             ...itemList(tr('bosses'), items.bosses, draft),
+            items.invasionBosses.length && !items.hideInvasion
+                ? itemList(tr('invasion_list') + (items.invasionLabel ? ` (${items.invasionLabel})` : ''), items.invasionBosses, draft)
+                : [],
             items.events.length ? itemList(tr('events_list'), items.events, draft) : [],
             h('button', { class: 'pa-btn pa-primary', type: 'button', onclick: async () => {
                 draft.quietStart = quietToggle.checked ? quietStart.value : null;

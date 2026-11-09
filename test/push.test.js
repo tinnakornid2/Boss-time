@@ -247,3 +247,56 @@ test('Home Screen launch opens an instant static page instead of waiting on a co
     assert.equal(toFunction.test('/splash-start.html'), false, 'served by the CDN, not the server');
     assert.equal(toFunction.test('/'), true);
 });
+
+test('invasion bosses: per-device switch, and paused while hidden on the dashboard', () => {
+    const now = SPAWN - 5 * MIN;
+    const bosses = [boss({ id: 1, name: 'Normal' }), boss({ id: 2, name: 'Invader', is_invasion: true })];
+    const window = [SPAWN - 6 * MIN, SPAWN - 5 * MIN];
+    const names = (alerts) => alerts.flatMap(a => a.items.map(i => i.name)).sort();
+
+    const shown = push.collectItems({ bosses, hideInvasion: false, nowMs: now, calculateBossAutoAdvance });
+    assert.equal(prefs().invasion, true, 'on by default');
+    assert.deepEqual(names(due(shown, prefs({ atSpawn: false }), ...window)), ['Invader', 'Normal']);
+    assert.deepEqual(names(due(shown, prefs({ atSpawn: false, invasion: false }), ...window)), ['Normal']);
+
+    const hidden = push.collectItems({ bosses, hideInvasion: true, nowMs: now, calculateBossAutoAdvance });
+    assert.deepEqual(names(due(hidden, prefs({ atSpawn: false, invasion: true }), ...window)), ['Normal'], 'dashboard visibility wins');
+});
+
+test('admin alert for an invasion boss respects the device invasion switch', async () => {
+    process.env.VAPID_PUBLIC_KEY = 'test-public';
+    process.env.VAPID_PRIVATE_KEY = 'test-private';
+    push._resetForTests();
+    const sent = [];
+    push._setWebPushForTests({ sendNotification: async (sub) => { sent.push(sub.endpoint); } });
+    push.configure({ getPasswordFingerprint: () => 'pfp' });
+    const keys = { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' };
+    try {
+        await push.upsertSubscription({ role: 'member', pfp: 'pfp' }, { endpoint: 'https://push.example/on', keys }, {}, '');
+        await push.upsertSubscription({ role: 'member', pfp: 'pfp' }, { endpoint: 'https://push.example/off', keys }, { invasion: false }, '');
+        const invader = boss({ id: 2, is_invasion: true, pre_spawned: true });
+        await push.sendAdminAlert(invader, { hideInvasion: false });
+        assert.deepEqual(sent, ['https://push.example/on']);
+        sent.length = 0;
+        await push.sendAdminAlert(invader, { hideInvasion: true });
+        assert.deepEqual(sent, [], 'hidden on the dashboard: nobody is alerted');
+    } finally {
+        delete process.env.VAPID_PUBLIC_KEY;
+        delete process.env.VAPID_PRIVATE_KEY;
+        push._resetForTests();
+    }
+});
+
+test('panel lists invasion bosses separately and keeps one shared mute list', () => {
+    const client = fs.readFileSync(path.join(__dirname, '../public/js/push-notifications.js'), 'utf8');
+    assert.match(client, /invasionBosses: bosses\.filter\(b => b\.is_invasion\)/);
+    assert.match(client, /bosses: bosses\.filter\(b => !b\.is_invasion\)/);
+    assert.match(client, /const muted = new Set\(draft\.mutedIds\);/, 'each toggle reads the shared draft');
+    assert.match(client, /invasion_hidden/);
+});
+
+test('panel render flattens nested lists and never prints null', () => {
+    const client = fs.readFileSync(path.join(__dirname, '../public/js/push-notifications.js'), 'utf8');
+    assert.match(client, /\]\.flat\(Infinity\)\.filter\(node => node !== null && node !== undefined && node !== false\);/);
+    assert.match(client, /panel\.replaceChildren\(\.\.\.nodes\);/);
+});
