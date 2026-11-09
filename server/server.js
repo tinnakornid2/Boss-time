@@ -2174,6 +2174,7 @@ app.post('/api/push/tick', async (req, res) => {
             bosses: db.getBosses(),
             events: db.getEvents(),
             hideInvasion: Boolean(db.getSettings()?.hideInvasionBosses),
+            invasionColor: db.getSettings()?.invasionColor || '',
             calculateBossAutoAdvance: db.calculateBossAutoAdvance
         });
         return res.json({ success: true, ...result });
@@ -2286,7 +2287,7 @@ app.post('/bosses/:id/notify', requireAdmin, async (req, res) => {
     if (!boss) return res.status(404).json({ success: false, message: 'Boss not found' });
     const updated = await db.updateBoss(id, getPreSpawnAlertUpdates(boss, getSessionRole(req)));
     if (updated?.pre_spawned) {
-        await push.sendAdminAlert(updated, { hideInvasion: Boolean(db.getSettings()?.hideInvasionBosses) }).catch(() => {});
+        await push.sendAdminAlert(updated, { hideInvasion: Boolean(db.getSettings()?.hideInvasionBosses), invasionColor: db.getSettings()?.invasionColor || '' }).catch(() => {});
     }
     if (req.headers['x-inertia']) return respondInertiaOrRedirect(req, res, '/');
     return res.json({ success: true, active: updated.pre_spawned, boss: updated });

@@ -339,3 +339,39 @@ test('announcement routes push after saving, and clearing does not push', () => 
     const clear = server.slice(server.indexOf("app.post('/announcement/clear'"), server.indexOf("app.post('/announcement/resend'"));
     assert.doesNotMatch(clear, /sendAnnouncement/);
 });
+
+test('boss colour shows as the nearest emoji dot, following the dashboard colour rules', () => {
+    assert.equal(push.colorDot('#ef4444'), '🔴');
+    assert.equal(push.colorDot('#f59e0b'), '🟠');
+    assert.equal(push.colorDot('#facc15'), '🟡');
+    assert.equal(push.colorDot('#22c55e'), '🟢');
+    assert.equal(push.colorDot('#38bdf8'), '🔵');
+    assert.equal(push.colorDot('#a855f7'), '🟣');
+    assert.equal(push.colorDot('#ec4899'), '🟣');
+    assert.equal(push.colorDot('#78350f'), '🟤');
+    assert.equal(push.colorDot('#111827'), '⚫');
+    assert.equal(push.colorDot('not-a-colour'), '');
+
+    const now = SPAWN - 5 * MIN;
+    const items = push.collectItems({
+        bosses: [
+            boss({ id: 1, name: 'Valefar', color: '#a855f7' }),
+            boss({ id: 2, name: 'Orfen', color: '#ffffff' }),
+            boss({ id: 3, name: 'Kelbim', is_invasion: true, color: '#22c55e' })
+        ],
+        events: [{ id: 9, name: 'Siege', next_spawn: new Date(SPAWN).toISOString() }],
+        invasionColor: '#ef4444', nowMs: now, calculateBossAutoAdvance
+    });
+    const dots = Object.fromEntries(items.map(i => [i.name, i.dot]));
+    assert.deepEqual(dots, { Valefar: '🟣', Orfen: '', Kelbim: '🔴', Siege: '🔵' }, 'white = no colour; invasion colour wins; events default cyan');
+
+    const window = [SPAWN - 6 * MIN, SPAWN - 5 * MIN];
+    const alerts = due(items, prefs({ atSpawn: false }), ...window);
+    const bossAlert = alerts.find(a => a.kind === 'boss');
+    assert.equal(push.buildAlertMessage(bossAlert, 'th').body, '🔴 Kelbim, Orfen, 🟣 Valefar');
+    const single = due(items.filter(i => i.name === 'Valefar'), prefs({ atSpawn: false }), ...window)[0];
+    assert.equal(push.buildAlertMessage(single, 'th').title, '🟣 Valefar เกิดใน 5 นาที');
+    assert.equal(push.buildAlertMessage(single, 'en').title, '🟣 Valefar spawns in 5 min');
+    assert.equal(push.buildAdminMessage(boss({ name: 'Kelbim', is_invasion: true }), 'th', '#ef4444').title, 'Admin เตือน: 🔴 Kelbim');
+    assert.equal(push.buildAdminMessage(boss(), 'en').title, 'Admin alert: Valefar', 'no colour, no dot');
+});

@@ -115,7 +115,7 @@ Before production deployment:
 - Devices are authorized by the password fingerprint they logged in with; a password change or expired guest pass stops their alerts. Any logged-in role may manage its own device; only Admin can trigger the shared admin alert, which is pushed immediately from `POST /bosses/:id/notify`.
 - Invasion bosses follow the shared dashboard visibility (`hideInvasionBosses`): while hidden, no invasion alert of any kind is sent. Each device also has its own `invasion` switch, and the 🔔 panel lists invasion bosses separately.
 - Admin announcements (`POST /announcement` and `/announcement/resend`) are pushed immediately after they are saved; clearing an announcement sends nothing. Each device can turn announcements off.
-- Short message style; language follows the dashboard EN/TH switch (default English); boss names are never translated.
+- Short message style; language follows the dashboard EN/TH switch (default English); boss names are never translated. Notifications cannot be coloured, so each boss name gets the nearest of nine emoji dots (`colorDot`) using the dashboard colour rules: the shared invasion colour for invasion bosses, the custom colour for others (white = none), cyan for events by default.
 - Required Vercel env (Sensitive): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_TICK_SECRET`. Without them the feature reports disabled and sends nothing.
 
 ## Temporary Guest Access & Dual Language
