@@ -223,8 +223,27 @@ app.use(async (req, res, next) => {
     } catch (e) {
         console.error('[Firebase Init Middleware Error]:', e.message);
     }
+    if (process.env.VERCEL && !db.isCloudDataReady()) {
+        // Cold start only: the first load attempt may lose the race with the RTDB listener.
+        // Once the snapshot is loaded this branch is skipped, so normal requests add no reads.
+        try {
+            await db.ensureCloudDataReady();
+        } catch (_) {}
+        // Until the cloud snapshot is loaded the cache is the bundled store.json (old
+        // passwords and timers). Refuse writes rather than copy it over Firebase. Login
+        // handles this case itself so it can show a message on the form.
+        if (!db.isCloudDataReady() && isCloudWriteRequest(req)) {
+            res.set('Retry-After', '3');
+            return res.status(503).json({ success: false, notReady: true, message: 'Server is starting. Try again in a few seconds. / ระบบกำลังเริ่มต้น กรุณาลองใหม่ในไม่กี่วินาที' });
+        }
+    }
     next();
 });
+
+function isCloudWriteRequest(req) {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return false;
+    return !['/login', '/logout', '/analytics/heartbeat', '/api/push/tick'].includes(req.path);
+}
 
 // Mount REST API
 app.use('/api/v1', requireSession, requireSameOrigin, require('./routes/api'));
@@ -2020,15 +2039,18 @@ app.post('/login', limitLogin, async (req, res) => {
     const user = (name || username || '').trim().toLowerCase();
     const pass = (password || '').trim();
     const settings = db.getSettings();
+    // Without the cloud snapshot, settings are the bundled store.json: checking passwords
+    // against them would accept old passwords and reject the current ones.
+    const cloudNotReady = Boolean(process.env.VERCEL) && !db.isCloudDataReady();
 
-    const isAdminPass = verifyPassword(pass, settings.adminPassword, settings.adminPasswordHash);
-    const isMemberPass = verifyPassword(pass, settings.memberPassword, settings.memberPasswordHash);
+    const isAdminPass = !cloudNotReady && verifyPassword(pass, settings.adminPassword, settings.adminPasswordHash);
+    const isMemberPass = !cloudNotReady && verifyPassword(pass, settings.memberPassword, settings.memberPasswordHash);
 
     let sessionRole = null;
     let errorMessage = null;
     let guestEntry = null;
 
-    const tempPasswords = settings.temporaryPasswords || [];
+    const tempPasswords = cloudNotReady ? [] : (settings.temporaryPasswords || []);
     for (const t of tempPasswords) {
         if (verifyPassword(pass, t.password, t.passwordHash)) {
             guestEntry = t;
@@ -2059,6 +2081,8 @@ app.post('/login', limitLogin, async (req, res) => {
         } else {
             sessionRole = 'guest';
         }
+    } else if (cloudNotReady) {
+        errorMessage = 'ระบบกำลังเริ่มต้น กรุณาลองใหม่ในไม่กี่วินาที (Server is starting, try again)';
     } else {
         errorMessage = 'รหัสผ่านไม่ถูกต้อง';
     }

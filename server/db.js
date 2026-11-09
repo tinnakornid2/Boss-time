@@ -150,9 +150,10 @@ async function initFirebase(onRemoteChange) {
         // Check if Firebase RTDB already has data or needs initial seeding
         try {
             const remoteStore = await firebase.fetchOnce();
-            if (!remoteStore || !remoteStore.bosses || (Array.isArray(remoteStore.bosses) && remoteStore.bosses.length === 0)) {
-                console.log('🌱 [Firebase RTDB] Initial seeding local store to Firebase Realtime Database (Single Source of Truth)...');
-                const seeded = await firebase.syncFullStore(cache);
+            if (remoteStore === null) {
+                // Only a confirmed-empty database is seeded, atomically, never on a read error.
+                console.log('🌱 [Firebase RTDB] Empty database: seeding the bundled store once...');
+                const { seeded } = await firebase.seedFullStoreIfEmpty(cache);
                 if (seeded) {
                     cache.meta = { ...(cache.meta || {}), dataRevision: Math.max(1, Number(cache.meta?.dataRevision) || 0) };
                     hasCloudSnapshot = true;
@@ -164,8 +165,9 @@ async function initFirebase(onRemoteChange) {
                 applyRemoteStore(remoteStore);
                 console.log(`✅ [Firebase RTDB] Synced ${cache.bosses.length} bosses from Firebase cloud.`);
             }
-        } catch (e) {
-            console.error('⚠️ [Firebase RTDB] Initial fetch error:', e.message);
+        } catch (_) {
+            // Read failure is not an empty database. Keep the cold-start gate closed.
+            console.error('⚠️ [Firebase RTDB] Initial fetch failed; nothing was written.');
         }
     } else {
         // Watch for serviceAccountKey.json placement
@@ -376,7 +378,10 @@ module.exports = {
             // before its RTDB value listener has delivered the first snapshot.
             // Retry only during this cold-start path, never on the polling timer.
             for (let attempt = 0; attempt < 2 && !hasCloudSnapshot; attempt++) {
-                const remoteStore = await firebase.fetchOnce();
+                let remoteStore = null;
+                try {
+                    remoteStore = await firebase.fetchOnce();
+                } catch (_) {}
                 if (remoteStore?.bosses && applyRemoteStore(remoteStore)) return true;
                 if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 150));
             }
@@ -682,6 +687,16 @@ module.exports = {
     },
 
     async updateSettings(updates) {
+        // Never write settings from the bundled seed: until this instance has loaded the cloud
+        // snapshot its cached settings still hold store.json's passwords.
+        if (firebase.isReady() && !hasCloudSnapshot) {
+            await this.ensureCloudDataReady();
+            if (!hasCloudSnapshot) {
+                const error = new Error('Cloud data not ready; settings were not changed');
+                error.code = 'CLOUD_NOT_READY';
+                throw error;
+            }
+        }
         const store = load();
         store.settings = {
             ...store.settings,
@@ -691,7 +706,7 @@ module.exports = {
         if (updates.googleSheets) {
             googleSheets.saveLocalConfig(updates.googleSheets);
         }
-        await firebase.syncSettings(store.settings);
+        await firebase.syncSettingsUpdates(updates);
         googleSheets.mirrorMutation('update_settings', { settings: store.settings }, store.meta?.dataRevision, store.settings);
         return store.settings;
     },

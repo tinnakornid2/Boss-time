@@ -34,6 +34,9 @@ Read this file completely before changing the project. This is a production boss
 - Use boss IDs for identity. Do not identify a boss only by visible name/location text.
 - Firebase health must not rely only on one Vercel instance's `.info/connected` value. Count a recent successful RTDB operation as healthy, distinguish connecting/stale/quota/configuration states, and require three consecutive generic failures before showing Offline.
 - Never expose raw Firebase error messages or credential details through the health endpoint or status UI.
+- Passwords must survive deploys. Until an instance has loaded the cloud snapshot its cache is the bundled `store.json` (old passwords and timers), so on Vercel: refuse every write with 503, refuse logins with a "server is starting" message, and never call `updateSettings` from that cache.
+- Settings writes are per key (`syncSettingsUpdates`); never write the whole `settings` object.
+- Seed Firebase only when its root is confirmed `null` (`seedFullStoreIfEmpty`, a transaction). A read error is not an empty database: `fetchOnce` throws and nothing is written.
 
 ## Roles and settings
 

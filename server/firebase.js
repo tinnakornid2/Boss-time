@@ -323,6 +323,26 @@ async function syncFullStore(store) {
     }
 }
 
+// Seed the bundled store only when the Firebase root is confirmed empty (null). The
+// transaction re-runs against the server value, so any existing data, even partial,
+// aborts the write. This can never overwrite production data.
+async function seedFullStoreIfEmpty(store) {
+    if (!isReady()) return { seeded: false };
+    try {
+        const payload = {
+            ...store,
+            resetTimeConfigs: encodeFirebaseKeys(store.resetTimeConfigs),
+            meta: { ...(store.meta || {}), dataRevision: 1, updatedAt: Date.now() }
+        };
+        const result = await dbRef.transaction((current) => (current === null ? payload : undefined));
+        recordFirebaseSuccess();
+        return { seeded: Boolean(result && result.committed) };
+    } catch (e) {
+        recordFirebaseError('seedFullStoreIfEmpty', e);
+        return { seeded: false };
+    }
+}
+
 // Sync specific boss update
 async function syncBoss(bossIndex, bossData) {
     if (!isReady()) return false;
@@ -466,6 +486,32 @@ async function syncSettings(settings) {
     }
 }
 
+// Multipath payload that touches only the changed settings keys. Writing the whole settings
+// object from a stale cache is how passwords reverted to the bundled seed after deploys.
+function settingsUpdatePayload(updates) {
+    const payload = {};
+    for (const [key, value] of Object.entries(updates || {})) {
+        if (!/^[A-Za-z0-9_-]+$/.test(key)) continue;
+        payload[`settings/${key}`] = value === undefined ? null : value;
+    }
+    return payload;
+}
+
+// Sync only the changed settings keys
+async function syncSettingsUpdates(updates) {
+    if (!isReady()) return false;
+    const payload = settingsUpdatePayload(updates);
+    if (Object.keys(payload).length === 0) return true;
+    try {
+        await dbRef.update(revisionUpdate(payload));
+        recordFirebaseSuccess();
+        return true;
+    } catch (e) {
+        recordFirebaseError('syncSettingsUpdates', e);
+        return false;
+    }
+}
+
 // Sync saved maintenance end time
 async function syncSavedMaintenanceEndTime(time) {
     if (!isReady()) return false;
@@ -505,7 +551,7 @@ async function fetchOnce() {
         return val;
     } catch (e) {
         recordFirebaseError('fetchOnce', e);
-        return null;
+        throw e;
     }
 }
 
@@ -518,6 +564,7 @@ module.exports = {
     getConfig,
     findServiceAccountKey,
     fetchOnce,
+    seedFullStoreIfEmpty,
     syncFullStore,
     syncBoss,
     syncBossUpdates,
@@ -528,6 +575,8 @@ module.exports = {
     syncAllEvents,
     syncResetConfigs,
     syncSettings,
+    syncSettingsUpdates,
+    settingsUpdatePayload,
     syncSavedMaintenanceEndTime,
     syncKillHistory,
     _test: { classifyFirebaseError }
