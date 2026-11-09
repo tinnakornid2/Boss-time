@@ -285,7 +285,8 @@ function buildAdminMessage(boss, lang = 'en', invasionColor = '') {
     const th = lang === 'th';
     const spawnMs = new Date(boss.next_spawn || NaN).getTime();
     return {
-        title: th ? `Admin เตือน: ${name}` : `Admin alert: ${name}`,
+        // Owner's wording: "about to spawn" + boss name; body is the spawn time.
+        title: th ? `กำลังจะเกิด ${name}` : `About to spawn: ${name}`,
         // Spawn time when known, otherwise a short prompt.
         body: Number.isFinite(spawnMs) ? thaiClock(spawnMs) : (th ? 'เตรียมตัวได้เลย' : 'Get ready'),
         tag: shortTag(`admin|boss_${boss.id}|${boss.pre_spawn_expires_at || ''}`),

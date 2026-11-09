@@ -125,8 +125,8 @@ test('short messages in English and Thai keep boss names untranslated', () => {
     const [now] = due(items, prefs({ leads: [] }), SPAWN - MIN, SPAWN);
     assert.equal(push.buildAlertMessage(now, 'en').title, 'Valefar has spawned');
     assert.equal(push.buildAlertMessage(now, 'th').title, 'Valefar เกิดแล้ว');
-    assert.equal(push.buildAdminMessage(boss(), 'en').title, 'Admin alert: Valefar');
-    assert.equal(push.buildAdminMessage(boss(), 'th').title, 'Admin เตือน: Valefar');
+    assert.equal(push.buildAdminMessage(boss(), 'en').title, 'About to spawn: Valefar');
+    assert.equal(push.buildAdminMessage(boss(), 'th').title, 'กำลังจะเกิด Valefar');
     assert.equal(push.buildAlertMessage(pre, 'en').tag, push.buildAlertMessage(pre, 'th').tag, 'same alert, same tag');
 });
 
@@ -160,7 +160,7 @@ test('tick sends each alert once, honours preferences, and skips logged-out devi
         sent.length = 0;
         const result = await push.sendAdminAlert(boss({ pre_spawned: true, pre_spawn_expires_at: 'x' }), { nowMs: SPAWN - 3 * MIN });
         assert.equal(result.sent, 1);
-        assert.equal(sent[0].title, 'Admin เตือน: Valefar');
+        assert.equal(sent[0].title, 'กำลังจะเกิด Valefar');
     } finally {
         process.env.VAPID_PUBLIC_KEY = original.pub || '';
         process.env.VAPID_PRIVATE_KEY = original.priv || '';
@@ -372,8 +372,8 @@ test('boss colour shows as the nearest emoji dot, following the dashboard colour
     const single = due(items.filter(i => i.name === 'Valefar'), prefs({ atSpawn: false }), ...window)[0];
     assert.equal(push.buildAlertMessage(single, 'th').title, '🟣 Valefar เกิดใน 5 นาที');
     assert.equal(push.buildAlertMessage(single, 'en').title, '🟣 Valefar spawns in 5 min');
-    assert.equal(push.buildAdminMessage(boss({ name: 'Kelbim', is_invasion: true }), 'th', '#ef4444').title, 'Admin เตือน: 🔴 Kelbim');
-    assert.equal(push.buildAdminMessage(boss(), 'en').title, 'Admin alert: Valefar', 'no colour, no dot');
+    assert.equal(push.buildAdminMessage(boss({ name: 'Kelbim', is_invasion: true }), 'th', '#ef4444').title, 'กำลังจะเกิด 🔴 Kelbim');
+    assert.equal(push.buildAdminMessage(boss(), 'en').title, 'About to spawn: Valefar', 'no colour, no dot');
 });
 
 test('owner format: text + name + spawn time, no location, earliest spawn first', () => {
@@ -393,6 +393,6 @@ test('owner format: text + name + spawn time, no location, earliest spawn first'
     assert.deepEqual([push.buildAlertMessage(spawned, 'th').title, push.buildAlertMessage(spawned, 'th').body], ['Late เกิดแล้ว', '21:30']);
 
     const admin = push.buildAdminMessage(boss({ name: 'Valefar', location: 'Morgue' }), 'th');
-    assert.deepEqual([admin.title, admin.body], ['Admin เตือน: Valefar', '21:30']);
+    assert.deepEqual([admin.title, admin.body], ['กำลังจะเกิด Valefar', '21:30']);
     assert.equal(push.buildAdminMessage(boss({ next_spawn: null }), 'th').body, 'เตรียมตัวได้เลย');
 });
