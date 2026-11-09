@@ -234,3 +234,16 @@ test('push code never changes passwords or shared settings', () => {
         assert.doesNotMatch(source, /updateSettings|syncSettings|adminPassword|memberPassword|temporaryPasswords/, file);
     }
 });
+
+test('Home Screen launch opens an instant static page instead of waiting on a cold server', () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/manifest.webmanifest'), 'utf8'));
+    assert.equal(manifest.id, '/', 'same app identity for existing installs');
+    assert.equal(manifest.start_url, '/splash-start.html');
+    const splash = fs.readFileSync(path.join(__dirname, '../public/splash-start.html'), 'utf8');
+    assert.match(splash, /location\.replace\('\/'\)/);
+    assert.match(splash, /setTimeout\(go, 60\)/);
+    const vercel = JSON.parse(fs.readFileSync(path.join(__dirname, '../vercel.json'), 'utf8'));
+    const toFunction = new RegExp(`^${vercel.rewrites[0].source}$`);
+    assert.equal(toFunction.test('/splash-start.html'), false, 'served by the CDN, not the server');
+    assert.equal(toFunction.test('/'), true);
+});

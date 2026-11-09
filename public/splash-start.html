@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Boss Tracker</title>
+<!--
+  Home Screen launch page (manifest start_url). Vercel serves it from the CDN without
+  starting the server, so iPhone paints this right away and keeps it on screen while the
+  dashboard loads, instead of a blank screen during a cold start.
+-->
+<style>
+html,body{margin:0;height:100%;background:#070708;color:#e4e4e7;font-family:system-ui,-apple-system,sans-serif}
+main{min-height:100%;display:grid;place-items:center;text-align:center;padding:24px;box-sizing:border-box}
+img{width:72px;height:72px;border-radius:16px}
+.spin{margin:18px auto 12px;width:28px;height:28px;border:3px solid #3f3f46;border-top-color:#f59e0b;border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+p{margin:4px 0;color:#a1a1aa;font-size:15px}
+button{display:none;margin:16px auto 0;padding:11px 20px;border-radius:10px;border:1px solid #3f3f46;background:#18181b;color:#fff;font:600 15px system-ui,-apple-system,sans-serif}
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <img src="/favicon.png" alt="">
+    <div class="spin"></div>
+    <p id="msg">Opening Boss Tracker…</p>
+    <button id="retry" type="button">Try again</button>
+  </div>
+</main>
+<script>
+(function () {
+  var th = false;
+  try { th = localStorage.getItem('tracker_lang') === 'th'; } catch (e) {}
+  var msg = document.getElementById('msg');
+  var retry = document.getElementById('retry');
+  if (th) { msg.textContent = 'กำลังเปิด Boss Tracker…'; retry.textContent = 'ลองใหม่'; }
+  function go() { location.replace('/'); }
+  retry.addEventListener('click', go);
+  setTimeout(function () {
+    msg.textContent = th ? 'ใช้เวลานานกว่าปกติ กดลองใหม่ได้' : 'Taking longer than usual. Tap to try again.';
+    retry.style.display = 'block';
+  }, 10000);
+  // Let this page paint first so it stays on screen while the dashboard loads.
+  setTimeout(go, 60);
+})();
+</script>
+</body>
+</html>
