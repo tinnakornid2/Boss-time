@@ -30,6 +30,7 @@
             at_spawn: 'Alert when it spawns (NOW)',
             admin_alerts: 'Admin alerts (double-click)',
             events: 'Events',
+            announcements: 'Admin announcements',
             invasion: 'Invasion bosses',
             invasion_list: 'Invasion bosses to alert',
             invasion_hidden: 'Invasion is hidden on the dashboard, so invasion alerts are paused. They resume when Admin shows it again.',
@@ -98,6 +99,7 @@
             at_spawn: 'เตือนตอนเกิด (NOW)',
             admin_alerts: 'เมื่อ Admin กดเตือน (ดับเบิลคลิก)',
             events: 'กิจกรรม',
+            announcements: 'ข้อความประกาศจาก Admin',
             invasion: 'บอสอินเวชั่น',
             invasion_list: 'บอสอินเวชั่นที่จะเตือน',
             invasion_hidden: 'ตอนนี้ปิดการมองเห็นอินเวชั่นบนเว็บอยู่ จึงหยุดแจ้งเตือนบอสอินเวชั่นไว้ก่อน จะกลับมาเตือนเมื่อ Admin เปิดการมองเห็นอีกครั้ง',
@@ -451,6 +453,7 @@
             }))),
             switchRow(tr('at_spawn'), draft.atSpawn, (on) => { draft.atSpawn = on; }),
             switchRow(tr('admin_alerts'), draft.adminAlerts, (on) => { draft.adminAlerts = on; }),
+            switchRow(tr('announcements'), draft.announcements !== false, (on) => { draft.announcements = on; }),
             switchRow(tr('events'), draft.events, (on) => { draft.events = on; }),
             items.invasionBosses.length
                 ? switchRow(tr('invasion') + (items.invasionLabel ? ` (${items.invasionLabel})` : ''), draft.invasion !== false, (on) => { draft.invasion = on; })

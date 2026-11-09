@@ -300,3 +300,42 @@ test('panel render flattens nested lists and never prints null', () => {
     assert.match(client, /\]\.flat\(Infinity\)\.filter\(node => node !== null && node !== undefined && node !== false\);/);
     assert.match(client, /panel\.replaceChildren\(\.\.\.nodes\);/);
 });
+
+test('admin announcements are pushed immediately, short, and respect the device switch', async () => {
+    process.env.VAPID_PUBLIC_KEY = 'test-public';
+    process.env.VAPID_PRIVATE_KEY = 'test-private';
+    push._resetForTests();
+    const sent = [];
+    push._setWebPushForTests({ sendNotification: async (sub, payload) => { sent.push({ endpoint: sub.endpoint, ...JSON.parse(payload) }); } });
+    push.configure({ getPasswordFingerprint: () => 'pfp' });
+    const keys = { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' };
+    try {
+        await push.upsertSubscription({ role: 'member', pfp: 'pfp' }, { endpoint: 'https://push.example/th', keys }, { lang: 'th' }, '');
+        await push.upsertSubscription({ role: 'member', pfp: 'pfp' }, { endpoint: 'https://push.example/off', keys }, { announcements: false }, '');
+        const long = 'รวมพลที่ Giran 21:00 '.repeat(20);
+        await push.sendAnnouncement({ message: long, urgent: true, resent_at: '2026-11-09T14:00:00Z' });
+        assert.deepEqual(sent.map(s => s.endpoint), ['https://push.example/th']);
+        assert.equal(sent[0].title, '🚨 ประกาศด่วน');
+        assert.ok(sent[0].body.length <= 180 && sent[0].body.endsWith('…'));
+
+        const a = push.buildAnnouncementMessage({ message: 'Siege tonight', resent_at: '1' }, 'en');
+        const b = push.buildAnnouncementMessage({ message: 'Siege tonight', resent_at: '2' }, 'en');
+        assert.equal(a.title, '📢 Announcement');
+        assert.notEqual(a.tag, b.tag, 'a resend alerts again');
+        sent.length = 0;
+        await push.sendAnnouncement({ message: '   ' });
+        assert.equal(sent.length, 0, 'empty or cleared announcements send nothing');
+    } finally {
+        delete process.env.VAPID_PUBLIC_KEY;
+        delete process.env.VAPID_PRIVATE_KEY;
+        push._resetForTests();
+    }
+});
+
+test('announcement routes push after saving, and clearing does not push', () => {
+    const server = fs.readFileSync(path.join(__dirname, '../server/server.js'), 'utf8');
+    assert.match(server, /await db\.updateSettings\(\{ announcement: announcementObj \}\);\s*if \(announcementObj\) await push\.sendAnnouncement\(announcementObj\)/);
+    assert.match(server, /await db\.updateSettings\(\{ announcement: settings\.announcement \}\);\s*await push\.sendAnnouncement\(settings\.announcement\)/);
+    const clear = server.slice(server.indexOf("app.post('/announcement/clear'"), server.indexOf("app.post('/announcement/resend'"));
+    assert.doesNotMatch(clear, /sendAnnouncement/);
+});

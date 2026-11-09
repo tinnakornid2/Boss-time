@@ -18,6 +18,7 @@ const DEFAULT_PREFS = Object.freeze({
     adminAlerts: true,
     events: true,
     invasion: true,
+    announcements: true,
     mutedIds: [],
     quietStart: null,
     quietEnd: null,
@@ -112,7 +113,7 @@ function normalizePrefs(input = {}, base = DEFAULT_PREFS) {
     if (Array.isArray(input.leads)) {
         prefs.leads = [...new Set(input.leads.map(Number).filter(n => LEAD_CHOICES.includes(n)))].sort((a, b) => b - a);
     }
-    for (const key of ['atSpawn', 'adminAlerts', 'events', 'invasion']) {
+    for (const key of ['atSpawn', 'adminAlerts', 'events', 'invasion', 'announcements']) {
         if (typeof input[key] === 'boolean') prefs[key] = input[key];
     }
     if (Array.isArray(input.mutedIds)) {
@@ -251,6 +252,19 @@ function buildAdminMessage(boss, lang = 'en') {
         title: th ? `Admin เตือน: ${boss.name}` : `Admin alert: ${boss.name}`,
         body: th ? 'เตรียมตัวได้เลย' : 'Get ready',
         tag: shortTag(`admin|boss_${boss.id}|${boss.pre_spawn_expires_at || ''}`),
+        url: '/'
+    };
+}
+
+function buildAnnouncementMessage(announcement, lang = 'en') {
+    const th = lang === 'th';
+    const urgent = Boolean(announcement.urgent);
+    const text = String(announcement.message || '').replace(/\s+/g, ' ').trim();
+    return {
+        title: urgent ? (th ? '🚨 ประกาศด่วน' : '🚨 Urgent announcement') : (th ? '📢 ประกาศ' : '📢 Announcement'),
+        body: text.length > 180 ? `${text.slice(0, 179)}…` : text,
+        // A resend gets a new tag so it alerts again; duplicates of one send replace each other.
+        tag: shortTag(`announcement|${text}|${announcement.resent_at || ''}`),
         url: '/'
     };
 }
@@ -460,6 +474,25 @@ async function sendAdminAlert(boss, { hideInvasion = false, nowMs = Date.now() }
     return Promise.race([work, timeout]);
 }
 
+// Admin announcement: sent immediately when posted or resent, bounded like the admin alert.
+async function sendAnnouncement(announcement, { nowMs = Date.now() } = {}) {
+    if (!isConfigured() || !announcement || !String(announcement.message || '').trim()) return { sent: 0 };
+    const work = (async () => {
+        await ensureLoaded();
+        const jobs = [];
+        for (const [id, record] of subscriptions.entries()) {
+            if (!isRecordAuthorized(record)) continue;
+            const prefs = normalizePrefs(record.prefs);
+            if (prefs.announcements === false || inQuietHours(prefs, nowMs)) continue;
+            jobs.push(sendToRecord(id, record, buildAnnouncementMessage(announcement, prefs.lang)));
+        }
+        const results = await Promise.allSettled(jobs);
+        return { sent: results.filter(r => r.status === 'fulfilled' && r.value === true).length };
+    })();
+    const timeout = new Promise(resolve => setTimeout(() => resolve({ sent: 0, timedOut: true }), ADMIN_ALERT_TIMEOUT_MS));
+    return Promise.race([work, timeout]);
+}
+
 async function sendTest(endpoint, nowMs = Date.now()) {
     if (!isConfigured()) return { ok: false, status: 503, message: 'Notifications are not configured' };
     await ensureLoaded();
@@ -504,6 +537,7 @@ module.exports = {
     dueAlertsForPrefs,
     buildAlertMessage,
     buildAdminMessage,
+    buildAnnouncementMessage,
     upsertSubscription,
     updatePrefs,
     getStatus,
@@ -511,6 +545,7 @@ module.exports = {
     isRecordAuthorized,
     tick,
     sendAdminAlert,
+    sendAnnouncement,
     sendTest,
     _setWebPushForTests(mock) { webpush = mock; },
     _resetForTests

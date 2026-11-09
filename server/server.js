@@ -2710,6 +2710,7 @@ app.post('/announcement', requireAdmin, async (req, res) => {
         }
     }
     await db.updateSettings({ announcement: announcementObj });
+    if (announcementObj) await push.sendAnnouncement(announcementObj).catch(() => {});
     if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers['x-inertia']) {
         return res.json({ ok: true, announcement: announcementObj });
     }
@@ -2729,6 +2730,7 @@ app.post('/announcement/resend', requireAdmin, async (req, res) => {
     if (settings.announcement) {
         settings.announcement.resent_at = new Date().toISOString();
         await db.updateSettings({ announcement: settings.announcement });
+        await push.sendAnnouncement(settings.announcement).catch(() => {});
     }
     if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers['x-inertia']) {
         return res.json({ ok: true });
