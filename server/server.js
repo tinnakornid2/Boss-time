@@ -8,6 +8,7 @@ try {
     dns.setDefaultResultOrder('ipv4first');
 } catch (_) {}
 const db = require('./db');
+const push = require('./push');
 
 const app = express();
 const pkg = require('../package.json');
@@ -133,6 +134,7 @@ function readSession(value) {
 app.set('createSession', createSession);
 app.set('readSession', readSession);
 app.set('getPasswordFingerprint', getPasswordFingerprint);
+push.configure({ getPasswordFingerprint });
 
 function verifyPassword(password, plaintext, storedHash) {
     if (plaintext && password === plaintext) return true;
@@ -264,7 +266,7 @@ function renderLoginHtml(pageData, title) {
     const error = escapeHtml(String(pageData?.props?.errors?.password || ''));
     return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Log in - ${escapeHtml(title)}</title><link rel="icon" href="/favicon.png" type="image/png">
+<title>Log in - ${escapeHtml(title)}</title><link rel="icon" href="/favicon.png" type="image/png"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="BossTracker">
 <style>
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#070708;color:#fff;font-family:system-ui,sans-serif}
 .login{position:relative;width:min(360px,calc(100vw - 32px));padding:26px;border:1px solid #3f3f46;border-radius:18px;background:#101012;box-shadow:0 24px 70px #000}
@@ -1602,6 +1604,7 @@ function renderHtml(pageData, title = '#Kain7') {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
         <meta name="apple-mobile-web-app-title" content="BossTracker">
         <link rel="apple-touch-icon" href="/favicon.png">
+        <link rel="manifest" href="/manifest.webmanifest">
         <link rel="icon" href="/favicon.png" sizes="any" type="image/png">
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
@@ -1613,6 +1616,7 @@ function renderHtml(pageData, title = '#Kain7') {
         <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
         <script src="/js/alert-audio-queue.js?v=${APP_VERSION}"></script>
         <script src="/js/realtime-alerts.js?v=${APP_VERSION}"></script>
+        <script src="/js/push-notifications.js?v=${APP_VERSION}" defer></script>
         <script type="module" src="/build/assets/app-CTdHufbH.js?v=${APP_VERSION}"></script>
     </head>
     <body class="font-sans antialiased">
@@ -1909,9 +1913,14 @@ function isAuthenticated(req) {
     return Boolean(getSessionRole(req));
 }
 
-function getSessionRole(req) {
+function getSessionData(req) {
     const sess = req.cookies['boss_session'] || req.cookies['remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d'] || '';
-    return readSession(sess)?.role || null;
+    const data = readSession(sess);
+    return data ? { role: data.role, guestId: data.guestId || null, pfp: data.pfp || '' } : null;
+}
+
+function getSessionRole(req) {
+    return getSessionData(req)?.role || null;
 }
 
 function requireSession(req, res, next) {
@@ -2142,8 +2151,42 @@ app.all('/logout', (req, res) => {
     res.redirect(303, '/login');
 });
 
+// One-minute trigger for phone alerts (Google Apps Script). Authenticated by a shared
+// secret instead of a session; it reads only the in-memory cache and never writes Firebase
+// on a timer.
+function hasValidPushTickSecret(req) {
+    const expected = String(process.env.PUSH_TICK_SECRET || '');
+    const provided = String(req.headers['x-push-tick-secret'] || '');
+    if (!expected || !provided) return false;
+    const a = crypto.createHash('sha256').update(expected).digest();
+    const b = crypto.createHash('sha256').update(provided).digest();
+    return crypto.timingSafeEqual(a, b);
+}
+
+app.post('/api/push/tick', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (!process.env.PUSH_TICK_SECRET) return res.status(503).json({ success: false, message: 'Push trigger is not configured' });
+    if (!hasValidPushTickSecret(req)) return res.status(401).json({ success: false, message: 'Invalid trigger secret' });
+    // Never alert from the bundled fallback data.
+    if (process.env.VERCEL && !db.isCloudDataReady()) return res.status(503).json({ success: false, message: 'Data not ready' });
+    try {
+        const result = await push.tick({
+            bosses: db.getBosses(),
+            events: db.getEvents(),
+            hideInvasion: Boolean(db.getSettings()?.hideInvasionBosses),
+            calculateBossAutoAdvance: db.calculateBossAutoAdvance
+        });
+        return res.json({ success: true, ...result });
+    } catch (e) {
+        console.error('[Push] tick failed:', e?.message || e);
+        return res.status(500).json({ success: false, message: 'Tick failed' });
+    }
+});
+
 app.use(requireSession);
 app.use(requireSameOrigin);
+
+app.use('/api/v1/push', require('./routes/push')(getSessionData));
 
 let forceReloadAt = null;
 
@@ -2242,6 +2285,9 @@ app.post('/bosses/:id/notify', requireAdmin, async (req, res) => {
     const boss = db.getBoss(id);
     if (!boss) return res.status(404).json({ success: false, message: 'Boss not found' });
     const updated = await db.updateBoss(id, getPreSpawnAlertUpdates(boss, getSessionRole(req)));
+    if (updated?.pre_spawned) {
+        await push.sendAdminAlert(updated, { hideInvasion: Boolean(db.getSettings()?.hideInvasionBosses) }).catch(() => {});
+    }
     if (req.headers['x-inertia']) return respondInertiaOrRedirect(req, res, '/');
     return res.json({ success: true, active: updated.pre_spawned, boss: updated });
 });

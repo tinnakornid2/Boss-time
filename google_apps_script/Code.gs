@@ -459,3 +459,55 @@ function jsonResponse(obj, status) {
     .setMimeType(ContentService.MimeType.JSON);
   return textOutput;
 }
+
+/**
+ * =========================================================================
+ * Phone alerts (Web Push) one-minute trigger
+ * =========================================================================
+ * Google sends nothing itself: once a minute it asks the Boss Tracker server
+ * (POST /api/push/tick) to send any alerts that are due. The server reads its
+ * in-memory data, so this adds no Firebase reads or writes.
+ *
+ * Setup (once):
+ * 1. Project Settings (gear icon) -> Script Properties -> add:
+ *      PUSH_TICK_URL    = https://boss-time-eloni.vercel.app/api/push/tick
+ *      PUSH_TICK_SECRET = same value as PUSH_TICK_SECRET in Vercel
+ * 2. In the editor choose installPushTickTrigger and press Run (allow access).
+ * To stop: run removePushTickTrigger.
+ * The secret lives only in Script Properties, never in this file.
+ */
+function pushTick() {
+  var props = PropertiesService.getScriptProperties();
+  var url = props.getProperty('PUSH_TICK_URL');
+  var secret = props.getProperty('PUSH_TICK_SECRET');
+  if (!url || !secret) {
+    console.warn('pushTick: set PUSH_TICK_URL and PUSH_TICK_SECRET in Script Properties');
+    return;
+  }
+  var response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: '{}',
+    headers: { 'x-push-tick-secret': secret },
+    muteHttpExceptions: true,
+    followRedirects: false
+  });
+  var code = response.getResponseCode();
+  if (code !== 200) {
+    // 503 right after a deploy is normal (server still loading); the next minute retries.
+    console.warn('pushTick: HTTP ' + code);
+  }
+}
+
+function installPushTickTrigger() {
+  removePushTickTrigger();
+  ScriptApp.newTrigger('pushTick').timeBased().everyMinutes(1).create();
+  console.log('pushTick trigger installed (every minute)');
+}
+
+function removePushTickTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'pushTick') ScriptApp.deleteTrigger(triggers[i]);
+  }
+}

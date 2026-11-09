@@ -376,6 +376,8 @@
         if (window.electronAPI && typeof window.electronAPI.syncLanguage === 'function') {
             window.electronAPI.syncLanguage(lang);
         }
+        // Phone alerts (push-notifications.js) follow the dashboard language.
+        try { window.dispatchEvent(new CustomEvent('tracker:languagechange', { detail: { lang } })); } catch (_) {}
     }
     try {
         document.documentElement.lang = getLanguage() === 'th' ? 'th-TH' : 'en-GB';
@@ -963,7 +965,8 @@ function ensureDownloadAppButton() {
         const langBtn = document.getElementById('header-language-control');
         const audio = document.getElementById('realtime-audio-status');
         const downloadBtn = document.getElementById('header-download-app-control');
-        for (const element of [firebase, version, timezone, langBtn, downloadBtn, audio]) {
+        const pushBtn = document.getElementById('header-push-control');
+        for (const element of [firebase, version, timezone, langBtn, pushBtn, downloadBtn, audio]) {
             if (!element) continue;
             element.classList.add('compact-system-control', 'no-drag');
             if (element.parentElement !== controls) controls.appendChild(element);

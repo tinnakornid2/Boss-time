@@ -107,6 +107,15 @@ Before production deployment:
 - Active Source Indicator: `/poll` returns dynamic `source`. Top-bar badge visually renders `☁️ Firebase Live`, `📊 Google Sheets`, or `💾 Local Mode`.
 - PIN Security: Google Sheets configuration in settings requires PIN verification on every Sheets route (verify, save, test, sync). The PIN is stored only as a scrypt hash; set `GOOGLE_SHEETS_PIN_HASH` in Vercel to rotate it. Never document or commit the plaintext PIN.
 
+## Phone Alerts (Web Push)
+
+- iPhone (iOS 16.4+, Home Screen app only) and Android/desktop browsers receive boss/event alerts through Web Push: `public/manifest.webmanifest`, `public/sw.js` (no fetch handler, no caching), `public/js/push-notifications.js` (🔔 panel + bilingual guide), `server/push.js`, `server/routes/push.js`.
+- Timing is computed in memory from the same boss state and auto-advance as the dashboard. A Google Apps Script trigger (`pushTick` in `google_apps_script/Code.gs`) calls `POST /api/push/tick` once a minute with the `x-push-tick-secret` header. The tick never reads Firebase on a warm instance and never writes Firebase on a timer; it refuses to run until the cloud snapshot is loaded.
+- Subscriptions and per-device preferences live outside the tracker root at `push/subscriptions` (`push_preview/` on previews, `push_local/` locally). Writes happen only on subscribe/update/remove and bump `tracker/meta/dataRevision` in the same write. They are per device, never part of shared settings.
+- Devices are authorized by the password fingerprint they logged in with; a password change or expired guest pass stops their alerts. Any logged-in role may manage its own device; only Admin can trigger the shared admin alert, which is pushed immediately from `POST /bosses/:id/notify`.
+- Short message style; language follows the dashboard EN/TH switch (default English); boss names are never translated.
+- Required Vercel env (Sensitive): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_TICK_SECRET`. Without them the feature reports disabled and sends nothing.
+
 ## Temporary Guest Access & Dual Language
 
 - Temporary Guest: Admin can issue time-limited guest access with auto-expiration (`expiresAt`), isolated to Member permissions only with a distinct purple `🎟️ GUEST` badge.

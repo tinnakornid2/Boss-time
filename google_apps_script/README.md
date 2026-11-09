@@ -25,3 +25,17 @@
    - กด **Allow** (อนุญาต)
 6. ระบบจะแสดงหน้าต่างพร้อม **Web app URL** (ตัวอย่าง: `https://script.google.com/macros/s/AKfycb.../exec`)
 7. คัดลอก URL นี้ นำไปกรอกในหน้าตั้งค่า **Google Sheets** ของระบบ Boss Tracker!
+
+## 4. ตัวตั้งเวลาแจ้งเตือนบนมือถือ (Web Push) ทุก 1 นาที
+
+Google จะเรียก `POST /api/push/tick` ของ Boss Tracker ทุก 1 นาที ให้ server ส่งแจ้งเตือนที่ถึงเวลา (ไม่อ่าน/เขียน Firebase เพิ่ม)
+
+1. วางโค้ด `Code.gs` เวอร์ชันล่าสุด (มีฟังก์ชัน `pushTick`, `installPushTickTrigger`, `removePushTickTrigger` ท้ายไฟล์) แล้วกด Save
+2. ไปที่ **Project Settings** (ไอคอนฟันเฟือง) → **Script Properties** → **Add script property** เพิ่ม 2 ค่า:
+   - `PUSH_TICK_URL` = `https://boss-time-eloni.vercel.app/api/push/tick`
+   - `PUSH_TICK_SECRET` = ค่าเดียวกับ `PUSH_TICK_SECRET` ที่ตั้งใน Vercel (ห้ามใส่ค่านี้ในโค้ด)
+3. กลับไปหน้า Editor เลือกฟังก์ชัน **installPushTickTrigger** แล้วกด **Run** (ครั้งแรกจะขออนุญาต ให้กด Allow)
+4. ตรวจได้ที่เมนู **Triggers** (ไอคอนนาฬิกา) จะเห็น `pushTick` ทำงานทุก 1 นาที และดูผลได้ที่ **Executions**
+5. ถ้าต้องการหยุด: รันฟังก์ชัน **removePushTickTrigger**
+
+หมายเหตุ: หลัง deploy ใหม่ อาจเห็น `HTTP 503` 1–2 ครั้ง (server กำลังโหลดข้อมูล) เป็นเรื่องปกติ รอบถัดไปจะทำงานเอง

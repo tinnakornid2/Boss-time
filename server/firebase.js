@@ -539,6 +539,37 @@ async function syncKillHistory(killHistory) {
 }
 
 // Fetch initial data once from Firebase
+// Write a node outside the tracker root (e.g. push subscriptions) and bump the
+// tracker revision in the same multipath write, as every mutation must.
+async function syncOutsideTracker(path, value) {
+    if (!isReady()) return false;
+    try {
+        const trackerKey = dbRef.key;
+        await dbRef.root.update({
+            [path]: value,
+            [`${trackerKey}/meta/dataRevision`]: ServerValue.increment(1),
+            [`${trackerKey}/meta/updatedAt`]: ServerValue.TIMESTAMP
+        });
+        recordFirebaseSuccess();
+        return true;
+    } catch (e) {
+        recordFirebaseError('syncOutsideTracker', e);
+        return false;
+    }
+}
+
+// Listen to a node outside the tracker root. Returns an unsubscribe function.
+function watchOutsideTracker(path, onValue) {
+    if (!isReady()) return null;
+    const ref = dbRef.root.child(path);
+    const handler = (snap) => {
+        recordFirebaseSuccess();
+        onValue(snap.val());
+    };
+    ref.on('value', handler, (e) => recordFirebaseError('watchOutsideTracker', e));
+    return () => ref.off('value', handler);
+}
+
 async function fetchOnce() {
     if (!isReady()) return null;
     try {
@@ -565,6 +596,8 @@ module.exports = {
     findServiceAccountKey,
     fetchOnce,
     seedFullStoreIfEmpty,
+    syncOutsideTracker,
+    watchOutsideTracker,
     syncFullStore,
     syncBoss,
     syncBossUpdates,
