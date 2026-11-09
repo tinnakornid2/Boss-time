@@ -253,43 +253,41 @@ function buildAlertMessage(alert, lang = 'en') {
     const { kind, type, minutes, items } = alert;
     const first = items[0];
     const many = items.length > 1;
-    const names = items.map(withDot).join(', ');
     const firstName = withDot(first);
     const clock = thaiClock(first.spawnMs);
-    const where = first.location ? `${first.location} · ${clock}` : clock;
+    // Owner's format: alert text + name + spawn time, no location. Several at once are
+    // listed earliest spawn first (items are already sorted by spawn time, then name).
+    const body = many ? items.map(item => `${withDot(item)} ${thaiClock(item.spawnMs)}`).join(', ') : clock;
     let title;
-    let body;
     if (kind === 'boss' && type === 'pre') {
         title = many
             ? (th ? `${items.length} บอสเกิดใน ${minutes} นาที` : `${items.length} bosses spawn in ${minutes} min`)
             : (th ? `${firstName} เกิดใน ${minutes} นาที` : `${firstName} spawns in ${minutes} min`);
-        body = many ? names : where;
     } else if (kind === 'boss') {
         title = many
             ? (th ? `${items.length} บอสเกิดแล้ว` : `${items.length} bosses have spawned`)
             : (th ? `${firstName} เกิดแล้ว` : `${firstName} has spawned`);
-        body = many ? names : first.location;
     } else if (type === 'pre') {
         title = many
             ? (th ? `${items.length} กิจกรรมเริ่มใน ${minutes} นาที` : `${items.length} events start in ${minutes} min`)
             : (th ? `${firstName} เริ่มใน ${minutes} นาที` : `${firstName} starts in ${minutes} min`);
-        body = many ? names : clock;
     } else {
         title = many
             ? (th ? `${items.length} กิจกรรมเริ่มแล้ว` : `${items.length} events have started`)
             : (th ? `${firstName} เริ่มแล้ว` : `${firstName} has started`);
-        body = many ? names : '';
     }
     const identity = items.map(item => `${item.key}@${item.spawnMs}`).join('.');
-    return { title, body: body || '', tag: shortTag(`${kind}|${type}|${minutes}|${identity}`), url: '/' };
+    return { title, body, tag: shortTag(`${kind}|${type}|${minutes}|${identity}`), url: '/' };
 }
 
 function buildAdminMessage(boss, lang = 'en', invasionColor = '') {
     const name = withDot({ name: boss.name, dot: colorDot(bossColor(boss, invasionColor)) });
     const th = lang === 'th';
+    const spawnMs = new Date(boss.next_spawn || NaN).getTime();
     return {
         title: th ? `Admin เตือน: ${name}` : `Admin alert: ${name}`,
-        body: th ? 'เตรียมตัวได้เลย' : 'Get ready',
+        // Spawn time when known, otherwise a short prompt.
+        body: Number.isFinite(spawnMs) ? thaiClock(spawnMs) : (th ? 'เตรียมตัวได้เลย' : 'Get ready'),
         tag: shortTag(`admin|boss_${boss.id}|${boss.pre_spawn_expires_at || ''}`),
         url: '/'
     };

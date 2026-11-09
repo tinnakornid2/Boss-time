@@ -112,7 +112,7 @@ test('bosses due in the same minute are grouped into one short message', () => {
     const items = push.collectItems({ bosses, nowMs: SPAWN - 5 * MIN, calculateBossAutoAdvance });
     const [alert] = due(items, prefs({ atSpawn: false }), SPAWN - 6 * MIN, SPAWN - 5 * MIN);
     assert.equal(alert.items.length, 2);
-    assert.deepEqual(push.buildAlertMessage(alert, 'en'), { ...push.buildAlertMessage(alert, 'en'), title: '2 bosses spawn in 5 min', body: 'Orfen, Valefar' });
+    assert.deepEqual(push.buildAlertMessage(alert, 'en'), { ...push.buildAlertMessage(alert, 'en'), title: '2 bosses spawn in 5 min', body: 'Orfen 21:30, Valefar 21:30' });
     assert.equal(push.buildAlertMessage(alert, 'th').title, '2 บอสเกิดใน 5 นาที');
 });
 
@@ -120,7 +120,7 @@ test('short messages in English and Thai keep boss names untranslated', () => {
     const items = push.collectItems({ bosses: [boss()], nowMs: SPAWN - 5 * MIN, calculateBossAutoAdvance });
     const [pre] = due(items, prefs({ atSpawn: false }), SPAWN - 6 * MIN, SPAWN - 5 * MIN);
     assert.equal(push.buildAlertMessage(pre, 'en').title, 'Valefar spawns in 5 min');
-    assert.equal(push.buildAlertMessage(pre, 'en').body, 'Morgue · 21:30');
+    assert.equal(push.buildAlertMessage(pre, 'en').body, '21:30', 'spawn time only, no location');
     assert.equal(push.buildAlertMessage(pre, 'th').title, 'Valefar เกิดใน 5 นาที');
     const [now] = due(items, prefs({ leads: [] }), SPAWN - MIN, SPAWN);
     assert.equal(push.buildAlertMessage(now, 'en').title, 'Valefar has spawned');
@@ -368,10 +368,31 @@ test('boss colour shows as the nearest emoji dot, following the dashboard colour
     const window = [SPAWN - 6 * MIN, SPAWN - 5 * MIN];
     const alerts = due(items, prefs({ atSpawn: false }), ...window);
     const bossAlert = alerts.find(a => a.kind === 'boss');
-    assert.equal(push.buildAlertMessage(bossAlert, 'th').body, '🔴 Kelbim, Orfen, 🟣 Valefar');
+    assert.equal(push.buildAlertMessage(bossAlert, 'th').body, '🔴 Kelbim 21:30, Orfen 21:30, 🟣 Valefar 21:30');
     const single = due(items.filter(i => i.name === 'Valefar'), prefs({ atSpawn: false }), ...window)[0];
     assert.equal(push.buildAlertMessage(single, 'th').title, '🟣 Valefar เกิดใน 5 นาที');
     assert.equal(push.buildAlertMessage(single, 'en').title, '🟣 Valefar spawns in 5 min');
     assert.equal(push.buildAdminMessage(boss({ name: 'Kelbim', is_invasion: true }), 'th', '#ef4444').title, 'Admin เตือน: 🔴 Kelbim');
     assert.equal(push.buildAdminMessage(boss(), 'en').title, 'Admin alert: Valefar', 'no colour, no dot');
+});
+
+test('owner format: text + name + spawn time, no location, earliest spawn first', () => {
+    const bosses = [
+        boss({ id: 1, name: 'Late', location: 'Somewhere', next_spawn: new Date(SPAWN + 40 * 1000).toISOString() }),
+        boss({ id: 2, name: 'Early', location: 'Elsewhere', next_spawn: new Date(SPAWN - 20 * 1000).toISOString() }),
+        boss({ id: 3, name: 'Middle', next_spawn: new Date(SPAWN + 5 * 1000).toISOString() })
+    ];
+    const items = push.collectItems({ bosses, nowMs: SPAWN - 10 * MIN, calculateBossAutoAdvance });
+    const [alert] = due(items, prefs({ leads: [5], atSpawn: false }), SPAWN - 6 * MIN, SPAWN - 4 * MIN);
+    const message = push.buildAlertMessage(alert, 'th');
+    assert.equal(message.title, '3 บอสเกิดใน 5 นาที');
+    assert.equal(message.body, 'Early 21:29, Middle 21:30, Late 21:30');
+    assert.doesNotMatch(JSON.stringify(message), /Somewhere|Elsewhere/);
+
+    const [spawned] = due(items.filter(i => i.name === 'Late'), prefs({ leads: [] }), SPAWN, SPAWN + MIN);
+    assert.deepEqual([push.buildAlertMessage(spawned, 'th').title, push.buildAlertMessage(spawned, 'th').body], ['Late เกิดแล้ว', '21:30']);
+
+    const admin = push.buildAdminMessage(boss({ name: 'Valefar', location: 'Morgue' }), 'th');
+    assert.deepEqual([admin.title, admin.body], ['Admin เตือน: Valefar', '21:30']);
+    assert.equal(push.buildAdminMessage(boss({ next_spawn: null }), 'th').body, 'เตรียมตัวได้เลย');
 });
