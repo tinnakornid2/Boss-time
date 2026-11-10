@@ -151,41 +151,14 @@ function inQuietHours(prefs, ms) {
     return start < end ? now >= start && now < end : now >= start || now < end;
 }
 
-// Notifications are plain text, so a boss colour is shown as the nearest of nine emoji dots.
-function colorDot(hex) {
-    const match = /^#([0-9a-f]{3,8})$/i.exec(String(hex || '').trim());
-    if (!match || ![3, 4, 6, 8].includes(match[1].length)) return '';
-    let digits = match[1];
-    if (digits.length <= 4) digits = digits.split('').map(c => c + c).join('');
-    const [r, g, b] = [0, 2, 4].map(i => parseInt(digits.slice(i, i + 2), 16) / 255);
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const l = (max + min) / 2;
-    const d = max - min;
-    const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
-    if (l < 0.15) return '⚫';
-    if (s < 0.18) return l < 0.3 ? '⚫' : '⚪';
-    let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
-    h = (h * 60 + 360) % 360;
-    if (h >= 15 && h < 45 && l < 0.4) return '🟤';
-    if (h < 15 || h >= 345) return '🔴';
-    if (h < 42) return '🟠';
-    if (h < 70) return '🟡';
-    if (h < 180) return '🟢';
-    if (h < 255) return '🔵';
-    return '🟣';
+// Invasion bosses carry the same label as the dashboard badge (shared setting, e.g. "K1"),
+// placed in front of the name. Normal bosses and events show the name alone.
+function displayName(item) {
+    return item.label ? `${item.label} ${item.name}` : item.name;
 }
 
-// Same colour rules as the dashboard: the shared invasion colour wins for invasion bosses,
-// white means "no custom colour" for normal bosses, events default to cyan.
-function bossColor(boss, invasionColor) {
-    if (boss.is_invasion) return String(invasionColor || boss.color || '#facc15').trim();
-    const color = String(boss.color || '').trim();
-    return color && color.toLowerCase() !== '#ffffff' ? color : '';
-}
-
-function withDot(item) {
-    return item.dot ? `${item.dot} ${item.name}` : item.name;
+function invasionLabelOf(boss, invasionLabel) {
+    return boss && boss.is_invasion ? String(invasionLabel || 'L3').trim() : '';
 }
 
 function effectiveBossSpawnMs(boss, nowMs, calculateBossAutoAdvance) {
@@ -198,20 +171,20 @@ function effectiveBossSpawnMs(boss, nowMs, calculateBossAutoAdvance) {
 }
 
 // Flatten bosses and events into alertable items with an effective spawn time.
-function collectItems({ bosses = [], events = [], hideInvasion = false, invasionColor = '', nowMs, calculateBossAutoAdvance }) {
+function collectItems({ bosses = [], events = [], hideInvasion = false, invasionLabel = '', nowMs, calculateBossAutoAdvance }) {
     const items = [];
     for (const boss of bosses) {
         if (!boss || !boss.next_spawn || boss.pinned_alive || boss.post_maintenance) continue;
         if (boss.is_invasion && hideInvasion) continue;
         const spawnMs = effectiveBossSpawnMs(boss, nowMs, calculateBossAutoAdvance);
         if (spawnMs === null) continue;
-        items.push({ key: `boss_${boss.id}`, kind: 'boss', id: boss.id, invasion: Boolean(boss.is_invasion), dot: colorDot(bossColor(boss, invasionColor)), name: String(boss.name || ''), location: String(boss.location || ''), spawnMs });
+        items.push({ key: `boss_${boss.id}`, kind: 'boss', id: boss.id, invasion: Boolean(boss.is_invasion), label: invasionLabelOf(boss, invasionLabel), name: String(boss.name || ''), location: String(boss.location || ''), spawnMs });
     }
     for (const event of events) {
         if (!event || !event.next_spawn || event.pinned_alive || event.post_maintenance) continue;
         const spawnMs = new Date(event.next_spawn).getTime();
         if (!Number.isFinite(spawnMs)) continue;
-        items.push({ key: `event_${event.id}`, kind: 'event', id: event.id, dot: colorDot(String(event.color || '').trim() || '#38bdf8'), name: String(event.name || ''), location: String(event.location || ''), spawnMs });
+        items.push({ key: `event_${event.id}`, kind: 'event', id: event.id, label: '', name: String(event.name || ''), location: String(event.location || ''), spawnMs });
     }
     return items;
 }
@@ -246,46 +219,49 @@ function shortTag(text) {
     return crypto.createHash('sha256').update(text).digest('base64url').slice(0, 24);
 }
 
-// Short message style, chosen by the owner. Boss names are never translated.
+// Owner's choice of icons and wording (one icon per kind of alert, no boss colours, no
+// location). Boss names are never translated.
+//   boss soon     ⏳ Valefar in 5 min           / Spawns at 10:43
+//   boss spawned  🔥 Valefar has spawned        / 10:43
+//   event soon    📅 Castle Siege in 5 min      / Starts at 20:00
+//   event start   🎉 Castle Siege has started   / 20:00
+// Several at once: all names in the title (earliest spawn first), times in the body.
+const ALERT_ICONS = Object.freeze({ bossPre: '⏳', bossSpawn: '🔥', eventPre: '📅', eventStart: '🎉', admin: '⚡', announcement: '📢', urgent: '⚠️' });
+const ANNOUNCEMENT_TITLE_MAX = 100;
+const ANNOUNCEMENT_BODY_MAX = 180;
+
 function buildAlertMessage(alert, lang = 'en') {
     const th = lang === 'th';
     const { kind, type, minutes, items } = alert;
-    const first = items[0];
     const many = items.length > 1;
-    const firstName = withDot(first);
-    const clock = thaiClock(first.spawnMs);
-    // Owner's format: alert text + name + spawn time, no location. Several at once are
-    // listed earliest spawn first (items are already sorted by spawn time, then name).
-    const body = many ? items.map(item => `${withDot(item)} ${thaiClock(item.spawnMs)}`).join(', ') : clock;
+    const names = items.map(displayName).join(', ');
+    const clock = thaiClock(items[0].spawnMs);
+    const pre = type === 'pre';
+    let icon;
     let title;
-    if (kind === 'boss' && type === 'pre') {
-        title = many
-            ? (th ? `${items.length} บอสเกิดใน ${minutes} นาที` : `${items.length} bosses spawn in ${minutes} min`)
-            : (th ? `${firstName} เกิดใน ${minutes} นาที` : `${firstName} spawns in ${minutes} min`);
-    } else if (kind === 'boss') {
-        title = many
-            ? (th ? `${items.length} บอสเกิดแล้ว` : `${items.length} bosses have spawned`)
-            : (th ? `${firstName} เกิดแล้ว` : `${firstName} has spawned`);
-    } else if (type === 'pre') {
-        title = many
-            ? (th ? `${items.length} กิจกรรมเริ่มใน ${minutes} นาที` : `${items.length} events start in ${minutes} min`)
-            : (th ? `${firstName} เริ่มใน ${minutes} นาที` : `${firstName} starts in ${minutes} min`);
+    let body;
+    if (kind === 'boss') {
+        icon = pre ? ALERT_ICONS.bossPre : ALERT_ICONS.bossSpawn;
+        if (pre) title = th ? `${names} อีก ${minutes} นาที` : `${names} in ${minutes} min`;
+        else title = th ? `${names} เกิดแล้ว` : `${names} ${many ? 'have' : 'has'} spawned`;
+        body = pre && !many ? (th ? `เกิด ${clock}` : `Spawns at ${clock}`) : clock;
     } else {
-        title = many
-            ? (th ? `${items.length} กิจกรรมเริ่มแล้ว` : `${items.length} events have started`)
-            : (th ? `${firstName} เริ่มแล้ว` : `${firstName} has started`);
+        icon = pre ? ALERT_ICONS.eventPre : ALERT_ICONS.eventStart;
+        if (pre) title = th ? `${names} อีก ${minutes} นาที` : `${names} in ${minutes} min`;
+        else title = th ? `${names} เริ่มแล้ว` : `${names} ${many ? 'have' : 'has'} started`;
+        body = pre && !many ? (th ? `เริ่ม ${clock}` : `Starts at ${clock}`) : clock;
     }
+    if (many) body = items.map(item => thaiClock(item.spawnMs)).join(' · ');
     const identity = items.map(item => `${item.key}@${item.spawnMs}`).join('.');
-    return { title, body, tag: shortTag(`${kind}|${type}|${minutes}|${identity}`), url: '/' };
+    return { title: `${icon} ${title}`, body, tag: shortTag(`${kind}|${type}|${minutes}|${identity}`), url: '/' };
 }
 
-function buildAdminMessage(boss, lang = 'en', invasionColor = '') {
-    const name = withDot({ name: boss.name, dot: colorDot(bossColor(boss, invasionColor)) });
+function buildAdminMessage(boss, lang = 'en', invasionLabel = '') {
+    const name = displayName({ name: String(boss.name || ''), label: invasionLabelOf(boss, invasionLabel) });
     const th = lang === 'th';
     const spawnMs = new Date(boss.next_spawn || NaN).getTime();
     return {
-        // Owner's wording: "about to spawn" + boss name; body is the spawn time.
-        title: th ? `กำลังจะเกิด ${name}` : `About to spawn: ${name}`,
+        title: `${ALERT_ICONS.admin} ${th ? `กำลังจะเกิด ${name}` : `About to spawn: ${name}`}`,
         // Spawn time when known, otherwise a short prompt.
         body: Number.isFinite(spawnMs) ? thaiClock(spawnMs) : (th ? 'เตรียมตัวได้เลย' : 'Get ready'),
         tag: shortTag(`admin|boss_${boss.id}|${boss.pre_spawn_expires_at || ''}`),
@@ -293,13 +269,21 @@ function buildAdminMessage(boss, lang = 'en', invasionColor = '') {
     };
 }
 
+function clip(text, max) {
+    return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+// The announcement text is the title so it reads straight off the lock screen; the body
+// says what it is. Text too long for the title continues in the body.
 function buildAnnouncementMessage(announcement, lang = 'en') {
     const th = lang === 'th';
     const urgent = Boolean(announcement.urgent);
     const text = String(announcement.message || '').replace(/\s+/g, ' ').trim();
+    const kindLabel = urgent ? (th ? 'ด่วน' : 'Urgent') : (th ? 'ประกาศ' : 'Announcement');
+    const fits = text.length <= ANNOUNCEMENT_TITLE_MAX;
     return {
-        title: urgent ? (th ? '🚨 ประกาศด่วน' : '🚨 Urgent announcement') : (th ? '📢 ประกาศ' : '📢 Announcement'),
-        body: text.length > 180 ? `${text.slice(0, 179)}…` : text,
+        title: `${urgent ? ALERT_ICONS.urgent : ALERT_ICONS.announcement} ${clip(text, ANNOUNCEMENT_TITLE_MAX)}`,
+        body: fits ? kindLabel : clip(`${kindLabel}: ${text}`, ANNOUNCEMENT_BODY_MAX),
         // A resend gets a new tag so it alerts again; duplicates of one send replace each other.
         tag: shortTag(`announcement|${text}|${announcement.resent_at || ''}`),
         url: '/'
@@ -472,14 +456,14 @@ function tickWindowStart(since, nowMs) {
 }
 
 // Called once a minute by the external trigger.
-async function tick({ bosses, events, hideInvasion, invasionColor = '', calculateBossAutoAdvance, since = null, nowMs = Date.now() }) {
+async function tick({ bosses, events, hideInvasion, invasionLabel = '', calculateBossAutoAdvance, since = null, nowMs = Date.now() }) {
     if (!isConfigured()) return { enabled: false, sent: 0, until: nowMs };
     await ensureLoaded();
     const windowEnd = nowMs;
     const windowStart = tickWindowStart(since, nowMs);
     if (windowStart >= windowEnd) return { enabled: true, sent: 0, until: Math.max(windowStart, nowMs) };
 
-    const items = collectItems({ bosses, events, hideInvasion, invasionColor, nowMs, calculateBossAutoAdvance });
+    const items = collectItems({ bosses, events, hideInvasion, invasionLabel, nowMs, calculateBossAutoAdvance });
     const jobs = [];
     for (const [id, record] of [...subscriptions.entries()]) {
         // Skip rather than delete: settings may not be loaded yet on a cold instance, and a
@@ -500,7 +484,7 @@ async function tick({ bosses, events, hideInvasion, invasionColor = '', calculat
 }
 
 // Admin double-click alert: sent immediately, bounded so the request never hangs.
-async function sendAdminAlert(boss, { hideInvasion = false, invasionColor = '', nowMs = Date.now() } = {}) {
+async function sendAdminAlert(boss, { hideInvasion = false, invasionLabel = '', nowMs = Date.now() } = {}) {
     if (!isConfigured() || !boss || !boss.pre_spawned) return { sent: 0 };
     if (boss.is_invasion && hideInvasion) return { sent: 0 };
     const work = (async () => {
@@ -511,7 +495,7 @@ async function sendAdminAlert(boss, { hideInvasion = false, invasionColor = '', 
             const prefs = normalizePrefs(record.prefs);
             if (!prefs.adminAlerts || prefs.mutedIds.includes(`boss_${boss.id}`) || inQuietHours(prefs, nowMs)) continue;
             if (boss.is_invasion && prefs.invasion === false) continue;
-            jobs.push(sendToRecord(id, record, buildAdminMessage(boss, prefs.lang, invasionColor)));
+            jobs.push(sendToRecord(id, record, buildAdminMessage(boss, prefs.lang, invasionLabel)));
         }
         const results = await Promise.allSettled(jobs);
         return { sent: results.filter(r => r.status === 'fulfilled' && r.value === true).length };
@@ -582,7 +566,6 @@ module.exports = {
     dueAlertsForPrefs,
     buildAlertMessage,
     buildAdminMessage,
-    colorDot,
     buildAnnouncementMessage,
     upsertSubscription,
     updatePrefs,
