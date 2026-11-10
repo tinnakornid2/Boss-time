@@ -24,7 +24,7 @@ const DEFAULT_PREFS = Object.freeze({
     quietEnd: null,
     lang: 'en'
 });
-const COLD_START_LOOKBACK_MS = 120 * 1000;
+const TICK_INTERVAL_MS = 60 * 1000;
 const MAX_WINDOW_MS = 180 * 1000;
 const SENT_KEY_TTL_MS = 3 * 60 * 60 * 1000;
 const SEND_TIMEOUT_MS = 5000;
@@ -37,7 +37,6 @@ let getPasswordFingerprint = () => null;
 const subscriptions = new Map();
 let subscriptionsLoaded = false;
 let stopWatching = null;
-let lastTickAt = 0;
 const sentKeys = new Map();
 const lastTestAt = new Map();
 
@@ -462,14 +461,23 @@ function pruneSentKeys(nowMs) {
     }
 }
 
+// Start of the alert window for one tick. Vercel spreads ticks over several instances, so
+// a per-instance "last tick" made instances re-send alerts another instance had already sent.
+// The trigger is the single authority: it passes back the `until` of its last successful tick
+// as `since`, so consecutive windows never overlap. Without it, cover exactly one interval.
+function tickWindowStart(since, nowMs) {
+    const value = since === null || since === undefined || since === '' ? NaN : Number(since);
+    if (!Number.isFinite(value)) return nowMs - TICK_INTERVAL_MS;
+    return Math.max(value, nowMs - MAX_WINDOW_MS);
+}
+
 // Called once a minute by the external trigger.
-async function tick({ bosses, events, hideInvasion, invasionColor = '', calculateBossAutoAdvance, nowMs = Date.now() }) {
-    if (!isConfigured()) return { enabled: false, sent: 0 };
+async function tick({ bosses, events, hideInvasion, invasionColor = '', calculateBossAutoAdvance, since = null, nowMs = Date.now() }) {
+    if (!isConfigured()) return { enabled: false, sent: 0, until: nowMs };
     await ensureLoaded();
     const windowEnd = nowMs;
-    const windowStart = Math.max(lastTickAt || nowMs - COLD_START_LOOKBACK_MS, nowMs - MAX_WINDOW_MS);
-    lastTickAt = nowMs;
-    if (windowStart >= windowEnd) return { enabled: true, sent: 0 };
+    const windowStart = tickWindowStart(since, nowMs);
+    if (windowStart >= windowEnd) return { enabled: true, sent: 0, until: Math.max(windowStart, nowMs) };
 
     const items = collectItems({ bosses, events, hideInvasion, invasionColor, nowMs, calculateBossAutoAdvance });
     const jobs = [];
@@ -488,7 +496,7 @@ async function tick({ bosses, events, hideInvasion, invasionColor = '', calculat
     }
     const results = await Promise.allSettled(jobs);
     pruneSentKeys(nowMs);
-    return { enabled: true, sent: results.filter(r => r.status === 'fulfilled' && r.value === true).length };
+    return { enabled: true, sent: results.filter(r => r.status === 'fulfilled' && r.value === true).length, until: windowEnd };
 }
 
 // Admin double-click alert: sent immediately, bounded so the request never hangs.
@@ -554,7 +562,6 @@ function _resetForTests() {
     stopWatching = null;
     subscriptions.clear();
     subscriptionsLoaded = false;
-    lastTickAt = 0;
     sentKeys.clear();
     lastTestAt.clear();
     webpush = null;
@@ -583,6 +590,7 @@ module.exports = {
     removeSubscription,
     isRecordAuthorized,
     tick,
+    tickWindowStart,
     sendAdminAlert,
     sendAnnouncement,
     sendTest,

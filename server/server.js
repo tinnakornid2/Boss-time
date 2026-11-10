@@ -2227,7 +2227,8 @@ app.post('/api/push/tick', async (req, res) => {
             events: db.getEvents(),
             hideInvasion: Boolean(db.getSettings()?.hideInvasionBosses),
             invasionColor: db.getSettings()?.invasionColor || '',
-            calculateBossAutoAdvance: db.calculateBossAutoAdvance
+            calculateBossAutoAdvance: db.calculateBossAutoAdvance,
+            since: req.body?.since
         });
         return res.json({ success: true, ...result });
     } catch (e) {

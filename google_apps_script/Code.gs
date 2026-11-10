@@ -484,18 +484,35 @@ function pushTick() {
     console.warn('pushTick: set PUSH_TICK_URL and PUSH_TICK_SECRET in Script Properties');
     return;
   }
-  var response = UrlFetchApp.fetch(url, {
-    method: 'post',
-    contentType: 'application/json',
-    payload: '{}',
-    headers: { 'x-push-tick-secret': secret },
-    muteHttpExceptions: true,
-    followRedirects: false
-  });
-  var code = response.getResponseCode();
-  if (code !== 200) {
-    // 503 right after a deploy is normal (server still loading); the next minute retries.
-    console.warn('pushTick: HTTP ' + code);
+  // One tick at a time, so two runs never send the same minute twice.
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  try {
+    // PUSH_TICK_SINCE is the end of the last window the server finished. Sending it back
+    // makes every window start where the previous one ended, whichever server instance
+    // answers, so each alert is sent exactly once.
+    var since = Number(props.getProperty('PUSH_TICK_SINCE')) || null;
+    var response = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ since: since }),
+      headers: { 'x-push-tick-secret': secret },
+      muteHttpExceptions: true,
+      followRedirects: false
+    });
+    var code = response.getResponseCode();
+    if (code !== 200) {
+      // 503 right after a deploy is normal (server still loading); the next minute retries
+      // the same window.
+      console.warn('pushTick: HTTP ' + code);
+      return;
+    }
+    var until = Number(JSON.parse(response.getContentText()).until);
+    if (until > 0) props.setProperty('PUSH_TICK_SINCE', String(until));
+  } catch (e) {
+    console.warn('pushTick: ' + e);
+  } finally {
+    lock.releaseLock();
   }
 }
 

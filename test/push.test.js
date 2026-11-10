@@ -170,6 +170,44 @@ test('tick sends each alert once, honours preferences, and skips logged-out devi
     }
 });
 
+test('ticks on different server instances never repeat an alert', async () => {
+    process.env.VAPID_PUBLIC_KEY = 'test-public';
+    process.env.VAPID_PRIVATE_KEY = 'test-private';
+    const keys = { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' };
+    const sent = [];
+    // A fresh module state per tick is a different Vercel instance with no memory.
+    async function onNewInstance(tickArgs) {
+        push._resetForTests();
+        push._setWebPushForTests({ sendNotification: async (sub, payload) => { sent.push(JSON.parse(payload).title); } });
+        push.configure({ getPasswordFingerprint: () => 'pfp' });
+        await push.upsertSubscription({ role: 'member', pfp: 'pfp' }, { endpoint: 'https://push.example/one', keys }, { leads: [1], atSpawn: true }, 'iPhone');
+        return push.tick({ bosses: [boss()], events: [], hideInvasion: false, calculateBossAutoAdvance, ...tickArgs });
+    }
+    try {
+        // Trigger passes back each tick's `until`, with uneven spacing like Apps Script.
+        let since = null;
+        for (const offset of [-3 * MIN, -2 * MIN + 5000, -MIN - 3000, 2000, MIN + 4000, 2 * MIN, 3 * MIN + 1000]) {
+            since = (await onNewInstance({ since, nowMs: SPAWN + offset })).until;
+        }
+        assert.deepEqual(sent, ['Valefar spawns in 1 min', 'Valefar has spawned']);
+
+        // Old trigger without `since`: each tick covers exactly the last minute.
+        sent.length = 0;
+        for (const offset of [-3 * MIN, -2 * MIN, -MIN, 0, MIN, 2 * MIN, 3 * MIN]) {
+            await onNewInstance({ nowMs: SPAWN + offset + 500 });
+        }
+        assert.deepEqual(sent, ['Valefar spawns in 1 min', 'Valefar has spawned']);
+
+        assert.equal(push.tickWindowStart(null, SPAWN), SPAWN - MIN);
+        assert.equal(push.tickWindowStart(SPAWN - 30000, SPAWN), SPAWN - 30000);
+        assert.equal(push.tickWindowStart(SPAWN - 60 * MIN, SPAWN), SPAWN - 3 * MIN, 'a long outage does not replay old alerts');
+    } finally {
+        delete process.env.VAPID_PUBLIC_KEY;
+        delete process.env.VAPID_PRIVATE_KEY;
+        push._resetForTests();
+    }
+});
+
 test('a dead subscription (410) is removed; other errors keep it', async () => {
     process.env.VAPID_PUBLIC_KEY = 'test-public';
     process.env.VAPID_PRIVATE_KEY = 'test-private';
