@@ -13,7 +13,8 @@ self.addEventListener('push', (event) => {
     const options = {
         body: data.body || '',
         icon: '/favicon.png',
-        badge: '/favicon.png',
+        // Android draws the status-bar badge from alpha only: a white stencil on transparent.
+        badge: '/badge.png',
         data: { url: data.url || '/' },
         timestamp: data.timestamp || Date.now()
     };

@@ -428,3 +428,12 @@ test('owner format: text + name + spawn time, no location, earliest spawn first'
     assert.deepEqual([admin.title, admin.body], ['⚡ กำลังจะเกิด Valefar', '21:30']);
     assert.equal(push.buildAdminMessage(boss({ next_spawn: null }), 'th').body, 'เตรียมตัวได้เลย');
 });
+
+test('Android status-bar badge is a white stencil on a transparent background', () => {
+    const sw = fs.readFileSync(path.join(__dirname, '../public/sw.js'), 'utf8');
+    assert.ok(sw.includes("badge: '/badge.png'"));
+    assert.ok(sw.includes("icon: '/favicon.png'"));
+    const png = fs.readFileSync(path.join(__dirname, '../public/badge.png'));
+    assert.equal(png.toString('ascii', 12, 16), 'IHDR');
+    assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20), png[24], png[25]], [96, 96, 8, 6], '96x96 RGBA');
+});
