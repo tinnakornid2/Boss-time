@@ -64,6 +64,28 @@
         return values.includes(`${kind}_${id}`) || values.includes(String(id));
     }
 
+    // Same choices and defaults as the dashboard's Audio settings panel, so
+    // every screen plays exactly what that panel shows.
+    const ALERT_BEFORE_SOUNDS = ['alert', 'bell', 'flute', 'guitar', 'warHorn', 'levelUp', 'ratedRSuperstar',
+        'jokowi', 'virus', 'walls', 'shaq', 'hey', 'kaget', 'kontlo', 'kukuku', 'lawan', 'ultraman', 'kuntilanak'];
+
+    function preSpawnSoundKey() {
+        const raw = localStorage.getItem('dashboard.preSpawnSound');
+        if (raw === 'off' || raw === 'pop2' || raw === 'ultraman') return raw;
+        return raw === 'false' ? 'off' : 'ultraman';
+    }
+
+    function justSpawnedSoundKey() {
+        const raw = localStorage.getItem('dashboard.justSpawnedSound');
+        if (raw === 'off' || raw === 'default' || raw === 'ultraman') return raw;
+        return raw === 'true' ? 'default' : 'off';
+    }
+
+    function alertBeforeSoundKey() {
+        const raw = localStorage.getItem('dashboard.alertSound');
+        return ALERT_BEFORE_SOUNDS.includes(raw) ? raw : 'alert';
+    }
+
     function soundPath(key, fallback) {
         if (!key || key === 'off') return null;
         return SOUND_FILES[key] || (String(key).startsWith('/') ? key : fallback);
@@ -1518,9 +1540,13 @@ function ensureDownloadAppButton() {
                 return; // FORBID alert when invasion visibility is off
             }
             if (!initial && fresh && !isMuted(event.bossId, 'boss')) {
-                if (document.visibilityState !== 'visible' || !document.hasFocus() || window.electronAPI) {
-                    const key = setting('preSpawnSound', 'pop2');
-                    playSound(soundPath(key, '/pop2.mp3'));
+                // Single owner of the double-click sound. The React dashboard's own
+                // pre-spawn sound is disabled (scripts/patch-dashboard-alert-audio.js)
+                // because both used to play on a visible-but-unfocused page and in the
+                // desktop app, and React replayed it whenever a poll briefly dropped
+                // pre_spawned. This path plays once per live event id.
+                if (setting('muted', false) !== true) {
+                    playSound(soundPath(preSpawnSoundKey(), '/ultraman.mp3'));
                 }
                 const boss = state.bosses.get(Number(event.bossId));
                 const alertInfo = getItemAlertDisplay(boss || { name: event.bossName, id: event.bossId }, 'boss');
@@ -2817,13 +2843,12 @@ function ensureDownloadAppButton() {
                 continue;
             }
 
-            const isCoveredOrBlurred = !document.hasFocus() || document.visibilityState !== 'visible' || Boolean(window.electronAPI);
-            const handledByDashboard = kind === 'boss' && !isCoveredOrBlurred && document.visibilityState === 'visible';
+            // This bridge is the only player of boss/event alert sounds on every
+            // page state (focused, unfocused, hidden, desktop app). The React
+            // dashboard's copies are disabled by scripts/patch-dashboard-alert-audio.js.
             if (diff > 0 && diff <= threshold && !state.alerted.has(preKey)) {
                 state.alerted.add(preKey);
-                if (!handledByDashboard) {
-                    playSound(soundPath(setting('alertSound', 'alert'), '/alert.mp3'));
-                }
+                playSound(soundPath(alertBeforeSoundKey(), '/alert.mp3'));
                 const minLeft = Math.max(1, Math.ceil(diff / 60000));
                 const alertInfo = getItemAlertDisplay(item, kind);
                 showNotice(
@@ -2844,10 +2869,9 @@ function ensureDownloadAppButton() {
             }
             if (diff <= 0 && diff > -90000 && !state.alerted.has(spawnKey)) {
                 state.alerted.add(spawnKey);
-                if (!handledByDashboard) {
-                    const selected = setting('justSpawnedSound', 'default');
-                    const path = selected === 'default' ? '/just-spawned.mp3' : soundPath(selected, '/just-spawned.mp3');
-                    playSound(path);
+                const selected = justSpawnedSoundKey();
+                if (selected !== 'off') {
+                    playSound(selected === 'default' ? '/just-spawned.mp3' : soundPath(selected, '/just-spawned.mp3'));
                 }
                 const alertInfo = getItemAlertDisplay(item, kind);
                 showNotice(

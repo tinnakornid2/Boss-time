@@ -87,11 +87,16 @@ test('blocked and intentionally suppressed playback never stalls later alerts', 
     following.end();
 });
 
-test('the visible React dashboard owns boss audio and the bridge keeps hidden-page audio', () => {
+test('the realtime bridge is the single owner of boss alert audio on every page state', () => {
     const alerts = fs.readFileSync(path.join(__dirname, '../public/js/realtime-alerts.js'), 'utf8');
     const server = fs.readFileSync(path.join(__dirname, '../server/server.js'), 'utf8');
     assert.match(server, /alert-audio-queue\.js[\s\S]*realtime-alerts\.js/);
     assert.match(alerts, /BossTrackerAudioQueue\?\.installAlertAudioQueue\(/);
-    assert.match(alerts, /const handledByDashboard = kind === 'boss' && !isCoveredOrBlurred && document\.visibilityState === 'visible'/);
-    assert.match(alerts, /if \(document\.visibilityState !== 'visible' \|\| !document\.hasFocus\(\) \|\| window\.electronAPI\) \{/);
+    // The React hooks are silenced by scripts/patch-dashboard-alert-audio.js, so the
+    // bridge must not step aside for a focused or visible page any more.
+    assert.doesNotMatch(alerts, /handledByDashboard|isCoveredOrBlurred/);
+    assert.doesNotMatch(alerts, /if \(document\.visibilityState !== 'visible' \|\| !document\.hasFocus\(\) \|\| window\.electronAPI\) \{/);
+    assert.match(alerts, /playSound\(soundPath\(preSpawnSoundKey\(\), '\/ultraman\.mp3'\)\)/);
+    assert.match(alerts, /playSound\(soundPath\(alertBeforeSoundKey\(\), '\/alert\.mp3'\)\)/);
+    assert.match(alerts, /const selected = justSpawnedSoundKey\(\);/);
 });

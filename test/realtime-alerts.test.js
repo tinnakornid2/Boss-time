@@ -170,7 +170,7 @@ test('checkScheduledAlerts triggers showNotice for both bosses and events regard
 
     assert.match(alertsSource, /left:12px;bottom:12px;right:auto;top:auto/);
     assert.match(alertsSource, /Notification\.permission === 'granted'/);
-    assert.match(alertsSource, /if \(!handledByDashboard\) \{\s*playSound/);
+    assert.match(alertsSource, /playSound\(soundPath\(alertBeforeSoundKey\(\), '\/alert\.mp3'\)\)/);
 });
 test('Realtime alerts stack multiple toasts vertically with earlier boss floating upward', () => {
     const alertsSource = fs.readFileSync(
@@ -514,4 +514,68 @@ test('Mini HUD Overlay: authentication-gated display (hidden until login at main
     assert.match(overlayJs, /state\.bosses\s*=\s*\[\];/);
     assert.match(overlayJs, /state\.events\s*=\s*\[\];/);
     assert.match(overlayJs, /dom\.bossListContainer\.innerHTML\s*=\s*''/);
+});
+test('double-click pre-spawn sound has exactly one owner and plays once per live event', () => {
+    const alerts = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'), 'utf8');
+    const bundle = fs.readFileSync(path.join(__dirname, '..', 'public', 'build', 'assets', 'dashboard-B9CVP--8.js'), 'utf8');
+
+    // React's own pre-spawn hook must stay silent; it used to play alongside
+    // realtime-alerts.js and replayed when a poll briefly dropped pre_spawned.
+    assert.ok(!bundle.includes('if(document.visibilityState==="hidden"||i==="off"||e)return;const f=i==="ultraman"?"/ultraman.mp3":"/pop2.mp3";'));
+    assert.ok(bundle.includes('return;const f=i==="ultraman"?"/ultraman.mp3":"/pop2.mp3";'));
+
+    const block = alerts.slice(alerts.indexOf("event.type === 'boss_pre_spawn_started'"), alerts.indexOf("event.type === 'boss_pre_spawn_cleared'"));
+    assert.match(block, /playSound\(soundPath\(preSpawnSoundKey\(\)/);
+    assert.doesNotMatch(block, /hasFocus|visibilityState|electronAPI/);
+    assert.match(block, /setting\('muted', false\) !== true/);
+    // Dedup by event id happens before any sound.
+    assert.ok(alerts.indexOf('if (state.seenEventIds.has(event.id)) return;') < alerts.indexOf("event.type === 'boss_pre_spawn_started'"));
+
+    const fnSource = alerts.match(/function preSpawnSoundKey\(\) \{[\s\S]*?\n    \}/)[0];
+    const store = new Map();
+    const ctx = { localStorage: { getItem: key => (store.has(key) ? store.get(key) : null) } };
+    vm.runInNewContext(`${fnSource}; this.preSpawnSoundKey = preSpawnSoundKey;`, ctx);
+    assert.equal(ctx.preSpawnSoundKey(), 'ultraman');
+    store.set('dashboard.preSpawnSound', 'pop2');
+    assert.equal(ctx.preSpawnSoundKey(), 'pop2');
+    store.set('dashboard.preSpawnSound', 'false');
+    assert.equal(ctx.preSpawnSoundKey(), 'off');
+});
+
+test('spawn and alert-before sounds have one owner and follow the Audio settings panel', () => {
+    const alerts = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'realtime-alerts.js'), 'utf8');
+    const bundle = fs.readFileSync(path.join(__dirname, '..', 'public', 'build', 'assets', 'dashboard-B9CVP--8.js'), 'utf8');
+
+    // React's spawned and alert-before hooks stay silent (they replayed sounds
+    // when the tab became visible again and doubled the bridge when unfocused).
+    assert.ok(!bundle.includes('(d=()=>{if(document.visibilityState==="hidden"||i==="off"||e)return;const f=i==="ultraman"?"/ultraman.mp3":"/just-spawned.mp3";'));
+    assert.ok(bundle.includes('(d=()=>{return;const f=i==="ultraman"?"/ultraman.mp3":"/just-spawned.mp3";'));
+    assert.ok(!bundle.includes('!e&&m-hd>=W1)){hd=m;'));
+    assert.ok(bundle.includes('!1&&m-hd>=W1)){hd=m;'));
+
+    const scan = alerts.slice(alerts.indexOf('function checkScheduledAlerts()'));
+    // Deduplicated per boss id + next_spawn, and stale alerts are skipped on load.
+    assert.match(scan, /const preKey = `pre:\$\{kind\}:\$\{item\.id\}:\$\{item\.next_spawn\}`/);
+    assert.match(scan, /const spawnKey = `spawn:\$\{kind\}:\$\{item\.id\}:\$\{item\.next_spawn\}`/);
+    assert.match(scan, /if \(isFirstScan\) \{/);
+
+    const fn = (name) => alerts.match(new RegExp(`function ${name}\\(\\) \\{[\\s\\S]*?\\n    \\}`))[0];
+    const list = alerts.match(/const ALERT_BEFORE_SOUNDS = \[[\s\S]*?\];/)[0];
+    const store = new Map();
+    const ctx = { localStorage: { getItem: key => (store.has(key) ? store.get(key) : null) } };
+    vm.runInNewContext(`${list}${fn('justSpawnedSoundKey')}${fn('alertBeforeSoundKey')}
+        this.justSpawnedSoundKey = justSpawnedSoundKey; this.alertBeforeSoundKey = alertBeforeSoundKey;`, ctx);
+
+    // Unset matches the panel's default (Off), legacy 'true' means the default clip.
+    assert.equal(ctx.justSpawnedSoundKey(), 'off');
+    store.set('dashboard.justSpawnedSound', 'true');
+    assert.equal(ctx.justSpawnedSoundKey(), 'default');
+    store.set('dashboard.justSpawnedSound', 'ultraman');
+    assert.equal(ctx.justSpawnedSoundKey(), 'ultraman');
+
+    assert.equal(ctx.alertBeforeSoundKey(), 'alert');
+    store.set('dashboard.alertSound', 'warHorn');
+    assert.equal(ctx.alertBeforeSoundKey(), 'warHorn');
+    store.set('dashboard.alertSound', 'notification');
+    assert.equal(ctx.alertBeforeSoundKey(), 'alert');
 });
