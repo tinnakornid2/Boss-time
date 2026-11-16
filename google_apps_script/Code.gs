@@ -61,6 +61,10 @@ function doGet(e) {
       return jsonResponse(readFullStore(ss));
     }
 
+    if (action === 'get_log') {
+      return jsonResponse(readInvasionLog(ss));
+    }
+
     return jsonResponse({ success: false, message: 'Unknown action: ' + action }, 400);
 
   } catch (err) {
@@ -91,6 +95,13 @@ function doPost(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var action = payload.action;
     var result = { success: true, action: action, timestamp: new Date().toISOString() };
+
+    // Admin "Export to Google Sheets": writes only the Boss Report tab and returns its
+    // link. It is not a data mutation, so it leaves Bosses/Events/Settings/Metadata alone.
+    if (action === 'write_report') {
+      result.url = writeBossReport(ss, payload.report);
+      return jsonResponse(result);
+    }
 
     switch (action) {
       case 'ping':
@@ -452,6 +463,133 @@ function readFullStore(ss) {
 }
 
 /**
+ * =========================================================================
+ * Boss time report (Admin "Export to Google Sheets")
+ * =========================================================================
+ * Rewrites the "Boss Report" tab on every export: title band, one coloured table per
+ * boss type (normal = orange, invasion = purple), borders, zebra rows and a coloured
+ * status cell. Times arrive as text ("16/11 · 14:00") and stay text.
+ */
+var SHEET_REPORT = 'Boss Report';
+
+// Soft, low-glare palette: pastel section bands with dark text, light header rows,
+// faint zebra stripes, thin horizontal rules only, and status shown as soft "chips".
+var REPORT_STYLE = {
+  font: 'Roboto',
+  titleBg: '#1e293b', titleFg: '#ffffff', subtitleFg: '#cbd5e1',
+  normal: { band: '#fde7c8', bandFg: '#7c2d12', head: '#fff7ed', headFg: '#9a3412' },
+  invasion: { band: '#e9ddff', bandFg: '#4c1d95', head: '#f7f3ff', headFg: '#5b21b6' },
+  rule: '#e5e7eb', zebra: '#f9fafb', text: '#344054', strong: '#101828', muted: '#667085',
+  status: {
+    now: { bg: '#fee4e2', fg: '#b42318', bold: true },
+    alive: { bg: '#fef0c7', fg: '#93370d', bold: true },
+    upcoming: { bg: '#ecfdf3', fg: '#027a48', bold: false },
+    unset: { bg: null, fg: '#98a2b3', bold: false }
+  }
+};
+
+// Sections sit side by side (normal on the left, invasion on the right) with a narrow
+// gap column between them, so both lists are visible without scrolling down.
+function writeBossReport(ss, report) {
+  if (!report || !report.sections) throw new Error('Empty report');
+  var st = REPORT_STYLE;
+  var cols = Math.max(1, Math.min(10, Number(report.columns) || 5));
+  var sections = report.sections.slice(0, 2);
+  var totalCols = sections.length > 1 ? cols * 2 + 1 : cols;
+  var sheet = getOrCreateSheet(ss, SHEET_REPORT);
+  sheet.clear();
+  sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart();
+  sheet.setHiddenGridlines(true);
+  sheet.setFrozenRows(0);
+
+  function band(row, col, width, text, bg, fg, size, bold) {
+    sheet.getRange(row, col, 1, width).merge()
+      .setValue(String(text || ''))
+      .setBackground(bg).setFontColor(fg).setFontSize(size)
+      .setFontWeight(bold ? 'bold' : 'normal')
+      .setHorizontalAlignment('left').setVerticalAlignment('middle');
+  }
+
+  band(1, 1, totalCols, report.title, st.titleBg, st.titleFg, 15, true);
+  sheet.setRowHeight(1, 40);
+  band(2, 1, totalCols, report.subtitle, st.titleBg, st.subtitleFg, 10, false);
+  sheet.setRowHeight(2, 24);
+  sheet.setRowHeight(3, 14); // spacer
+
+  var top = 4;
+  var lastRow = top;
+  for (var s = 0; s < sections.length; s++) {
+    var section = sections[s];
+    var col = 1 + s * (cols + 1);
+    var palette = section.kind === 'invasion' ? st.invasion : st.normal;
+    var row = top;
+    band(row++, col, cols, section.title, palette.band, palette.bandFg, 12, true);
+
+    var rows = section.rows || [];
+    if (!rows.length) {
+      band(row++, col, cols, section.note || '-', '#ffffff', st.muted, 10, false);
+    } else {
+      sheet.getRange(row, col, 1, cols).setValues([pad(section.headers, cols)])
+        .setBackground(palette.head).setFontColor(palette.headFg).setFontWeight('bold')
+        .setFontSize(10).setHorizontalAlignment('center').setVerticalAlignment('middle');
+      sheet.getRange(row, col + 1).setHorizontalAlignment('left');
+      row++;
+
+      var body = sheet.getRange(row, col, rows.length, cols);
+      body.setNumberFormat('@').setValues(rows.map(function (r) { return pad(r.values, cols); }))
+        .setFontSize(11).setFontColor(st.text).setHorizontalAlignment('center').setVerticalAlignment('middle');
+      sheet.getRange(row, col, rows.length, 1).setFontColor(st.muted).setFontSize(10);
+      sheet.getRange(row, col + 1, rows.length, 1).setFontWeight('bold').setFontColor(st.strong).setHorizontalAlignment('left');
+      sheet.getRange(row, col + cols - 2, rows.length, 1).setFontWeight('bold').setFontColor(st.strong);
+
+      var backgrounds = [];
+      var fontColors = [];
+      var weights = [];
+      for (var i = 0; i < rows.length; i++) {
+        var zebra = i % 2 === 1 ? st.zebra : '#ffffff';
+        var chip = st.status[rows[i].status] || st.status.upcoming;
+        var bgRow = [];
+        for (var c = 0; c < cols; c++) bgRow.push(c === cols - 1 && chip.bg ? chip.bg : zebra);
+        backgrounds.push(bgRow);
+        fontColors.push([chip.fg]);
+        weights.push([chip.bold ? 'bold' : 'normal']);
+      }
+      body.setBackgrounds(backgrounds);
+      sheet.getRange(row, col + cols - 1, rows.length, 1).setFontColors(fontColors).setFontWeights(weights);
+      row += rows.length;
+    }
+
+    // Thin outer frame and horizontal rules only (no vertical lines) for a calm look.
+    sheet.getRange(top, col, row - top, cols)
+      .setBorder(true, true, true, true, false, true, st.rule, SpreadsheetApp.BorderStyle.SOLID);
+    lastRow = Math.max(lastRow, row);
+  }
+
+  sheet.setRowHeight(top, 32);
+  if (lastRow - top > 1) sheet.setRowHeights(top + 1, lastRow - top - 1, 28);
+  sheet.getRange(1, 1, lastRow, totalCols).setFontFamily(st.font);
+
+  // Column widths per table: # | Boss | (Location) | Died | Spawns | Status
+  for (var t = 0; t < sections.length; t++) {
+    var c0 = 1 + t * (cols + 1);
+    sheet.setColumnWidth(c0, 40);
+    sheet.setColumnWidth(c0 + 1, 190);
+    for (var k = 2; k < cols; k++) sheet.setColumnWidth(c0 + k, k === cols - 1 ? 110 : 125);
+    if (cols >= 6) sheet.setColumnWidth(c0 + 2, 170); // Location column, when shown
+    if (t === 0 && sections.length > 1) sheet.setColumnWidth(c0 + cols, 18); // gap column
+  }
+  sheet.setFrozenRows(2);
+  ss.setActiveSheet(sheet);
+  return ss.getUrl() + '#gid=' + sheet.getSheetId();
+}
+
+function pad(values, cols) {
+  var out = [];
+  for (var i = 0; i < cols; i++) out.push(values && values[i] !== undefined ? String(values[i]) : '');
+  return out;
+}
+
+/**
  * Helper คืนค่าผลลัพธ์เป็น JSON Output
  */
 function jsonResponse(obj, status) {
@@ -487,6 +625,8 @@ function pushTick() {
   // One tick at a time, so two runs never send the same minute twice.
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) return;
+  // Midnight boss log (Mon/Wed/Fri). Runs at most once per night; never stops the tick.
+  try { invasionLogTick(props, url, secret, false); } catch (logErr) { console.warn('invasionLog: ' + logErr); }
   try {
     // PUSH_TICK_SINCE is the end of the last window the server finished. Sending it back
     // makes every window start where the previous one ended, whichever server instance
@@ -514,6 +654,173 @@ function pushTick() {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * =========================================================================
+ * Midnight boss log ("Invasion Log" tab), kept for 30 days
+ * =========================================================================
+ * At midnight Thailand time that ends each Monday, Wednesday and Friday, pushTick (which
+ * already runs every minute) asks the server for a snapshot of every boss's kill and spawn
+ * time, per server (home server and invasion server), and appends it here with the date.
+ * Rows older than 30 days are deleted. Uses the same PUSH_TICK_URL / PUSH_TICK_SECRET
+ * Script Properties as the phone alerts; the server reads its memory, no Firebase traffic.
+ * To write a log right now for testing, run runInvasionLogNow from the editor.
+ */
+var SHEET_INVASION_LOG = 'Invasion Log';
+var LOG_DAYS = [1, 3, 5];          // Monday, Wednesday, Friday (ISO day numbers)
+var LOG_KEEP_DAYS = 30;
+var LOG_TZ = 'Asia/Bangkok';
+// Columns 1-8 are what people read; 9-14 are hidden helpers: ts for the 30-day clean-up,
+// and kind/id/full times/status key so Admin can import an invasion night back.
+var LOG_HEADERS = ['Date', 'Day', 'Logged at', 'Server', 'Boss', 'Died', 'Spawns', 'Status', 'ts', 'kind', 'id', 'killIso', 'spawnIso', 'statusKey'];
+var LOG_VISIBLE = 8;
+var LOG_MAIN_SERVER = 'Main'; // the main server, whatever it is called (server moves change nothing)
+var LOG_DAY_NAMES = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function invasionLogTick(props, tickUrl, secret, force) {
+  var now = new Date();
+  // The run just after midnight logs the day that has just ended.
+  var ended = new Date(now.getTime() - 60 * 60 * 1000);
+  var hour = Number(Utilities.formatDate(now, LOG_TZ, 'H'));
+  var endedDay = Number(Utilities.formatDate(ended, LOG_TZ, 'u'));
+  var dateKey = Utilities.formatDate(force ? now : ended, LOG_TZ, 'yyyy-MM-dd');
+  if (!force) {
+    if (hour !== 0 || LOG_DAYS.indexOf(endedDay) === -1) return;
+    if (props.getProperty('INVASION_LOG_DONE') === dateKey) {
+      // Log already saved tonight: make sure the invasion reset has run too.
+      if (props.getProperty('INVASION_RESET_DONE') !== dateKey) resetInvasionAfterLog(props, tickUrl, secret, dateKey);
+      return;
+    }
+  }
+  var snapshotUrl = String(tickUrl).replace(/\/api\/push\/tick\/?$/, '/api/report/snapshot');
+  var response = UrlFetchApp.fetch(snapshotUrl, {
+    method: 'get',
+    headers: { 'x-push-tick-secret': secret },
+    muteHttpExceptions: true,
+    followRedirects: false
+  });
+  if (response.getResponseCode() !== 200) {
+    console.warn('invasionLog: HTTP ' + response.getResponseCode()); // retried next minute
+    return;
+  }
+  var data = JSON.parse(response.getContentText());
+  var day = force ? now : ended;
+  writeInvasionLog(SpreadsheetApp.getActiveSpreadsheet(), data, day);
+  props.setProperty('INVASION_LOG_DONE', dateKey);
+  // Owner's rule: after the scheduled log is saved, hide invasion bosses and clear their
+  // times until Admin shows them again. Never on the manual test run (runInvasionLogNow).
+  if (!force) resetInvasionAfterLog(props, tickUrl, secret, dateKey);
+}
+
+function resetInvasionAfterLog(props, tickUrl, secret, dateKey) {
+  var resetUrl = String(tickUrl).replace(/\/api\/push\/tick\/?$/, '/api/report/after-log');
+  var response = UrlFetchApp.fetch(resetUrl, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: '{}',
+    headers: { 'x-push-tick-secret': secret },
+    muteHttpExceptions: true,
+    followRedirects: false
+  });
+  if (response.getResponseCode() !== 200) {
+    console.warn('invasionReset: HTTP ' + response.getResponseCode()); // retried next minute
+    return;
+  }
+  props.setProperty('INVASION_RESET_DONE', dateKey);
+}
+
+function runInvasionLogNow() {
+  var props = PropertiesService.getScriptProperties();
+  var url = props.getProperty('PUSH_TICK_URL');
+  var secret = props.getProperty('PUSH_TICK_SECRET');
+  if (!url || !secret) throw new Error('Set PUSH_TICK_URL and PUSH_TICK_SECRET in Script Properties');
+  invasionLogTick(props, url, secret, true);
+}
+
+function writeInvasionLog(ss, data, day) {
+  var st = REPORT_STYLE;
+  var sheet = getOrCreateSheet(ss, SHEET_INVASION_LOG);
+  var isNew = sheet.getLastRow() === 0;
+  if (sheet.getMaxColumns() < LOG_HEADERS.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), LOG_HEADERS.length - sheet.getMaxColumns());
+  sheet.getRange(1, 1, 1, LOG_HEADERS.length).setValues([LOG_HEADERS])
+    .setBackground(st.titleBg).setFontColor(st.titleFg).setFontWeight('bold').setVerticalAlignment('middle');
+  sheet.hideColumns(LOG_VISIBLE + 1, LOG_HEADERS.length - LOG_VISIBLE);
+  if (isNew) {
+    sheet.setFrozenRows(1);
+    sheet.setRowHeight(1, 30);
+    var widths = [100, 60, 130, 90, 190, 125, 125, 100];
+    for (var w = 0; w < widths.length; w++) sheet.setColumnWidth(w + 1, widths[w]);
+    sheet.setHiddenGridlines(true);
+  }
+
+  var takenAt = Number(data.takenAt) || Date.now();
+  var dateText = Utilities.formatDate(day, LOG_TZ, 'dd/MM/yyyy');
+  var dayName = LOG_DAY_NAMES[Number(Utilities.formatDate(day, LOG_TZ, 'u'))];
+  var loggedAt = Utilities.formatDate(new Date(takenAt), LOG_TZ, 'dd/MM HH:mm');
+  var statusText = { now: 'NOW', alive: 'Still alive', upcoming: 'Waiting', unset: 'Unset' };
+  var rows = (data.rows || []).map(function (r) {
+    var server = r.kind === 'normal' ? LOG_MAIN_SERVER : String(r.server || '');
+    return [dateText, dayName, loggedAt, server, String(r.name || ''), String(r.died || '-'), String(r.spawns || '-'), statusText[r.status] || '',
+      String(takenAt), String(r.kind || ''), String(r.id === undefined ? '' : r.id), String(r.killIso || ''), String(r.spawnIso || ''), String(r.status || '')];
+  });
+  if (!rows.length) rows.push([dateText, dayName, loggedAt, '-', '(no boss times)', '-', '-', '', String(takenAt), '', '', '', '', '']);
+
+  var start = sheet.getLastRow() + 1;
+  var range = sheet.getRange(start, 1, rows.length, LOG_HEADERS.length);
+  range.setNumberFormat('@').setValues(rows)
+    .setFontFamily(st.font).setFontSize(10).setFontColor(st.text).setVerticalAlignment('middle');
+  sheet.setRowHeights(start, rows.length, 24);
+  sheet.getRange(start, 5, rows.length, 1).setFontWeight('bold').setFontColor(st.strong);
+  sheet.getRange(start, 7, rows.length, 1).setFontWeight('bold').setFontColor(st.strong);
+  var backgrounds = (data.rows || []).map(function (r) {
+    var palette = r.kind === 'invasion' ? st.invasion : st.normal;
+    return [palette.head, palette.head, palette.head, palette.band, '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff'];
+  });
+  if (backgrounds.length === rows.length) range.setBackgrounds(backgrounds);
+  // A clear line above each night's block.
+  sheet.getRange(start, 1, 1, LOG_HEADERS.length)
+    .setBorder(true, null, null, null, null, null, '#94a3b8', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+
+  pruneInvasionLog(sheet);
+}
+
+function pruneInvasionLog(sheet) {
+  var last = sheet.getLastRow();
+  if (last < 2) return;
+  var cutoff = Date.now() - LOG_KEEP_DAYS * 24 * 60 * 60 * 1000;
+  var ts = sheet.getRange(2, 9, last - 1, 1).getValues(); // ts column
+  var old = 0;
+  while (old < ts.length && Number(ts[old][0]) > 0 && Number(ts[old][0]) < cutoff) old++;
+  if (old > 0) sheet.deleteRows(2, old); // rows are appended in time order
+}
+
+function readInvasionLog(ss) {
+  var sheet = ss.getSheetByName(SHEET_INVASION_LOG);
+  var url = ss.getUrl() + (sheet ? '#gid=' + sheet.getSheetId() : '');
+  if (!sheet || sheet.getLastRow() < 2) return { success: true, url: url, days: [] };
+  var cutoff = Date.now() - LOG_KEEP_DAYS * 24 * 60 * 60 * 1000;
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, LOG_HEADERS.length).getDisplayValues();
+  var byKey = {};
+  var order = [];
+  for (var i = 0; i < values.length; i++) {
+    var v = values[i];
+    if (Number(v[8]) && Number(v[8]) < cutoff) continue; // ts
+    var key = v[0] + '|' + v[2];
+    if (!byKey[key]) {
+      byKey[key] = { date: v[0], day: v[1], loggedAt: v[2], rows: [] };
+      order.push(key);
+    }
+    if (v[4] !== '(no boss times)') {
+      byKey[key].rows.push({
+        server: v[3], name: v[4], died: v[5], spawns: v[6], statusText: v[7],
+        kind: v[9] || (v[3] === LOG_MAIN_SERVER ? 'normal' : 'invasion'),
+        id: v[10], killIso: v[11], spawnIso: v[12], status: v[13]
+      });
+    }
+  }
+  var days = order.reverse().map(function (k) { return byKey[k]; }); // newest first
+  return { success: true, url: url, days: days };
 }
 
 function installPushTickTrigger() {

@@ -134,7 +134,7 @@ test('Dual-language EN/TH support: English default, top bar switcher, and boss n
     assert.ok(alertsSrc.includes('function translateSystemText()'));
     assert.ok(alertsSrc.includes("['Reset Boss Time', 'รีเซ็ตเวลาบอส']"));
     assert.ok(alertsSrc.includes("['Settings', 'ตั้งค่า']"));
-    assert.ok(alertsSrc.includes("parent.closest('script, style, textarea, tbody')"));
+    assert.ok(alertsSrc.includes("parent.closest('script, style, textarea, tbody"), 'boss names in table bodies are never translated');
     const bossList = ['Antharas', 'Core', 'Baium', 'Zaken', 'Queen Ant', 'Orfen'];
     for (const boss of bossList) {
         // Boss names must not appear as translated dictionary keys

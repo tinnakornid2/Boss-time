@@ -229,6 +229,44 @@ async function fetchStore(settings = {}) {
     }
 }
 
+// Admin "Export to Google Sheets": Apps Script writes the formatted "Boss Report" tab
+// and returns its link. One request per click; never on a timer.
+async function writeReport(report, settings = {}) {
+    const cfg = getConfig(settings);
+    if (!cfg.enabled || !cfg.webAppUrl) return { success: false, reason: 'not_configured' };
+    try {
+        const res = await requestGas(cfg.webAppUrl, 'POST', { action: 'write_report', token: cfg.secretToken, report }, 30000);
+        if (res && res.success && /^https:\/\/docs\.google\.com\//.test(String(res.url || ''))) {
+            return { success: true, url: res.url };
+        }
+        // An Apps Script deployment older than write_report answers "Unknown action".
+        if (res && /unknown action/i.test(String(res.message || ''))) return { success: false, reason: 'script_outdated' };
+        return { success: false, reason: 'failed' };
+    } catch (err) {
+        console.error('[Google Apps Script Report Error]:', err.message);
+        return { success: false, reason: 'failed' };
+    }
+}
+
+// Admin log view: the midnight snapshots kept in the "Invasion Log" tab (last 30 days).
+async function readLog(settings = {}) {
+    const cfg = getConfig(settings);
+    if (!cfg.enabled || !cfg.webAppUrl) return { success: false, reason: 'not_configured' };
+    try {
+        const url = `${cfg.webAppUrl}${cfg.webAppUrl.includes('?') ? '&' : '?'}action=get_log&token=${encodeURIComponent(cfg.secretToken)}`;
+        const res = await requestGas(url, 'GET', null, 25000);
+        if (res && res.success && Array.isArray(res.days)) {
+            const sheetUrl = /^https:\/\/docs\.google\.com\//.test(String(res.url || '')) ? res.url : null;
+            return { success: true, url: sheetUrl, days: res.days };
+        }
+        if (res && /unknown action/i.test(String(res.message || ''))) return { success: false, reason: 'script_outdated' };
+        return { success: false, reason: 'failed' };
+    } catch (err) {
+        console.error('[Google Apps Script Log Error]:', err.message);
+        return { success: false, reason: 'failed' };
+    }
+}
+
 function getStatus(settings = {}) {
     const cfg = getConfig(settings);
     return {
@@ -253,5 +291,7 @@ module.exports = {
     mirrorMutation,
     syncFullStore,
     fetchStore,
+    writeReport,
+    readLog,
     getStatus
 };

@@ -141,6 +141,16 @@ Before production deployment:
 - Authentication-Gated HUD: Mini HUD (`hudWindow`) remains completely hidden and displays nothing until the user logs in at `mainWindow`. On logout or unauthenticated session, HUD closes immediately.
 - Comprehensive Guide: See `docs/DESKTOP_APP_DEVELOPER_GUIDE.md` for full developer onboarding.
 
+## Boss Report & Midnight Log (Admin only)
+
+- `public/js/boss-report.js` holds the report logic for both the browser panel and the server (`require`d by `server/server.js`). The 📋 Report button is shown to Admin only; Member/Guest never get it.
+- Report and log are read-only for tracker data: they read the in-memory cache and never write Firebase. Location is hidden by default; boss names are never translated; English is the default panel language.
+- `POST /api/report/sheets` (requireAdmin) builds the report on the server and has Apps Script (`write_report`) rewrite only the **Boss Report** tab (normal and invasion tables side by side). If Sheets is not connected or the script is outdated, the panel falls back to copy + Ctrl+V.
+- Midnight log: `pushTick` in `google_apps_script/Code.gs` calls `invasionLogTick`, which at 00:00–00:59 Thai time after Mon/Wed/Fri fetches `GET /api/report/snapshot` (same `x-push-tick-secret` as the push tick) and appends every boss's kill/spawn time per server with the date to the **Invasion Log** tab, once per night, deleting rows older than 30 days. The main server is saved as `Main` (never its name, so a server move changes nothing); invasion bosses are saved under the badge label (`invasionLabel`) active that night, even while hidden on the dashboard. Hidden columns keep kind, boss ID and full ISO times.
+- Admin reads the log through `GET /api/report/log` (requireAdmin) → Apps Script `get_log`, and picks a night from a calendar per server. No timer in the browser.
+- After-log reset (owner's rule): only after the scheduled midnight log is saved (never on `runInvasionLogNow`), Apps Script calls `POST /api/report/after-log` (same trigger secret, accepted only Tue/Thu/Sat 00:00–01:59 Thailand time, once per night via `INVASION_RESET_DONE`). It sets `hideInvasionBosses: true` (per-key settings write) and clears invasion bosses' times with the same fields as `/bosses/reset-invasion-kill-times`, through `db.batchUpdateBosses`. Normal bosses are never touched. They stay hidden until Admin shows invasion again. This is the only scheduled Firebase write in the project: at most three nights a week.
+- Import: `POST /api/report/log/import` (requireAdmin, confirmed in the browser) puts one night's **invasion-server** times back on the invasion bosses. The server re-reads that night from the log (the browser only names date/loggedAt/server), matches by boss ID (unique name as fallback), never touches main-server bosses, catches passed spawns up with `calculateBossAutoAdvance`, clears `pre_spawned`/`pre_spawn_expires_at`/`alerted_by`, and writes once through `db.batchUpdateBosses`.
+
 ## Files that define the system
 
 - `server/server.js`: authentication, roles, routes, dashboard data, cold-start handling.

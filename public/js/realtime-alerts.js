@@ -1,6 +1,39 @@
 (function () {
     'use strict';
 
+    // Owner's choice: boss location is hidden by default in the main table (website and
+    // desktop app, which loads this same page). The dashboard writes its Display setting
+    // back on every load, so every existing device already holds "true"; switch it off
+    // once per device before React reads it. After that the Display toggle is honoured.
+    // This is a local per-device preference and is never synced to shared settings.
+    try {
+        if (localStorage.getItem('dashboard.locationHiddenDefault') !== '1') {
+            localStorage.setItem('dashboard.showLocation', 'false');
+            localStorage.setItem('dashboard.locationHiddenDefault', '1');
+        }
+    } catch (_) {}
+
+    // Owner's choice: the panel starts at the narrowest width that still shows every
+    // top-bar button (measured: Admin and Guest 41rem, Member 37rem; the old 36rem default
+    // cut off Settings/Pin/Close). Applied once per device, and only when the width is
+    // still unset or the old default, so a width someone picked in Display is kept.
+    // The desktop app resizes its window to match through the existing panel-width bridge.
+    try {
+        const role = document.currentScript?.dataset.role;
+        const defaultRem = role === 'member' ? 37 : 41;
+        if (role && localStorage.getItem('dashboard.panelWidthDefault') !== '1') {
+            const current = localStorage.getItem('dashboard.webMaxWidthRem');
+            if (current === null || current === '36') {
+                localStorage.setItem('dashboard.webMaxWidthRem', String(defaultRem));
+                const needPx = defaultRem * 16 + 16;
+                if (window.electronAPI?.setPanelWidth && window.innerWidth < needPx) {
+                    window.electronAPI.setPanelWidth(defaultRem).catch?.(() => {});
+                }
+            }
+            localStorage.setItem('dashboard.panelWidthDefault', '1');
+        }
+    } catch (_) {}
+
     const DB_URL = 'https://boss-timel2m-default-rtdb.asia-southeast1.firebasedatabase.app';
     const LIVE_URL = `${DB_URL}/tracker/liveEvent.json`;
     const suppressInitialPreSpawnAudio = performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload';
@@ -505,7 +538,8 @@
             let node;
             while ((node = walker.nextNode())) {
                 const parent = node.parentElement;
-                if (!parent || parent.closest('script, style, textarea, tbody')) continue;
+                // The boss report has its own EN/TH switch, so leave its text alone.
+                if (!parent || parent.closest('script, style, textarea, tbody, #boss-report-overlay')) continue;
                 if (parent.classList.contains('truncate') && parent.classList.contains('text-[11px]') && node === parent.firstChild) continue;
                 const raw = node.nodeValue || '';
                 const text = raw.trim();
@@ -519,7 +553,7 @@
             if (translated) element.placeholder = translated;
         }
         for (const element of document.querySelectorAll('[aria-label], [data-unified-tooltip], [title]')) {
-            if (element.closest('tbody')) continue;
+            if (element.closest('tbody, #boss-report-overlay')) continue;
             for (const attribute of ['aria-label', 'data-unified-tooltip', 'title']) {
                 const value = element.getAttribute(attribute);
                 if (!value) continue;
@@ -921,7 +955,8 @@ function ensureDownloadAppButton() {
         const browserOffset = -new Date().getTimezoneOffset() / 60;
         const deltaMinutes = Math.round((selectedTimezoneOffset() - browserOffset) * 60);
         for (const element of document.querySelectorAll('span, time, td, p, div')) {
-            if (element.childElementCount || element.closest('#compact-system-controls, [role="tooltip"]')) continue;
+            // The boss report renders its times in the selected timezone already.
+            if (element.childElementCount || element.closest('#compact-system-controls, [role="tooltip"], #boss-report-overlay')) continue;
             const current = element.textContent || '';
             if (!/\b(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?\b/.test(current)) continue;
             const previousRendered = element.dataset.timezoneRenderedText;
@@ -988,7 +1023,8 @@ function ensureDownloadAppButton() {
         const audio = document.getElementById('realtime-audio-status');
         const downloadBtn = document.getElementById('header-download-app-control');
         const pushBtn = document.getElementById('header-push-control');
-        for (const element of [firebase, version, timezone, langBtn, pushBtn, downloadBtn, audio]) {
+        const reportBtn = document.getElementById('header-report-control');
+        for (const element of [firebase, version, timezone, langBtn, reportBtn, pushBtn, downloadBtn, audio]) {
             if (!element) continue;
             element.classList.add('compact-system-control', 'no-drag');
             if (element.parentElement !== controls) controls.appendChild(element);

@@ -9,6 +9,7 @@ try {
 } catch (_) {}
 const db = require('./db');
 const push = require('./push');
+const bossReport = require('../public/js/boss-report.js'); // same report logic as the browser panel
 
 const app = express();
 const pkg = require('../package.json');
@@ -1667,8 +1668,9 @@ function renderHtml(pageData, title = '#Kain7') {
         <link rel="modulepreload" as="script" href="/build/assets/app-CTdHufbH.js" />
         <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
         <script src="/js/alert-audio-queue.js?v=${APP_VERSION}"></script>
-        <script src="/js/realtime-alerts.js?v=${APP_VERSION}"></script>
+        <script src="/js/realtime-alerts.js?v=${APP_VERSION}" data-role="${userRole === 'admin' ? 'admin' : userRole === 'member' ? 'member' : 'guest'}"></script>
         <script src="/js/push-notifications.js?v=${APP_VERSION}" defer></script>
+        <script src="/js/boss-report.js?v=${APP_VERSION}" defer></script>
         <script type="module" src="/build/assets/app-CTdHufbH.js"></script>
     </head>
     <body class="font-sans antialiased">
@@ -2237,10 +2239,150 @@ app.post('/api/push/tick', async (req, res) => {
     }
 });
 
+// GET /api/report/snapshot -> midnight log snapshot for the Apps Script trigger
+// (invasionLogTick, Mon/Wed/Fri). Same secret as the push tick. Built from the in-memory
+// cache: no Firebase read on a warm instance and no write at all.
+app.get('/api/report/snapshot', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (!process.env.PUSH_TICK_SECRET) return res.status(503).json({ success: false, message: 'Trigger is not configured' });
+    if (!hasValidPushTickSecret(req)) return res.status(401).json({ success: false, message: 'Invalid trigger secret' });
+    if (process.env.VERCEL && !db.isCloudDataReady()) return res.status(503).json({ success: false, message: 'Data not ready' });
+    const settings = db.getSettings();
+    const now = Date.now();
+    res.json({
+        success: true,
+        takenAt: now,
+        rows: bossReport.snapshotRows({
+            bosses: db.getBosses(),
+            invasionLabel: settings.invasionLabel || 'L3'
+        }, now, 7)
+    });
+});
+
+// POST /api/report/after-log -> owner's rule: once the midnight log is saved (Apps Script
+// calls this only after writing it), hide invasion bosses on the dashboard and clear their
+// times until Admin shows them again. Normal bosses are never touched. Same trigger secret
+// as the push tick, and accepted only in the first two hours after the midnight that ends a
+// Monday, Wednesday or Friday (Thailand time), so a stray call cannot wipe times by day.
+const INVASION_RESET_FIELDS = {
+    last_kill_time: null,
+    next_spawn: null,
+    pinned_alive: false,
+    auto_advanced: false,
+    post_maintenance: false,
+    pre_spawned: false,
+    pre_spawn_expires_at: null,
+    alerted_by: null
+};
+
+function isAfterLogWindow(nowMs = Date.now()) {
+    const thai = new Date(nowMs + 7 * 60 * 60 * 1000);
+    return [2, 4, 6].includes(thai.getUTCDay()) && thai.getUTCHours() < 2; // Tue/Thu/Sat 00:00–01:59
+}
+
+app.post('/api/report/after-log', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (!process.env.PUSH_TICK_SECRET) return res.status(503).json({ success: false, message: 'Trigger is not configured' });
+    if (!hasValidPushTickSecret(req)) return res.status(401).json({ success: false, message: 'Invalid trigger secret' });
+    if (process.env.VERCEL && !db.isCloudDataReady()) return res.status(503).json({ success: false, message: 'Data not ready' });
+    if (!isAfterLogWindow()) return res.status(409).json({ success: false, message: 'Outside the after-log window' });
+    try {
+        await db.updateSettings({ hideInvasionBosses: true });
+        let cleared = 0;
+        await db.batchUpdateBosses(boss => {
+            if (!boss.is_invasion) return null; // never touch normal bosses
+            cleared++;
+            return { ...INVASION_RESET_FIELDS };
+        });
+        return res.json({ success: true, hidden: true, cleared });
+    } catch (e) {
+        console.error('[Report] after-log reset failed:', e?.message || e);
+        return res.status(500).json({ success: false, message: 'Reset failed' });
+    }
+});
+
 app.use(requireSession);
 app.use(requireSameOrigin);
 
+// GET /api/report/log (Admin only) -> the last 30 days of midnight snapshots, read from
+// the "Invasion Log" tab through Apps Script. One request per click.
+app.get('/api/report/log', requireAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const result = await require('./google-sheets').readLog(db.getSettings());
+    res.status(result.success ? 200 : 502).json(result);
+});
+
+// POST /api/report/log/import (Admin only) -> put one logged night's invasion-server times
+// back on the invasion bosses. The server re-reads that night from the log (the browser
+// only names it), matches bosses by ID, and writes once through batchUpdateBosses (atomic,
+// revision bump, Sheets mirror). Bosses whose spawn has passed are caught up to their next
+// cycle in the same write, and the pre-spawn alert fields are cleared.
+app.post('/api/report/log/import', requireAdmin, async (req, res) => {
+    if (process.env.VERCEL && !db.isCloudDataReady()) return res.status(503).json({ success: false, reason: 'not_ready' });
+    const { date, loggedAt, server } = req.body || {};
+    if (!date || !loggedAt || !server || server === bossReport.MAIN_SERVER) {
+        return res.status(400).json({ success: false, reason: 'bad_request' });
+    }
+    const log = await require('./google-sheets').readLog(db.getSettings());
+    if (!log.success) return res.status(502).json(log);
+    const night = (log.days || []).find(day => day.date === date && day.loggedAt === loggedAt);
+    const rows = night ? (night.rows || []).filter(row => row.server === server && row.kind === 'invasion') : [];
+    if (!rows.length) return res.status(404).json({ success: false, reason: 'not_found' });
+
+    const invasionBosses = db.getBosses().filter(boss => boss.is_invasion);
+    const plan = new Map();
+    const skipped = [];
+    for (const row of rows) {
+        const byId = invasionBosses.find(boss => String(boss.id) === String(row.id));
+        const byName = invasionBosses.filter(boss => boss.name === row.name);
+        const boss = byId || (byName.length === 1 ? byName[0] : null);
+        const kill = Date.parse(row.killIso);
+        const spawn = Date.parse(row.spawnIso);
+        if (!boss || !Number.isFinite(spawn)) { skipped.push(row.name); continue; }
+        plan.set(boss.id, {
+            last_kill_time: Number.isFinite(kill) ? new Date(kill).toISOString() : null,
+            next_spawn: new Date(spawn).toISOString(),
+            pinned_alive: row.status === 'alive',
+            auto_advanced: false,
+            post_maintenance: false,
+            pre_spawned: false,
+            pre_spawn_expires_at: null,
+            alerted_by: null
+        });
+    }
+    if (!plan.size) return res.status(404).json({ success: false, reason: 'no_match', skipped });
+    const now = Date.now();
+    await db.batchUpdateBosses(boss => {
+        const updates = plan.get(boss.id);
+        if (!updates) return null;
+        const caughtUp = db.calculateBossAutoAdvance({ ...boss, ...updates }, now);
+        return caughtUp ? { ...updates, ...caughtUp, auto_advanced: true } : updates;
+    });
+    res.json({ success: true, imported: plan.size, skipped });
+});
+
 app.use('/api/v1/push', require('./routes/push')(getSessionData));
+
+// POST /api/report/sheets (Admin only) -> Apps Script writes the formatted "Boss Report"
+// tab and returns its link. The report is built here from the server's own boss data;
+// the browser only picks view, language, timezone and the two show switches. It reads
+// the in-memory cache (no Firebase access) and writes nothing to the tracker data.
+app.post('/api/report/sheets', requireAdmin, async (req, res) => {
+    if (process.env.VERCEL && !db.isCloudDataReady()) return res.status(503).json({ success: false, reason: 'not_ready' });
+    const body = req.body || {};
+    const view = ['normal', 'invasion', 'all'].includes(body.view) ? body.view : 'all';
+    const lang = body.lang === 'th' ? 'th' : 'en';
+    const tz = Number(body.tz) === 8 ? 8 : 7;
+    const settings = db.getSettings();
+    const now = Date.now();
+    const report = bossReport.buildReport({
+        bosses: db.getBosses(),
+        hideInvasionBosses: Boolean(settings.hideInvasionBosses),
+        invasionLabel: settings.invasionLabel || 'L3'
+    }, now, { showUnset: body.showUnset === true, showLocation: body.showLocation === true });
+    const result = await require('./google-sheets').writeReport(bossReport.reportSheetData(report, view, now, tz, lang), settings);
+    res.status(result.success ? 200 : 502).json(result);
+});
 
 let forceReloadAt = null;
 
