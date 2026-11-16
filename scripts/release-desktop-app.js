@@ -26,6 +26,14 @@ async function main() {
     const tagName = `v${version}`;
     console.log(`Target Release Version: ${version} (Tag: ${tagName})`);
 
+    // Tag the commit being built, not the default branch. GitHub can only tag a pushed commit.
+    const headCommit = execSync('git rev-parse HEAD', { cwd: rootDir }).toString().trim();
+    const remoteBranches = execSync(`git branch -r --contains ${headCommit}`, { cwd: rootDir }).toString().trim();
+    if (!remoteBranches) {
+        throw new Error(`Commit ${headCommit} is not pushed to origin. Push it before releasing.`);
+    }
+    console.log(`Release tag target commit: ${headCommit}`);
+
     // 1. Pack Desktop App (app.asar + Portable Zip)
     console.log('\n[1/4] Packing Desktop App files...');
     execSync('node scripts/pack-desktop.js', { cwd: rootDir, stdio: 'inherit' });
@@ -61,16 +69,19 @@ async function main() {
     const releaseBody = `## Boss Tracker Windows Desktop ${tagName}
 
 ### ไฮไลท์การอัปเดตเวอร์ชันนี้:
-- 💻 **Windows Installer (Setup)**: ติดตั้งลงเครื่องวินโดวส์พร้อมสร้างไอคอนบนหน้าจอเดสก์ท็อป (\`Boss Tracker.lnk\`) และเมนู Start อัตโนมัติ
-- 🔄 **In-App Auto-Update**: แจ้งเตือนอัปเดตทั้งในหน้าต่างหลักและ Mini HUD พร้อมปุ่มกดดาวน์โหลดและอัปเดตอัตโนมัติทันที
-- 🛡️ **Auto-Run as Administrator**: เปิดโปรแกรมแล้วรันด้วยสิทธิ์แอดมินอัตโนมัติ
-- 🔊 **Unthrottled Audio & Top-Most Toast**: เสียงแจ้งเตือนบอสเกิดดังชัดเจนแม้โดนเกมทับ และป๊อปอัพมุมซ้ายล่างแบบคลิกทะลุ 100%
-- 🎯 **Mini HUD Events & Time Synchronization**: แสดงทั้งบอสและกิจกรรมนับถอยหลังแม่นยำตรงตามเซิร์ฟเวอร์`;
+- 🌐 **การแจ้งเตือนอัปเดตเป็นภาษาอังกฤษ**: หน้าต่างอัปเดตและข้อความใน HUD
+- 🛠️ **แก้อัปเดตไม่สำเร็จ (spawn UNKNOWN)**: ถ้า Windows ยังไม่ยอมเปิดตัวติดตั้ง แอปจะลองใหม่ และเปิดตัวติดตั้งให้เองถ้ายังไม่ได้
+- 📢 **ประกาศใน Mini HUD วนต่อเนื่องแบบรถไฟ**: ข้อความยาวเลื่อนวนไม่สะดุด ไม่เริ่มใหม่ทุกครั้งที่ดึงข้อมูล (ชี้เมาส์เพื่อหยุดอ่าน)
+- 🔐 **ตรวจสอบไฟล์อัปเดต (SHA-256)**: แอปตรวจไฟล์ติดตั้งกับค่าที่ GitHub ประกาศก่อนติดตั้ง ถ้าไม่ตรงจะไม่ติดตั้ง
+- 🪟 **ไม่มีหน้าต่างขาวอีก**: ลิงก์ที่เปิดหน้าต่างใหม่จะไปเปิดในเบราว์เซอร์ปกติแทน
+- 🔄 **อัปเดตอัตโนมัติ**: กดอัปเดตครั้งเดียว แอปดาวน์โหลด ติดตั้ง และเปิดใหม่ให้เอง
+- 💻 **Windows Installer (Setup)**: มีไอคอนบนหน้าจอเดสก์ท็อปและเมนู Start`;
 
     if (!release) {
         console.log(`Release ${tagName} not found. Creating new release...`);
         release = await createRelease({
             tag_name: tagName,
+            target_commitish: headCommit,
             name: `Boss Tracker Windows Desktop ${tagName}`,
             body: releaseBody,
             draft: false,

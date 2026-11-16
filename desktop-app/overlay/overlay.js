@@ -126,8 +126,8 @@ const I18N_HUD = {
         hotkey_custom: 'กดปุ่มกำหนดเอง...',
         ph_press_key: 'กดปุ่มที่ต้องการ...',
         tooltip_save_hotkey: 'บันทึกปุ่มนี้',
-        toast_update_available: '🚀 พบอัปเดตใหม่ (v{version}) [คลิกเพื่ออัปเดต]',
-        toast_reloading: '🔄 พบการอัปเดตระบบ ({version}) กำลังรีโหลดอัตโนมัติ...',
+        toast_update_available: '🚀 New update available: v{version} [Click to update]',
+        toast_reloading: '🔄 System update found ({version}) reloading automatically...',
         toast_server_reload: '🔄 รีโหลดข้อมูลล่าสุดจากเซิร์ฟเวอร์...',
         status_connecting_hint: 'กำลังเชื่อมต่อข้อมูลบอส...<br><span style="font-size: 10px; color: #64748b;">(หากยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบที่หน้าต่างหลัก)</span>',
         btn_open_main: '🪟 เปิดหน้าต่างหลัก',
@@ -798,6 +798,24 @@ function applyFontSettings(fontSize, font, syncIPC = true) {
     updateAnnouncementMarquee();
 }
 
+const MARQUEE_GAP_PX = 48;
+const MARQUEE_SPEED_PX_PER_SEC = 40;
+
+// Shows the announcement as one segment, or as a seamless "train" loop when it is
+// wider than the banner: two copies scroll left continuously, and when the first copy
+// has fully passed, the loop restarts at a position that looks identical.
+function setAnnouncementText(annText) {
+    const text = dom.hudAnnouncementText;
+    text.dataset.annText = annText;
+    text.dataset.marqueeKey = '';
+    text.classList.remove('marquee-active');
+    text.textContent = '';
+    const seg = document.createElement('span');
+    seg.className = 'ann-seg';
+    seg.textContent = annText;
+    text.appendChild(seg);
+}
+
 function updateAnnouncementMarquee() {
     if (!dom.hudAnnouncement || !dom.hudAnnouncementText) return;
     const text = dom.hudAnnouncementText;
@@ -806,29 +824,35 @@ function updateAnnouncementMarquee() {
         text.dataset.marqueeKey = '';
         return;
     }
+    const firstSeg = text.querySelector('.ann-seg');
+    if (!firstSeg) return;
 
-    // Measure without toggling the class: the text is nowrap, so scrollWidth is its
-    // full width either way. Toggling here restarted the animation on every poll.
+    // Measuring does not toggle the animation, so repeated polls never restart it.
     const track = dom.hudAnnouncementTrack || dom.hudAnnouncement;
     const trackWidth = track.clientWidth;
-    const textWidth = text.scrollWidth;
+    const segWidth = Math.ceil(firstSeg.getBoundingClientRect().width);
 
     let key = 'static';
-    let overflow = 0;
+    let distance = 0;
     let duration = 0;
-    if (textWidth > trackWidth + 4 && trackWidth > 0) {
-        overflow = textWidth - trackWidth + 12;
-        duration = Math.max(5, Math.min(25, Math.round(overflow / 30) + 4));
-        key = `${overflow}:${duration}`;
+    if (segWidth > trackWidth + 4 && trackWidth > 0) {
+        distance = segWidth + MARQUEE_GAP_PX;
+        duration = Math.max(4, Math.round((distance / MARQUEE_SPEED_PX_PER_SEC) * 10) / 10);
+        key = `${distance}:${duration}`;
     }
     if (text.dataset.marqueeKey === key) return;
     text.dataset.marqueeKey = key;
 
     text.classList.remove('marquee-active');
-    text.style.removeProperty('--marquee-overflow');
+    text.querySelectorAll('.ann-seg-copy').forEach(el => el.remove());
+    text.style.removeProperty('--marquee-distance');
     text.style.removeProperty('--marquee-duration');
     if (key !== 'static') {
-        text.style.setProperty('--marquee-overflow', `${overflow}px`);
+        const copy = firstSeg.cloneNode(true);
+        copy.classList.add('ann-seg-copy');
+        copy.setAttribute('aria-hidden', 'true');
+        text.appendChild(copy);
+        text.style.setProperty('--marquee-distance', `${distance}px`);
         text.style.setProperty('--marquee-duration', `${duration}s`);
         void text.offsetWidth;
         text.classList.add('marquee-active');
@@ -917,8 +941,8 @@ function applyTrackerSnapshot(data) {
             // Polls repeat the same announcement every few seconds; only touch the
             // text and marquee when it actually changes so scrolling is not restarted.
             const wasHidden = dom.hudAnnouncement.style.display === 'none';
-            if (wasHidden || dom.hudAnnouncementText.textContent !== annText) {
-                dom.hudAnnouncementText.textContent = annText;
+            if (wasHidden || dom.hudAnnouncementText.dataset.annText !== annText) {
+                setAnnouncementText(annText);
                 dom.hudAnnouncement.style.display = 'flex';
                 requestAnimationFrame(() => updateAnnouncementMarquee());
             }
@@ -1302,18 +1326,18 @@ function initHudAutoUpdate() {
     if (btnCheckUpdate) {
         btnCheckUpdate.addEventListener('click', async () => {
             btnCheckUpdate.disabled = true;
-            btnCheckUpdate.textContent = '⏳ กำลังเช็ค...';
+            btnCheckUpdate.textContent = '⏳ Checking...';
             try {
                 if (window.electronAPI && typeof window.electronAPI.checkForUpdates === 'function') {
                     const res = await window.electronAPI.checkForUpdates();
                     if (!res || !res.hasUpdate) {
-                        showHudToast('✅ เวอร์ชันปัจจุบันเป็นเวอร์ชันล่าสุดแล้ว', '#22c55e');
+                        showHudToast('✅ You are on the latest version', '#22c55e');
                     }
                 }
             } catch (_) {}
             setTimeout(() => {
                 btnCheckUpdate.disabled = false;
-                btnCheckUpdate.textContent = '🔄 เช็คอัปเดต';
+                btnCheckUpdate.textContent = '🔄 Check for updates';
             }, 3000);
         });
     }
@@ -1323,8 +1347,8 @@ function initHudAutoUpdate() {
     btnUpdate.addEventListener('click', async () => {
         btnUpdate.disabled = true;
         btnUpdate.style.opacity = '0.7';
-        if (updateText) updateText.textContent = 'กำลังโหลด...';
-        showHudToast('⏳ กำลังดาวน์โหลดตัวติดตั้งอัตโนมัติ...', '#38bdf8');
+        if (updateText) updateText.textContent = 'Loading...';
+        showHudToast('⏳ Downloading update...', '#38bdf8');
         try {
             if (window.electronAPI && typeof window.electronAPI.startDesktopUpdate === 'function') {
                 await window.electronAPI.startDesktopUpdate();
@@ -1332,7 +1356,7 @@ function initHudAutoUpdate() {
         } catch (err) {
             btnUpdate.disabled = false;
             btnUpdate.style.opacity = '1';
-            showHudToast('⚠️ ไม่สามารถดาวน์โหลดได้', '#ef4444');
+            showHudToast('⚠️ Download failed', '#ef4444');
         }
     });
 
@@ -1340,7 +1364,7 @@ function initHudAutoUpdate() {
         window.electronAPI.onUpdateAvailable((info) => {
             btnUpdate.style.display = 'inline-flex';
             if (updateText) updateText.textContent = `v${info.version}`;
-            showHudToast(`🚀 มีอัปเดตใหม่ v${info.version}! (คลิกปุ่ม 🚀 เพื่ออัปเดต)`, '#f59e0b');
+            showHudToast(`🚀 Update v${info.version} available! (click 🚀 to update)`, '#f59e0b');
         });
     }
 
@@ -1354,8 +1378,8 @@ function initHudAutoUpdate() {
 
     if (window.electronAPI && typeof window.electronAPI.onUpdateComplete === 'function') {
         window.electronAPI.onUpdateComplete(() => {
-            if (updateText) updateText.textContent = 'ติดตั้ง...';
-            showHudToast('✅ ดาวน์โหลดสำเร็จ กำลังติดตั้งและเริ่มใหม่...', '#22c55e');
+            if (updateText) updateText.textContent = 'Installing...';
+            showHudToast('✅ Download complete. Installing and restarting...', '#22c55e');
         });
     }
 
@@ -1363,8 +1387,8 @@ function initHudAutoUpdate() {
         window.electronAPI.onUpdateError((err) => {
             btnUpdate.disabled = false;
             btnUpdate.style.opacity = '1';
-            if (updateText) updateText.textContent = 'ลองใหม่';
-            showHudToast(`⚠️ อัปเดตไม่สำเร็จ: ${err || 'ข้อผิดพลาด'}`, '#ef4444');
+            if (updateText) updateText.textContent = 'Retry';
+            showHudToast(`⚠️ Update failed: ${err || 'Unknown error'}`, '#ef4444');
         });
     }
 }

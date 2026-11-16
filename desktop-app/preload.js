@@ -100,18 +100,18 @@ window.addEventListener('DOMContentLoaded', () => {
                 <div style="display:flex;align-items:center;gap:10px;">
                     <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#38bdf8);display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 12px rgba(56,189,248,0.5);">🚀</div>
                     <div>
-                        <div style="font-size:13.5px;font-weight:700;color:#f8fafc;">มีการอัปเดตเวอร์ชันใหม่!</div>
-                        <div style="font-size:11.5px;color:#38bdf8;font-weight:600;">Boss Tracker v${info.version || ''} (เวอร์ชันปัจจุบัน: v${info.currentVersion || ''})</div>
+                        <div style="font-size:13.5px;font-weight:700;color:#f8fafc;">New version available!</div>
+                        <div style="font-size:11.5px;color:#38bdf8;font-weight:600;">Boss Tracker v${info.version || ''} (current: v${info.currentVersion || ''})</div>
                     </div>
                 </div>
-                <button type="button" id="btnDismissUpdateBanner" style="background:none;border:none;color:#94a3b8;font-size:16px;cursor:pointer;padding:4px;" title="ปิด">✕</button>
+                <button type="button" id="btnDismissUpdateBanner" style="background:none;border:none;color:#94a3b8;font-size:16px;cursor:pointer;padding:4px;" title="Close">✕</button>
             </div>
             <div style="font-size:11.5px;color:#cbd5e1;line-height:1.4;">
-                กดปุ่มด้านล่างเพื่อเริ่มดาวน์โหลดและติดตั้งตัวอัปเดตอัตโนมัติ โปรแกรมจะเปิดเวอร์ชันใหม่ให้ทันที
+                Click below to download and install the update automatically. The app will restart on the new version.
             </div>
             <div id="updateProgressArea" style="display:none;margin-top:2px;">
                 <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:4px;">
-                    <span id="updateProgressStatusText">กำลังดาวน์โหลด...</span>
+                    <span id="updateProgressStatusText">Downloading...</span>
                     <span id="updateProgressPercentText">0%</span>
                 </div>
                 <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden;">
@@ -120,10 +120,10 @@ window.addEventListener('DOMContentLoaded', () => {
             </div>
             <div id="updateActionArea" style="display:flex;gap:8px;margin-top:4px;">
                 <button type="button" id="btnStartUpdateNow" style="flex:1;background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;border:1px solid rgba(147,197,253,0.3);padding:8px 14px;border-radius:7px;font-size:12.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 0 15px rgba(37,99,235,0.4);transition:all 0.2s;">
-                    <span>📥</span><span>อัปเดตทันที (อัตโนมัติ)</span>
+                    <span>📥</span><span>Update now (automatic)</span>
                 </button>
                 <button type="button" id="btnPostponeUpdate" style="background:rgba(255,255,255,0.06);color:#94a3b8;border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;">
-                    ไว้ภายหลัง
+                    Later
                 </button>
             </div>
         `;
@@ -148,7 +148,7 @@ window.addEventListener('DOMContentLoaded', () => {
             btnStart.style.opacity = '0.6';
             actionArea.style.display = 'none';
             progressArea.style.display = 'block';
-            statusText.textContent = 'กำลังเชื่อมต่อเพื่อดาวน์โหลด...';
+            statusText.textContent = 'Connecting to download...';
 
             ipcRenderer.invoke('start-desktop-update');
         });
@@ -161,9 +161,9 @@ window.addEventListener('DOMContentLoaded', () => {
             fillBar.style.width = pct + '%';
             percentText.textContent = pct + '%';
             if (p.downloadedMb && p.totalMb) {
-                statusText.textContent = `กำลังดาวน์โหลด ${p.downloadedMb} MB / ${p.totalMb} MB (${pct}%)`;
+                statusText.textContent = `Downloading ${p.downloadedMb} MB / ${p.totalMb} MB (${pct}%)`;
             } else {
-                statusText.textContent = `กำลังดาวน์โหลด ${pct}%...`;
+                statusText.textContent = `Downloading ${pct}%...`;
             }
         });
 
@@ -171,12 +171,12 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!banner.parentElement) return;
             fillBar.style.width = '100%';
             percentText.textContent = '100%';
-            statusText.textContent = '✅ ดาวน์โหลดสำเร็จ กำลังติดตั้งและรีสตาร์ท...';
+            statusText.textContent = '✅ Download complete. Installing and restarting...';
         });
 
         ipcRenderer.on('update-download-error', (_, err) => {
             if (!banner.parentElement) return;
-            statusText.textContent = '⚠️ ดาวน์โหลดไม่สำเร็จ: ' + (err || 'เกิดข้อผิดพลาด');
+            statusText.textContent = '⚠️ Update failed: ' + (err || 'Unknown error');
             statusText.style.color = '#ef4444';
             actionArea.style.display = 'flex';
             btnStart.disabled = false;

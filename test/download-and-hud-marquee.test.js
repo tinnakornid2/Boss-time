@@ -21,15 +21,22 @@ test('Download App points to the Setup installer, with Portable as the secondary
     assert.equal(route.includes('Portable.zip'), false);
 });
 
-test('HUD announcement marquee is not restarted by repeated polls', () => {
+test('HUD announcement marquee loops seamlessly and is not restarted by repeated polls', () => {
     const overlay = read('desktop-app/overlay/overlay.js');
     const fn = overlay.slice(overlay.indexOf('function updateAnnouncementMarquee() {'), overlay.indexOf('function applyTrackerSnapshot('));
     assert.ok(fn.includes('if (text.dataset.marqueeKey === key) return;'));
-    // Measurement happens before any class toggle
-    assert.ok(fn.indexOf('text.scrollWidth') < fn.indexOf("text.classList.remove('marquee-active');\n    text.style.removeProperty"));
+    // A second copy follows the first so the loop restart is invisible ("train" style)
+    assert.ok(fn.includes("copy.classList.add('ann-seg-copy')"));
+    assert.ok(fn.includes('distance = segWidth + MARQUEE_GAP_PX'));
 
     const apply = overlay.slice(overlay.indexOf('function applyTrackerSnapshot('));
-    assert.ok(apply.includes('dom.hudAnnouncementText.textContent !== annText'));
+    assert.ok(apply.includes('dom.hudAnnouncementText.dataset.annText !== annText'));
+
+    const css = read('desktop-app/overlay/overlay.css');
+    assert.ok(css.includes('animation: hudMarqueeLoop var(--marquee-duration, 10s) linear infinite;'));
+    assert.ok(css.includes('translateX(calc(-1 * var(--marquee-distance, 200px)))'));
+    assert.equal(css.includes('hudMarqueeBounce'), false);
+    assert.ok(css.includes('margin-left: 48px') && overlay.includes('const MARQUEE_GAP_PX = 48;'));
 });
 
 test('Firebase rules deny direct client access except the public live event stream', () => {
@@ -51,7 +58,7 @@ test('Desktop updater verifies the installer SHA-256 from the GitHub release bef
     assert.ok(main.includes("assetSha256: /^sha256:[0-9a-f]{64}$/i.test(setupAsset?.digest || '')"));
     const update = main.slice(main.indexOf('async function startDesktopUpdate()'));
     assert.ok(update.indexOf('await sha256File(tempPath)') > 0);
-    assert.ok(update.indexOf('await sha256File(tempPath)') < update.indexOf("spawn(tempPath, ['/S']"));
+    assert.ok(update.indexOf('await sha256File(tempPath)') < update.indexOf('await launchInstaller(tempPath)'));
 });
 
 test('Download links never open an empty window inside the desktop app', () => {
@@ -63,4 +70,27 @@ test('Download links never open an empty window inside the desktop app', () => {
     assert.ok(main.includes('mainWindow.webContents.setWindowOpenHandler('));
     assert.ok(main.includes("shell.openExternal(url)"));
     assert.ok(main.includes("return { action: 'deny' };"));
+});
+
+test('Desktop updater retries the installer launch and falls back to the shell', () => {
+    const main = read('desktop-app/main.js');
+    assert.ok(main.includes('async function launchInstaller(installerPath, attempts = 3, retryDelayMs = 2000)'));
+    assert.ok(main.includes("child.once('spawn'"));
+    assert.ok(main.includes('await shell.openPath(installerPath)'));
+    const update = main.slice(main.indexOf('async function startDesktopUpdate()'));
+    assert.ok(update.includes('const launched = await launchInstaller(tempPath);'));
+    // Never quit the app unless an installer actually started
+    assert.ok(update.indexOf('if (launched) {') < update.indexOf('app.quit();'));
+});
+
+test('Desktop update notifications are in English', () => {
+    const thai = /[฀-๿]/;
+    const updateWords = /update|Update|install|Install|download|Download/;
+    for (const file of ['desktop-app/preload.js', 'desktop-app/overlay/overlay.js', 'desktop-app/overlay/index.html']) {
+        read(file).split('\n').forEach((line, i) => {
+            if (updateWords.test(line)) assert.equal(thai.test(line), false, `${file}:${i + 1} has Thai update text`);
+        });
+    }
+    const main = read('desktop-app/main.js');
+    assert.ok(main.includes('Could not start the installer'));
 });
