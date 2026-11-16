@@ -1269,10 +1269,18 @@ function playAlertSound(path) {
 // Initialize font system
 initFontSettings();
 
-// Tick local countdown every second
-setInterval(() => {
-    renderBossList();
-}, 1000);
+// Tick the local countdown on every server-clock second boundary, the same moment the
+// dashboard changes its seconds (both use Date.now() + server offset), so the HUD and
+// every other screen always show the same second. Local only: no extra requests.
+function scheduleHudTick() {
+    const serverNow = Date.now() + state.serverOffset;
+    const wait = 1000 - (((serverNow % 1000) + 1000) % 1000) + 5;
+    setTimeout(() => {
+        renderBossList();
+        scheduleHudTick();
+    }, wait);
+}
+scheduleHudTick();
 
 // Poll server every 2.5 seconds
 fetchPollData();

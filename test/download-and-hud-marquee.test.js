@@ -3,7 +3,9 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
-const read = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
+// Normalize line endings: on a Windows checkout Git writes CRLF, and the checks below
+// look for source text that contains "\n".
+const read = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8').replace(/\r\n/g, '\n');
 
 test('Download App points to the Setup installer, with Portable as the secondary option', () => {
     const alerts = read('public/js/realtime-alerts.js');
