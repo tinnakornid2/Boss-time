@@ -105,3 +105,87 @@ test('poll: the real store gives the same tag one second later', async () => {
     assert.equal(pollReply(build(), first.pollTag, 2).unchanged, true);
     console.log('payload bytes', JSON.stringify(first).length, 'unchanged', JSON.stringify(pollReply(build(), first.pollTag, 2)).length);
 });
+
+test('poll: a server failure is shared too, so an outage does not raise traffic', async () => {
+    const c = setup();
+    await c.poll();
+    c.status = 503;
+    const start = c.calls.length;
+    // One minute of the desktop app: the dashboard every 3 s, the HUD every 5 s.
+    for (let s = 0; s < 120; s++) {
+        c.clock += 500;
+        if (s % 6 === 0) await c.saver.poll('/poll', {});
+        if (s % 10 === 1) await c.saver.poll('/poll', {});
+    }
+    const sent = c.calls.length - start;
+    assert.ok(sent <= 13, `${sent} requests in one minute`);
+    c.status = 200;
+    c.clock += 5000;
+    assert.equal((await c.saver.poll('/poll', {})).status, 200);
+});
+
+test('poll: a network failure is shared too, an aborted request is not', async () => {
+    let clock = 1000, calls = 0, error = null;
+    const saver = createPollSaver({
+        now: () => clock,
+        fetchImpl: async () => {
+            calls++;
+            if (error) throw error;
+            return new Response(JSON.stringify({ bosses: [], dataRevision: 1, serverTime: clock }));
+        }
+    });
+    await saver.poll('/poll');
+    clock += 5000;
+    error = new TypeError('offline');
+    await assert.rejects(saver.poll('/poll'), /offline/);
+    clock += 3000;
+    await assert.rejects(saver.poll('/poll'), /offline/);
+    assert.equal(calls, 2);
+    clock += 2000;
+    error = new DOMException('stop', 'AbortError');
+    await assert.rejects(saver.poll('/poll'), { name: 'AbortError' });
+    error = null;
+    assert.equal((await saver.poll('/poll')).status, 200);
+    assert.equal(calls, 4);
+});
+
+test('poll: sign-out, local changes and the first load are never delayed by a failure', async () => {
+    const first = setup();
+    first.status = 503;
+    await first.saver.poll('/poll');
+    await first.saver.poll('/poll');
+    assert.equal(first.calls.length, 2, 'no data yet: keep retrying at the caller pace');
+
+    const c = setup();
+    await c.poll();
+    c.clock += 5000;
+    c.status = 401;
+    assert.equal((await c.saver.poll('/poll')).status, 401);
+    assert.equal((await c.saver.poll('/poll')).status, 401);
+    assert.equal(c.calls.length, 3);
+
+    c.status = 503;
+    await c.saver.poll('/poll');
+    c.saver.invalidate();
+    c.status = 200;
+    assert.equal((await c.saver.poll('/poll')).status, 200);
+});
+
+test('poll: a failure that started before a local change is not remembered', async () => {
+    let clock = 1000, calls = 0, release;
+    const saver = createPollSaver({
+        now: () => clock,
+        fetchImpl: async () => {
+            calls++;
+            if (calls === 2) return new Promise(resolve => { release = () => resolve(new Response('{}', { status: 503 })); });
+            return new Response(JSON.stringify({ bosses: [], dataRevision: 1, serverTime: clock }));
+        }
+    });
+    await saver.poll('/poll');
+    clock += 5000;
+    const old = saver.poll('/poll');
+    saver.invalidate();
+    release();
+    assert.equal((await old).status, 503);
+    assert.equal((await saver.poll('/poll')).status, 200);
+});
