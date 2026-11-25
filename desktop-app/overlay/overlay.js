@@ -42,7 +42,10 @@ const state = {
     isFontPanelOpen: false,
     showLocation: false,
     announcement: null,
-    lang: 'th'
+    lang: 'th',
+    focusMode: false,
+    lastFreshSnapshotAt: 0,
+    serverSnapshotStale: false
 };
 
 // Boss Color Cache to ensure custom font colors never revert to white
@@ -78,8 +81,18 @@ const I18N_HUD = {
         group_spawned: '🔥 เกิดแล้ว (Spawned)',
         group_upcoming: '⏳ กำลังจะเกิด (Upcoming)',
         group_unset: '💤 ยังไม่ตั้งเวลา (Unset)',
+        focus_empty: 'ไม่มีบอสที่กำลังเกิดหรือใกล้เกิด',
+        focus_on: 'แสดง NOW และ 5 รายการใกล้เกิด · คลิกเพื่อแสดงทั้งหมด',
+        focus_off: 'แสดงทั้งหมด · คลิกเพื่อดู NOW และ 5 รายการใกล้เกิด',
+        clickthrough_hint: 'คลิกทะลุอยู่ · กด {key} เพื่อกลับ',
+        main_window_section: 'หน้าต่างหลัก (ไม่ใช่ HUD)',
+        main_window_width: 'ความกว้าง:',
         empty: 'ไม่มีข้อมูลบอสและกิจกรรม',
         connecting: 'กำลังเชื่อมต่อข้อมูลบอส...',
+        connection_live: 'เชื่อมต่อแล้ว',
+        connection_connecting: 'กำลังเชื่อมต่อ...',
+        connection_stale: 'กำลังเชื่อมต่อใหม่ · ข้อมูลล่าสุด {time}',
+        connection_stale_no_time: 'กำลังเชื่อมต่อใหม่ · ข้อมูลอาจไม่สด',
         label_font_size: 'ขนาดตัวอักษร:',
         label_font_family: 'แบบอักษร:',
         label_show_location: 'แสดงสถานที่:',
@@ -139,8 +152,18 @@ const I18N_HUD = {
         group_spawned: '🔥 SPAWNED',
         group_upcoming: '⏳ UPCOMING',
         group_unset: '💤 UNSET',
+        focus_empty: 'No spawned or upcoming bosses',
+        focus_on: 'Showing NOW and next 5 · Click to show all',
+        focus_off: 'Showing all · Click for NOW and next 5',
+        clickthrough_hint: 'Click-through on · Press {key} to return',
+        main_window_section: 'Main window (not HUD)',
+        main_window_width: 'Width:',
         empty: 'No boss data available',
         connecting: 'Connecting boss data...',
+        connection_live: 'Connected',
+        connection_connecting: 'Connecting...',
+        connection_stale: 'Reconnecting · Last fresh data {time}',
+        connection_stale_no_time: 'Reconnecting · Data may be stale',
         label_font_size: 'Font Size:',
         label_font_family: 'Font Family:',
         label_show_location: 'Show Location:',
@@ -215,6 +238,10 @@ function formatHotkeyForDisplay(accelerator) {
 
 const dom = {
     hudPanel: document.getElementById('hudPanel'),
+    btnHudFocus: document.getElementById('btnHudFocus'),
+    hudClickThroughHint: document.getElementById('hudClickThroughHint'),
+    hudConnection: document.getElementById('hudConnection'),
+    hudConnectionText: document.getElementById('hudConnectionText'),
     bossListContainer: document.getElementById('bossListContainer'),
     toastContainer: document.getElementById('toastContainer'),
     hudAnnouncement: document.getElementById('hudAnnouncement'),
@@ -250,6 +277,7 @@ const dom = {
     labelShowLocation: document.getElementById('labelShowLocation'),
     labelShowInvasion: document.getElementById('labelShowInvasion'),
     labelPanelWidth: document.getElementById('labelPanelWidth'),
+    labelMainWindowSection: document.getElementById('labelMainWindowSection'),
     labelOpacity: document.getElementById('labelOpacity'),
     labelHotkey: document.getElementById('labelHotkey'),
     labelCustomKey: document.getElementById('labelCustomKey')
@@ -286,6 +314,9 @@ if (window.electronAPI) {
         window.electronAPI.onTrackerDataUpdated((res) => {
             if (res && res.ok && res.unchanged) {
                 if (Number.isFinite(res.serverTime)) state.serverOffset = res.serverTime - Date.now();
+                // "Unchanged" is a fresh answer too; without this the HUD would look disconnected.
+                if (!state.serverSnapshotStale) state.lastFreshSnapshotAt = Date.now();
+                renderConnectionStatus();
                 return;
             }
             if (res && res.ok && res.data) {
@@ -308,13 +339,17 @@ if (window.electronAPI) {
                     if (dom.invasionStatusText) dom.invasionStatusText.textContent = !res.hideInvasionBosses ? t('loc_show') : t('loc_hide');
                 }
                 applyTrackerSnapshot(res.data);
-            } else {
+            } else if (res?.notAuthenticated || res?.status === 401 || res?.status === 403) {
                 state.bosses = [];
                 state.events = [];
+                state.lastFreshSnapshotAt = 0;
+                state.serverSnapshotStale = false;
                 if (dom.bossListContainer) {
                     dom.bossListContainer.innerHTML = '';
                 }
+                renderConnectionStatus();
             }
+            // Temporary network/server failure: keep the last snapshot and local countdown.
         });
     }
 
@@ -351,6 +386,24 @@ function updateClickThroughUI(active) {
         dom.clickThroughIcon.innerHTML = ICONS.unlock;
         dom.clickThroughLabel.textContent = formatHotkeyForDisplay(state.clickThroughHotkey);
     }
+    updateClickThroughHint();
+}
+
+function updateClickThroughHint() {
+    if (!dom.hudClickThroughHint) return;
+    dom.hudClickThroughHint.style.display = state.isClickThrough ? 'block' : 'none';
+    if (state.isClickThrough) {
+        dom.hudClickThroughHint.textContent = t('clickthrough_hint', {
+            key: formatHotkeyForDisplay(state.clickThroughHotkey)
+        });
+    }
+}
+
+function updateFocusModeUI() {
+    if (!dom.btnHudFocus) return;
+    dom.btnHudFocus.classList.toggle('active', state.focusMode);
+    dom.btnHudFocus.setAttribute('aria-pressed', String(state.focusMode));
+    dom.btnHudFocus.title = t(state.focusMode ? 'focus_on' : 'focus_off');
 }
 
 // Smart Hit-Testing:
@@ -423,7 +476,8 @@ function updateHudLanguageUI() {
     if (dom.labelFontFamily) dom.labelFontFamily.textContent = t('label_font_family');
     if (dom.labelShowLocation) dom.labelShowLocation.textContent = t('label_show_location');
     if (dom.labelShowInvasion) dom.labelShowInvasion.textContent = t('label_show_invasion');
-    if (dom.labelPanelWidth) dom.labelPanelWidth.textContent = t('label_panel_width');
+    if (dom.labelMainWindowSection) dom.labelMainWindowSection.textContent = t('main_window_section');
+    if (dom.labelPanelWidth) dom.labelPanelWidth.textContent = t('main_window_width');
     if (dom.labelOpacity) dom.labelOpacity.textContent = t('label_opacity');
     if (dom.labelHotkey) dom.labelHotkey.textContent = t('label_hotkey');
     if (dom.labelCustomKey) dom.labelCustomKey.textContent = t('label_custom_key');
@@ -432,6 +486,9 @@ function updateHudLanguageUI() {
     if (dom.btnFontSettings) dom.btnFontSettings.title = t('tooltip_settings');
     if (dom.btnClickThrough) dom.btnClickThrough.title = t('tooltip_clickthrough');
     if (dom.btnOpenMain) dom.btnOpenMain.title = t('tooltip_openmain');
+    updateClickThroughHint();
+    updateFocusModeUI();
+    renderConnectionStatus();
 
     // Controls & Tooltips inside font panel
     if (dom.btnFontSizeMinus) dom.btnFontSizeMinus.title = t('tooltip_font_minus');
@@ -722,6 +779,7 @@ function applyHotkey(accelerator, save = true) {
     if (dom.clickThroughLabel && !state.isClickThrough) {
         dom.clickThroughLabel.textContent = displayLabel;
     }
+    updateClickThroughHint();
 
     if (dom.hotkeySelect) {
         const found = Array.from(dom.hotkeySelect.options).some(o => o.value === accelerator);
@@ -866,8 +924,40 @@ function updateAnnouncementMarquee() {
 // -------------------------------------------------------------
 // Real-Time Polling & Zero-Interruption Auto-Update
 // -------------------------------------------------------------
+function renderConnectionStatus() {
+    if (!dom.hudConnection || !dom.hudConnectionText || !window.HudConnection) return;
+    const connection = window.HudConnection.getStatus(
+        state.lastFreshSnapshotAt,
+        state.serverSnapshotStale,
+        Date.now()
+    );
+    let text;
+    let title = '';
+    if (connection === 'stale') {
+        if (state.lastFreshSnapshotAt > 0) {
+            const lastFresh = new Date(state.lastFreshSnapshotAt);
+            const locale = state.lang === 'th' ? 'th-TH' : 'en-US';
+            const time = lastFresh.toLocaleTimeString(locale, { hour12: false });
+            text = t('connection_stale', { time });
+            title = lastFresh.toLocaleString(locale);
+        } else {
+            text = t('connection_stale_no_time');
+        }
+    } else {
+        text = t(connection === 'live' ? 'connection_live' : 'connection_connecting');
+    }
+    // Runs every second: write only real changes so screen readers are not triggered again.
+    if (dom.hudConnection.dataset.state !== connection) dom.hudConnection.dataset.state = connection;
+    if (dom.hudConnectionText.textContent !== text) dom.hudConnectionText.textContent = text;
+    if (dom.hudConnection.title !== title) dom.hudConnection.title = title;
+}
+
 function applyTrackerSnapshot(data) {
     if (!data) return;
+
+    state.serverSnapshotStale = Boolean(data.stale || data.notReady);
+    if (!state.serverSnapshotStale) state.lastFreshSnapshotAt = Date.now();
+    renderConnectionStatus();
 
     if (Number.isFinite(data.serverTime)) {
         state.serverOffset = Number(data.serverTime) - Date.now();
@@ -1175,22 +1265,28 @@ function renderBossList() {
         `;
     }
 
+    // Items overdue by more than 5 minutes also show as NOW; they must not use up the five places.
+    const visibleUpcoming = state.focusMode
+        ? [...upcomingBosses.filter(b => b.diff <= 0), ...upcomingBosses.filter(b => b.diff > 0).slice(0, 5)]
+        : upcomingBosses;
+    const visibleUnset = state.focusMode ? [] : unsetBosses;
+
     if (nowBosses.length > 0) {
         html += `<div class="hud-group-header" style="color: #f87171;">${t('group_spawned')} (${nowBosses.length})</div>`;
         for (const b of nowBosses) html += renderItemCard(b);
     }
 
-    if (upcomingBosses.length > 0) {
-        for (const b of upcomingBosses) html += renderItemCard(b);
+    if (visibleUpcoming.length > 0) {
+        for (const b of visibleUpcoming) html += renderItemCard(b);
     }
 
-    if (unsetBosses.length > 0) {
-        html += `<div class="hud-group-header" style="color: #64748b;">${t('group_unset')} (${unsetBosses.length})</div>`;
-        for (const b of unsetBosses) html += renderItemCard(b);
+    if (visibleUnset.length > 0) {
+        html += `<div class="hud-group-header" style="color: #64748b;">${t('group_unset')} (${visibleUnset.length})</div>`;
+        for (const b of visibleUnset) html += renderItemCard(b);
     }
 
-    if (nowBosses.length === 0 && upcomingBosses.length === 0 && unsetBosses.length === 0) {
-        html = `<div class="hud-empty">${t('empty')}</div>`;
+    if (nowBosses.length === 0 && visibleUpcoming.length === 0 && visibleUnset.length === 0) {
+        html = `<div class="hud-empty">${t(state.focusMode ? 'focus_empty' : 'empty')}</div>`;
     }
 
     dom.bossListContainer.innerHTML = html;
@@ -1268,6 +1364,16 @@ function playAlertSound(path) {
 }
 
 // Initialize font system
+try { state.focusMode = localStorage.getItem('bossTracker.hudFocusMode') === 'true'; } catch (_) {}
+updateFocusModeUI();
+if (dom.btnHudFocus) {
+    dom.btnHudFocus.addEventListener('click', () => {
+        state.focusMode = !state.focusMode;
+        try { localStorage.setItem('bossTracker.hudFocusMode', String(state.focusMode)); } catch (_) {}
+        updateFocusModeUI();
+        renderBossList();
+    });
+}
 initFontSettings();
 
 // Tick the local countdown on every server-clock second boundary, the same moment the
@@ -1278,6 +1384,7 @@ function scheduleHudTick() {
     const wait = 1000 - (((serverNow % 1000) + 1000) % 1000) + 5;
     setTimeout(() => {
         renderBossList();
+        renderConnectionStatus();
         scheduleHudTick();
     }, wait);
 }

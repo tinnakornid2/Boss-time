@@ -21,6 +21,9 @@
                 <span>BOSS HUD</span>
             </div>
             <div class="hud-controls">
+                <button type="button" class="btn-icon interactive-element" id="btnHudFocus" aria-pressed="false" title="แสดงเฉพาะ NOW และ 5 รายการใกล้เกิด">
+                    <span class="icon-wrap">🎯</span><span id="hudFocusLabel">5</span>
+                </button>
                 <button type="button" class="btn-icon btn-hud-update interactive-element" id="btnHudUpdate" style="display: none;" title="🚀 New version available! Click to download and update automatically">
                     <span class="icon-wrap" style="color: #f59e0b;">🚀</span>
                     <span id="hudUpdateBadgeText" style="font-weight: 700; color: #facc15; font-size: 10px; margin-left: 2px;">Update</span>
@@ -95,8 +98,9 @@
                 </div>
             </div>
             <!-- Main Window Panel Width -->
+            <div class="hud-settings-section-label" id="labelMainWindowSection">หน้าต่างหลัก (ไม่ใช่ HUD)</div>
             <div class="font-panel-row">
-                <span class="font-panel-label" id="labelPanelWidth">ความกว้างโปรแกรมหลัก:</span>
+                <span class="font-panel-label" id="labelPanelWidth">ความกว้าง:</span>
                 <div class="font-stepper">
                     <button type="button" class="btn-stepper interactive-element" id="btnPanelWidthMinus" title="ลดความกว้างหน้าต่างหลัก">−</button>
                     <span class="stepper-value" id="panelWidthDisplay" title="คลิกเพื่อสลับ 36rem / 100%" style="min-width: 44px; cursor: pointer;">36rem</span>
@@ -147,9 +151,17 @@
 
         <main class="hud-body" id="bossListContainer"></main>
 
+        <div class="hud-clickthrough-hint" id="hudClickThroughHint" style="display: none;"></div>
+
+        <div class="hud-connection" id="hudConnection" role="status" aria-live="polite" data-state="connecting">
+            <span class="hud-connection-dot" aria-hidden="true"></span>
+            <span id="hudConnectionText">กำลังเชื่อมต่อ...</span>
+        </div>
+
         <div class="toast-container" id="toastContainer"></div>
     </div>
 
+    <script src="hud-connection.js"></script>
     <script src="overlay.js"></script>
 </body>
 </html>
