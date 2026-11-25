@@ -18,7 +18,7 @@ if (fs.existsSync(stagingDir)) {
 fs.mkdirSync(stagingDir, { recursive: true });
 
 // Copy source files
-const filesToCopy = ['package.json', 'main.js', 'preload.js'];
+const filesToCopy = ['package.json', 'main.js', 'preload.js', 'hud-sync.js'];
 const dirsToCopy = ['assets', 'overlay'];
 
 for (const f of filesToCopy) {

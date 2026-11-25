@@ -284,6 +284,10 @@ if (window.electronAPI) {
 
     if (typeof window.electronAPI.onTrackerDataUpdated === 'function') {
         window.electronAPI.onTrackerDataUpdated((res) => {
+            if (res && res.ok && res.unchanged) {
+                if (Number.isFinite(res.serverTime)) state.serverOffset = res.serverTime - Date.now();
+                return;
+            }
             if (res && res.ok && res.data) {
                 if (typeof res.isAdmin === 'boolean') {
                     state.isAdmin = res.isAdmin;
@@ -986,40 +990,13 @@ function applyTrackerSnapshot(data) {
     checkAlerts();
 }
 
+// One request when the HUD page loads. After that the main process pushes every update,
+// so the HUD must never poll on a timer (that tripled the app's traffic).
 async function fetchPollData() {
     try {
         if (window.electronAPI && typeof window.electronAPI.getTrackerData === 'function') {
-            const res = await window.electronAPI.getTrackerData();
-            if (res && res.ok && res.data) {
-                if (typeof res.isAdmin === 'boolean') {
-                    state.isAdmin = res.isAdmin;
-                    updateAdminVisibility();
-                }
-                if (res.lang && (res.lang === 'en' || res.lang === 'th') && res.lang !== state.lang) {
-                    setHudLanguage(res.lang);
-                }
-                if (typeof res.showLocation === 'boolean' && res.showLocation !== state.showLocation) {
-                    applyShowLocation(res.showLocation, false);
-                }
-                if (typeof res.timeZoneOffset === 'number') {
-                    state.timeZoneOffset = res.timeZoneOffset;
-                }
-                if (typeof res.hideInvasionBosses === 'boolean') {
-                    state.settings.hideInvasionBosses = res.hideInvasionBosses;
-                    if (dom.chkShowInvasion) dom.chkShowInvasion.checked = !res.hideInvasionBosses;
-                    if (dom.invasionStatusText) dom.invasionStatusText.textContent = !res.hideInvasionBosses ? t('loc_show') : t('loc_hide');
-                }
-                applyTrackerSnapshot(res.data);
-                return;
-            } else {
-                // Not authenticated or error from main window: Clear data so nothing displays
-                state.bosses = [];
-                state.events = [];
-                if (dom.bossListContainer) {
-                    dom.bossListContainer.innerHTML = '';
-                }
-                return;
-            }
+            await window.electronAPI.getTrackerData();
+            return;
         }
 
         // Fallback for standalone preview (running in browser directly without Electron)
@@ -1306,9 +1283,7 @@ function scheduleHudTick() {
 }
 scheduleHudTick();
 
-// Poll server every 2.5 seconds
 fetchPollData();
-setInterval(fetchPollData, 2500);
 
 // Auto-Update integration for Mini HUD
 function initHudAutoUpdate() {
