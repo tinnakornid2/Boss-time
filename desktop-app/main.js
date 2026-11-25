@@ -134,6 +134,10 @@ function persistMainWindowBounds() {
     }
 }
 
+function getMainWindowTitle() {
+    return `Boss Tracker v${require('./package.json').version}`;
+}
+
 function createMainWindow() {
     const savedBounds = loadSavedMainWindowBounds();
     const primaryDisplay = screen.getPrimaryDisplay();
@@ -183,6 +187,10 @@ function createMainWindow() {
         if (/^https:\/\//i.test(url)) shell.openExternal(url).catch(() => {});
         return { action: 'deny' };
     });
+
+    // The title bar shows the desktop version, not the web page's title.
+    mainWindow.setTitle(getMainWindowTitle());
+    mainWindow.on('page-title-updated', event => event.preventDefault());
 
     mainWindow.loadURL(PRODUCTION_URL);
 

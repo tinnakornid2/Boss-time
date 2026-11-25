@@ -16,10 +16,12 @@ test('HUD focus mode is a local, reversible view preference', () => {
 });
 
 test('HUD tells users how to exit click-through and separates main-window settings', () => {
-    assert.match(html, /id="hudClickThroughHint"/);
+    // The hint shares the status bar instead of taking a line from the boss list.
+    const bar = html.slice(html.indexOf('id="hudConnection"'), html.indexOf('id="toastContainer"'));
+    assert.ok(bar.includes('id="hudClickThroughHint"'));
     assert.match(html, /id="labelMainWindowSection"/);
     assert.match(script, /updateClickThroughHint\(\)/);
-    assert.match(script, /clickthrough_hint: 'คลิกทะลุอยู่ · กด \{key\} เพื่อกลับ'/);
+    assert.match(script, /clickthrough_hint: 'กด \{key\} เพื่อกลับ'/);
     assert.match(script, /main_window_section: 'Main window \(not HUD\)'/);
 });
 
@@ -28,4 +30,11 @@ test('Main-window section holds only the width; HUD opacity and hotkey stay abov
     const order = ['labelOpacity', 'labelHotkey', 'customHotkeyRow', 'labelMainWindowSection', 'labelPanelWidth', 'labelAppVersion'].map(at);
     assert.ok(order.every(i => i > 0));
     assert.deepEqual(order, [...order].sort((a, b) => a - b));
+});
+
+test('HUD header stays on one line when the HUD is narrow', () => {
+    const css = fs.readFileSync('desktop-app/overlay/overlay.css', 'utf8');
+    assert.match(css, /\.hud-header \{[^}]*white-space: nowrap/);
+    assert.match(css, /\.hud-title \{[^}]*font-size: 8px/);
+    assert.match(css, /@media \(max-width: 290px\) \{\s*\.hud-title-text, #hudUpdateBadgeText \{ display: none; \}/);
 });

@@ -84,7 +84,7 @@ const I18N_HUD = {
         focus_empty: 'ไม่มีบอสที่กำลังเกิดหรือใกล้เกิด',
         focus_on: 'แสดง NOW และ 5 รายการใกล้เกิด · คลิกเพื่อแสดงทั้งหมด',
         focus_off: 'แสดงทั้งหมด · คลิกเพื่อดู NOW และ 5 รายการใกล้เกิด',
-        clickthrough_hint: 'คลิกทะลุอยู่ · กด {key} เพื่อกลับ',
+        clickthrough_hint: 'กด {key} เพื่อกลับ',
         main_window_section: 'หน้าต่างหลัก (ไม่ใช่ HUD)',
         main_window_width: 'ความกว้าง:',
         empty: 'ไม่มีข้อมูลบอสและกิจกรรม',
@@ -155,7 +155,7 @@ const I18N_HUD = {
         focus_empty: 'No spawned or upcoming bosses',
         focus_on: 'Showing NOW and next 5 · Click to show all',
         focus_off: 'Showing all · Click for NOW and next 5',
-        clickthrough_hint: 'Click-through on · Press {key} to return',
+        clickthrough_hint: '{key} to return',
         main_window_section: 'Main window (not HUD)',
         main_window_width: 'Width:',
         empty: 'No boss data available',
@@ -391,7 +391,7 @@ function updateClickThroughUI(active) {
 
 function updateClickThroughHint() {
     if (!dom.hudClickThroughHint) return;
-    dom.hudClickThroughHint.style.display = state.isClickThrough ? 'block' : 'none';
+    dom.hudClickThroughHint.style.display = state.isClickThrough ? 'inline' : 'none';
     if (state.isClickThrough) {
         dom.hudClickThroughHint.textContent = t('clickthrough_hint', {
             key: formatHotkeyForDisplay(state.clickThroughHotkey)
