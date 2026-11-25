@@ -22,3 +22,10 @@ test('HUD tells users how to exit click-through and separates main-window settin
     assert.match(script, /clickthrough_hint: 'คลิกทะลุอยู่ · กด \{key\} เพื่อกลับ'/);
     assert.match(script, /main_window_section: 'Main window \(not HUD\)'/);
 });
+
+test('Main-window section holds only the width; HUD opacity and hotkey stay above it', () => {
+    const at = id => html.indexOf('id="' + id + '"');
+    const order = ['labelOpacity', 'labelHotkey', 'customHotkeyRow', 'labelMainWindowSection', 'labelPanelWidth', 'labelAppVersion'].map(at);
+    assert.ok(order.every(i => i > 0));
+    assert.deepEqual(order, [...order].sort((a, b) => a - b));
+});
