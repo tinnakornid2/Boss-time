@@ -2,6 +2,7 @@ const http = require('http');
 const path = require('path');
 const express = require('express');
 const crypto = require('crypto');
+const { pollReply } = require('./poll-payload');
 const dns = require('dns');
 
 try {
@@ -1668,6 +1669,7 @@ function renderHtml(pageData, title = '#Kain7') {
         <link rel="modulepreload" as="script" href="/build/assets/app-CTdHufbH.js" />
         <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
         <script src="/js/alert-audio-queue.js?v=${APP_VERSION}"></script>
+        <script src="/js/poll-saver.js?v=${APP_VERSION}"></script>
         <script src="/js/realtime-alerts.js?v=${APP_VERSION}" data-role="${userRole === 'admin' ? 'admin' : userRole === 'member' ? 'member' : 'guest'}"></script>
         <script src="/js/push-notifications.js?v=${APP_VERSION}" defer></script>
         <script src="/js/boss-report.js?v=${APP_VERSION}" defer></script>
@@ -1912,7 +1914,7 @@ function renderHtml(pageData, title = '#Kain7') {
                     };
                 }
                 updateFbBadge();
-                setInterval(updateFbBadge, 10000);
+                setInterval(function() { if (document.visibilityState === 'visible') updateFbBadge(); }, 60000);
             })();
         </script>
     </body>
@@ -2396,7 +2398,7 @@ app.get('/poll', async (req, res) => {
     await db.expireBossAlerts();
     await db.autoAdvanceOverdueBosses();
     const settings = db.getSettings();
-    res.json({
+    const payload = {
         bosses: db.getBosses(),
         events: db.getEvents(),
         allEvents: db.getAllEvents(),
@@ -2411,11 +2413,12 @@ app.get('/poll', async (req, res) => {
         forceReloadAt: forceReloadAt,
         liveEvent: db.getLiveEvent(),
         recentLiveEvents: db.getRecentLiveEvents(),
-        serverTime: Date.now(),
         dataRevision: db.getDataRevision(),
         source: db.getActiveSource(),
         stale: false
-    });
+    };
+    // ?v= is the tag of the client's last payload; unchanged state gets a tiny reply (see poll-saver.js).
+    res.json(pollReply(payload, req.query.v, Date.now()));
 });
 
 // GET /download/app -> Download Windows Desktop App installer

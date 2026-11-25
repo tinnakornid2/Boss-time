@@ -1704,9 +1704,33 @@ function ensureDownloadAppButton() {
     // Reuse the dashboard's existing /poll response as a no-extra-request fallback.
     // This keeps working even when anonymous RTDB streaming is disabled by rules.
     const nativeFetch = window.fetch.bind(window);
+    const pollSaver = window.BossTrackerPollSaver?.createPollSaver({ fetchImpl: nativeFetch });
+    const isReadMethod = method => ['GET', 'HEAD'].includes(String(method || 'GET').toUpperCase());
+    // Any change sent from this page (fetch or Inertia/axios XHR) makes the next poll read the server.
+    const nativeXhrOpen = window.XMLHttpRequest?.prototype.open;
+    if (pollSaver && nativeXhrOpen) {
+        window.XMLHttpRequest.prototype.open = function (method, ...rest) {
+            if (!isReadMethod(method)) {
+                pollSaver.invalidate();
+                this.addEventListener('loadend', () => pollSaver.invalidate());
+            }
+            return nativeXhrOpen.call(this, method, ...rest);
+        };
+    }
     window.fetch = async function (...args) {
-        const response = await nativeFetch(...args);
         const requestUrl = String(args[0]?.url || args[0] || '');
+        const isRead = isReadMethod(args[1]?.method || args[0]?.method);
+        // Background heartbeats change no boss data.
+        const isChange = !isRead && !requestUrl.includes('/analytics/');
+        if (isChange) pollSaver?.invalidate();
+        let response;
+        try {
+            response = isRead && pollSaver?.isPoll(requestUrl)
+                ? await pollSaver.poll(requestUrl, args[1])
+                : await nativeFetch(...args);
+        } finally {
+            if (isChange) pollSaver?.invalidate();
+        }
         if (response.status === 401 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
             window.location.href = '/login';
             return response;
@@ -1762,6 +1786,7 @@ function ensureDownloadAppButton() {
         source.addEventListener('put', (message) => {
             try {
                 const packet = JSON.parse(message.data);
+                if (packet.data) pollSaver?.invalidate();
                 consumeLiveEvent(packet.data, first);
                 first = false;
                 state.streamConnected = true;
@@ -1771,6 +1796,7 @@ function ensureDownloadAppButton() {
         source.addEventListener('patch', (message) => {
             try {
                 const packet = JSON.parse(message.data);
+                if (packet.data) pollSaver?.invalidate();
                 consumeLiveEvent(packet.data, false);
             } catch (_) {}
         });
