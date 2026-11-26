@@ -151,6 +151,14 @@ Before production deployment:
 - After-log reset (owner's rule): only after the scheduled midnight log is saved (never on `runInvasionLogNow`), Apps Script calls `POST /api/report/after-log` (same trigger secret, accepted only Tue/Thu/Sat 00:00–01:59 Thailand time, once per night via `INVASION_RESET_DONE`). It sets `hideInvasionBosses: true` (per-key settings write) and clears invasion bosses' times with the same fields as `/bosses/reset-invasion-kill-times`, through `db.batchUpdateBosses`. Normal bosses are never touched. They stay hidden until Admin shows invasion again. This is the only scheduled Firebase write in the project: at most three nights a week.
 - Import: `POST /api/report/log/import` (requireAdmin, confirmed in the browser) puts one night's **invasion-server** times back on the invasion bosses. The server re-reads that night from the log (the browser only names date/loggedAt/server), matches by boss ID (unique name as fallback), never touches main-server bosses, catches passed spawns up with `calculateBossAutoAdvance`, clears `pre_spawned`/`pre_spawn_expires_at`/`alerted_by`, and writes once through `db.batchUpdateBosses`.
 
+## Rift Dungeon Bosses (kind `rift`)
+
+- A rift boss (e.g. Maluk at Maluk's Castle) has no kill. Admin enters the open (start of play) time or the real close time of one run; the other is derived, and if both are given the close time wins. Timeline per boss, editable: lobby `lobby_min` (5) → play `run_min` (60) → closing `closing_min` (1) → next start `cooldown_min` (360) after the real close. It repeats by itself until Admin enters a new time or Unsets.
+- Stored as `kind: 'rift'` + `rift: {lobby_min, run_min, closing_min, cooldown_min, open_at, close_at}` with `next_spawn`/`last_kill_time` null and `is_invasion` false. Logic lives in `public/js/rift-schedule.js` (browser + server).
+- `db.getBosses()` projects rifts for every outbound list (/poll, dashboard props, push, report, HUD, API): `next_spawn` = lobby of the current/next run, `pinned_alive` from the end of the lobby's five-minute NOW until the real close, plus `rift_phase` and `rift_*_at`. Nothing is written on a timer; use `db.getBoss()` (raw) for writes. Auto-advance and maintenance resets skip rifts.
+- `PUT /bosses/:id` refuses kill, not spawned, still alive, spawn adjust and maintenance toggle for a rift (400). It accepts `rift` times/durations, name/location/chance/color, Unset and the double-click alert. Alerts: 5 min before the lobby and at the lobby (sound, Web Push, HUD); none at start or close.
+- Admin manages rifts in the 🌀 panel (`public/js/rift-panel.js`). Dashboard rows only get a `data-rift-phase` attribute. Google Sheets keeps the rift in a "Rift (JSON)" column (redeploy `Code.gs` to use it).
+
 ## Files that define the system
 
 - `server/server.js`: authentication, roles, routes, dashboard data, cold-start handling.

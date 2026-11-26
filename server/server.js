@@ -11,6 +11,7 @@ try {
 const db = require('./db');
 const push = require('./push');
 const bossReport = require('../public/js/boss-report.js'); // same report logic as the browser panel
+const RiftSchedule = require('../public/js/rift-schedule.js'); // rift dungeon timeline, shared with the browser
 
 const app = express();
 const pkg = require('../package.json');
@@ -1670,9 +1671,11 @@ function renderHtml(pageData, title = '#Kain7') {
         <link rel="stylesheet" href="/build/assets/app-DIKwFrKw.css?v=${APP_VERSION}" />
         <script src="/js/alert-audio-queue.js?v=${APP_VERSION}"></script>
         <script src="/js/poll-saver.js?v=${APP_VERSION}"></script>
+        <script src="/js/rift-schedule.js?v=${APP_VERSION}"></script>
         <script src="/js/realtime-alerts.js?v=${APP_VERSION}" data-role="${userRole === 'admin' ? 'admin' : userRole === 'member' ? 'member' : 'guest'}"></script>
         <script src="/js/push-notifications.js?v=${APP_VERSION}" defer></script>
         <script src="/js/boss-report.js?v=${APP_VERSION}" defer></script>
+        <script src="/js/rift-panel.js?v=${APP_VERSION}" defer></script>
         <script type="module" src="/build/assets/app-CTdHufbH.js"></script>
     </head>
     <body class="font-sans antialiased">
@@ -2485,11 +2488,82 @@ app.post('/bosses/:id/notify', requireAdmin, async (req, res) => {
     if (!boss) return res.status(404).json({ success: false, message: 'Boss not found' });
     const updated = await db.updateBoss(id, getPreSpawnAlertUpdates(boss, getSessionRole(req)));
     if (updated?.pre_spawned) {
-        await push.sendAdminAlert(updated, { hideInvasion: Boolean(db.getSettings()?.hideInvasionBosses), invasionLabel: db.getSettings()?.invasionLabel || 'L3' }).catch(() => {});
+        await push.sendAdminAlert(updated.kind === 'rift' ? RiftSchedule.projectRift(updated, Date.now()) : updated, { hideInvasion: Boolean(db.getSettings()?.hideInvasionBosses), invasionLabel: db.getSettings()?.invasionLabel || 'L3' }).catch(() => {});
     }
     if (req.headers['x-inertia']) return respondInertiaOrRedirect(req, res, '/');
     return res.json({ success: true, active: updated.pre_spawned, boss: updated });
 });
+
+// ---------- Rift dungeon bosses (kind "rift", public/js/rift-schedule.js) ----------
+// A rift has no kill time: the DB keeps next_spawn null and only rift {durations, open_at, close_at}.
+// Outbound lists (db.getBosses) project the current/next run, so nothing is written on a timer.
+function riftBody(input, previous) {
+    try {
+        return { rift: RiftSchedule.normalizeRift(input, previous) };
+    } catch (e) {
+        return { error: e.message };
+    }
+}
+
+function riftReply(req, res, boss) {
+    if (req.headers['x-inertia']) return respondInertiaOrRedirect(req, res, '/');
+    return res.json({ success: true, boss: RiftSchedule.projectRift(boss, Date.now()) });
+}
+
+const chanceOf = (body) => (body.chance_of_appearing !== undefined ? body.chance_of_appearing : body.chanceOfAppearing);
+
+async function createRiftBoss(req, res) {
+    const body = req.body || {};
+    const parsed = riftBody(body.rift, null);
+    if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
+    const boss = await db.createBoss({
+        name: body.name.trim(),
+        location: typeof body.location === 'string' ? body.location.trim() : '',
+        interval: 60,
+        chance_of_appearing: String(chanceOf(body) !== undefined ? chanceOf(body) : '100'),
+        color: body.color ? String(body.color).trim() : null,
+        kind: 'rift',
+        rift: parsed.rift
+    });
+    return riftReply(req, res, boss);
+}
+
+async function updateRiftBoss(req, res, boss, body) {
+    // No kill, no "not spawned", no Still alive, no spawn adjust: Admin enters the open or close time.
+    if ((body.last_kill_time !== undefined && body.last_kill_time) || body.not_spawned || body.still_alive || body.adjust_spawn_minutes !== undefined || body.toggle_maintenance) {
+        return res.status(400).json({ success: false, message: 'A rift boss has no kill time: enter its open or close time instead' });
+    }
+    const updates = {};
+    if (body.toggle_pre_spawned) {
+        Object.assign(updates, getPreSpawnAlertUpdates(boss, getSessionRole(req)));
+        delete updates.pinned_alive;
+    } else if (body.unset_kill_time || body.last_kill_time !== undefined) {
+        updates.rift = { ...RiftSchedule.normalizeRift({}, boss.rift), open_at: null, close_at: null };
+        updates.next_spawn = null;
+        updates.last_kill_time = null; // marks the live event as boss_time_unset
+        clearPreSpawnAlert(updates);
+    } else {
+        if (body.rift !== undefined) {
+            const parsed = riftBody(body.rift, boss.rift);
+            if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
+            updates.rift = parsed.rift;
+            clearPreSpawnAlert(updates);
+        }
+        if (body.name !== undefined) {
+            if (typeof body.name !== 'string' || !body.name.trim() || body.name.trim().length > 100) {
+                return res.status(400).json({ success: false, message: 'Invalid boss name' });
+            }
+            updates.name = body.name.trim();
+        }
+        if (body.location !== undefined) updates.location = String(body.location || '').trim();
+        if (chanceOf(body) !== undefined) updates.chance_of_appearing = String(chanceOf(body));
+        if (body.color !== undefined) updates.color = body.color ? String(body.color).trim() : null;
+    }
+    // Rifts stay on the main server and never hold a stored spawn time.
+    Object.assign(updates, { kind: 'rift', is_invasion: false, pinned_alive: false });
+    const updated = await db.updateBoss(boss.id, updates);
+    return riftReply(req, res, updated);
+}
 
 // POST /bosses -> Create boss
 app.post('/bosses', requireAdmin, async (req, res) => {
@@ -2497,6 +2571,7 @@ app.post('/bosses', requireAdmin, async (req, res) => {
     if (typeof name !== 'string' || !name.trim() || name.trim().length > 100) {
         return res.status(400).json({ success: false, message: 'Invalid boss name' });
     }
+    if (req.body.kind === 'rift') return createRiftBoss(req, res);
     let intervalMinutes = 60;
     if (typeof interval === 'string' && interval.includes(':')) {
         const [h, m] = interval.split(':').map(Number);
@@ -2538,6 +2613,7 @@ app.put('/bosses/:id', requireAdmin, async (req, res) => {
     if (!boss) return respondInertiaOrRedirect(req, res, '/');
 
     const body = req.body || {};
+    if (RiftSchedule.isRift(boss)) return updateRiftBoss(req, res, boss, body);
         const updates = {};
 
     if (body.last_kill_time !== undefined) {
@@ -2718,6 +2794,7 @@ app.post('/bosses/apply-reset-boss-time', requireAdmin, async (req, res) => {
         const configsMap = configs == null ? savedConfigs : normalizeResetConfigs(configs);
 
         await db.batchUpdateBosses(boss => {
+            if (RiftSchedule.isRift(boss)) return null; // rifts keep their own schedule
             const conf = getResetConfig(configsMap, boss) || getResetConfig(savedConfigs, boss);
             if (conf) {
                 const offsetMinutes = (Number(conf.hours) || 0) * 60 + (Number(conf.minutes) || 0);
@@ -2763,7 +2840,7 @@ app.post('/bosses/save-reset-boss-config', requireAdmin, async (req, res) => {
 // POST /bosses/post-maintenance-mode
 app.post('/bosses/post-maintenance-mode', requireAdmin, async (req, res) => {
     await db.batchUpdateBosses(b => {
-        if (b.next_spawn) {
+        if (b.next_spawn && !RiftSchedule.isRift(b)) {
             return { post_maintenance: true };
         }
         return null;

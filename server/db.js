@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const firebase = require('./firebase');
 const googleSheets = require('./google-sheets');
+const RiftSchedule = require('../public/js/rift-schedule');
 
 // BOSS_TRACKER_DATA_FILE points the local store elsewhere (used by `npm test` so the
 // user-owned server/data/store.json is never rewritten).
@@ -45,6 +46,8 @@ function save() {
 }
 
 function calculateBossAutoAdvance(boss, nowMs = Date.now()) {
+    // Rift bosses follow their own schedule (rift-schedule.js) and are never written on a timer.
+    if (RiftSchedule.isRift(boss)) return null;
     // Unset bosses and bosses explicitly marked Still alive never auto-advance.
     if (!boss?.next_spawn || boss.pinned_alive) return null;
 
@@ -342,8 +345,10 @@ module.exports = {
         return load();
     },
 
-    getBosses() {
-        return load().bosses || [];
+    // Outbound boss list: rift bosses are projected to the current/next run (next_spawn and
+    // pinned_alive from the server clock). Stored data is never changed; use getBoss() for writes.
+    getBosses(nowMs = Date.now()) {
+        return RiftSchedule.projectBosses(load().bosses || [], nowMs);
     },
 
     isCloudDataReady() {
@@ -438,6 +443,7 @@ module.exports = {
             pre_spawned: false,
             pre_spawn_expires_at: null,
             alerted_by: null,
+            ...(bossData.kind === 'rift' ? { kind: 'rift', rift: bossData.rift, is_invasion: false, last_kill_time: null, next_spawn: null } : {}),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         };

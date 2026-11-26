@@ -174,7 +174,8 @@ function effectiveBossSpawnMs(boss, nowMs, calculateBossAutoAdvance) {
 function collectItems({ bosses = [], events = [], hideInvasion = false, invasionLabel = '', nowMs, calculateBossAutoAdvance }) {
     const items = [];
     for (const boss of bosses) {
-        if (!boss || !boss.next_spawn || boss.pinned_alive || boss.post_maintenance) continue;
+        // A projected rift is pinned from its start, so a rift with no lobby still alerts at that moment.
+        if (!boss || !boss.next_spawn || (boss.pinned_alive && boss.kind !== 'rift') || boss.post_maintenance) continue;
         if (boss.is_invasion && hideInvasion) continue;
         const spawnMs = effectiveBossSpawnMs(boss, nowMs, calculateBossAutoAdvance);
         if (spawnMs === null) continue;

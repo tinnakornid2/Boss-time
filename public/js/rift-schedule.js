@@ -85,7 +85,50 @@
         return out;
     }
 
-    const api = { DEFAULTS, isRift, riftState, normalizeRift };
+    const NOW_WINDOW_MS = 5 * MINUTE;
+    const iso = (ms) => new Date(ms).toISOString();
+
+    /**
+     * The boss as every screen sees it. The stored rift keeps next_spawn null; outbound lists get
+     * next_spawn = lobby of the current/next run and pinned_alive while the run is in progress, so
+     * the dashboard, alerts, push and HUD need no rift code. Non-rift bosses are returned unchanged.
+     */
+    function projectRift(boss, nowMs) {
+        if (!isRift(boss)) return boss;
+        const rift = boss.rift || {};
+        const d = durations(rift);
+        const s = riftState(rift, nowMs);
+        const base = {
+            ...boss,
+            interval: d.run_min + d.closing_min + d.cooldown_min,
+            last_kill_time: null,
+            auto_advanced: false,
+            post_maintenance: false,
+            is_invasion: false
+        };
+        if (!s) {
+            return { ...base, next_spawn: null, pinned_alive: false, rift_phase: null, rift_lobby_at: null, rift_start_at: null, rift_end_at: null, rift_close_at: null };
+        }
+        // NOW from the lobby until the real close: the lobby's own five-minute NOW window, then pinned.
+        const pinned = s.phase === 'OPEN' || s.phase === 'CLOSING' || (s.phase === 'LOBBY' && nowMs >= s.lobbyAt + NOW_WINDOW_MS);
+        return {
+            ...base,
+            next_spawn: iso(s.lobbyAt),
+            pinned_alive: pinned,
+            rift_phase: s.phase,
+            rift_lobby_at: iso(s.lobbyAt),
+            rift_start_at: iso(s.startAt),
+            rift_end_at: iso(s.endAt),
+            rift_close_at: iso(s.closeAt)
+        };
+    }
+
+    function projectBosses(bosses, nowMs) {
+        if (!Array.isArray(bosses) || !bosses.some(isRift)) return bosses || [];
+        return bosses.map(boss => projectRift(boss, nowMs));
+    }
+
+    const api = { DEFAULTS, isRift, riftState, normalizeRift, projectRift, projectBosses };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     if (root) root.RiftSchedule = api;
 })(typeof window !== 'undefined' ? window : globalThis);

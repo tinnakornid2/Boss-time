@@ -186,7 +186,7 @@ function syncFullStore(ss, store) {
   var bHeaders = [
     'ID', 'Name', 'Location', 'Interval (Min)', 'Chance %', 'Is Invasion',
     'Color', 'Last Kill Time', 'Next Spawn Time', 'Pinned Alive', 'Auto Advanced',
-    'Post Maintenance', 'Pre Spawned', 'Updated At'
+    'Post Maintenance', 'Pre Spawned', 'Updated At', 'Rift (JSON)'
   ];
   formatHeader(bSheet, bHeaders);
 
@@ -206,7 +206,8 @@ function syncFullStore(ss, store) {
         b.auto_advanced ? 'YES' : 'NO',
         b.post_maintenance ? 'YES' : 'NO',
         b.pre_spawned ? 'YES' : 'NO',
-        b.updated_at || new Date().toISOString()
+        b.updated_at || new Date().toISOString(),
+        riftCell(b)
       ];
     });
     bSheet.getRange(2, 1, rows.length, bHeaders.length).setValues(rows);
@@ -219,6 +220,16 @@ function syncFullStore(ss, store) {
   syncSettings(ss, store.settings || {}, store.resetTimeConfigs || {});
 
   return { bossesCount: bosses.length };
+}
+
+// Rift dungeon bosses (kind "rift") keep their timeline in one JSON cell so a failover keeps them.
+function riftCell(boss) {
+  return boss && boss.kind === 'rift' ? JSON.stringify(boss.rift || {}) : '';
+}
+
+function readRiftCell(value) {
+  if (!value) return null;
+  try { return JSON.parse(String(value)); } catch (e) { return null; }
 }
 
 /**
@@ -256,7 +267,8 @@ function updateSingleBoss(ss, boss) {
     boss.auto_advanced ? 'YES' : 'NO',
     boss.post_maintenance ? 'YES' : 'NO',
     boss.pre_spawned ? 'YES' : 'NO',
-    boss.updated_at || new Date().toISOString()
+    boss.updated_at || new Date().toISOString(),
+    riftCell(boss)
   ];
 
   if (rowIndex > 0) {
@@ -391,6 +403,7 @@ function readFullStore(ss) {
     for (var i = 1; i < bValues.length; i++) {
       var row = bValues[i];
       if (!row[0]) continue;
+      var rift = readRiftCell(row[14]);
       store.bosses.push({
         id: Number(row[0]),
         name: String(row[1]),
@@ -405,7 +418,9 @@ function readFullStore(ss) {
         auto_advanced: String(row[10]) === 'YES',
         post_maintenance: String(row[11]) === 'YES',
         pre_spawned: String(row[12]) === 'YES',
-        updated_at: row[13] ? String(row[13]) : new Date().toISOString()
+        updated_at: row[13] ? String(row[13]) : new Date().toISOString(),
+        kind: rift ? 'rift' : undefined,
+        rift: rift || undefined
       });
     }
   }

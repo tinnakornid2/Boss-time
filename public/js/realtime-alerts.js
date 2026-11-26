@@ -1024,7 +1024,8 @@ function ensureDownloadAppButton() {
         const downloadBtn = document.getElementById('header-download-app-control');
         const pushBtn = document.getElementById('header-push-control');
         const reportBtn = document.getElementById('header-report-control');
-        for (const element of [firebase, version, timezone, langBtn, reportBtn, pushBtn, downloadBtn, audio]) {
+        const riftBtn = document.getElementById('header-rift-control');
+        for (const element of [firebase, version, timezone, langBtn, reportBtn, riftBtn, pushBtn, downloadBtn, audio]) {
             if (!element) continue;
             element.classList.add('compact-system-control', 'no-drag');
             if (element.parentElement !== controls) controls.appendChild(element);
@@ -1522,6 +1523,9 @@ function ensureDownloadAppButton() {
             for (const row of bossRows(boss)) {
                 row.classList.toggle('realtime-pre-spawn-flash', active);
                 applyRowBossColor(row, boss);
+                // Rift bosses: attribute only (styled by rift-panel.js); never text or row order.
+                if (boss.kind === 'rift') row.setAttribute('data-rift-phase', boss.rift_phase || 'UNSET');
+                else if (row.hasAttribute('data-rift-phase')) row.removeAttribute('data-rift-phase');
             }
         }
         reconcileEventRows();
@@ -1541,8 +1545,11 @@ function ensureDownloadAppButton() {
                     ? String(event.boss.color).trim()
                     : (current?.color || (typeof getCachedBossColor === 'function' ? getCachedBossColor(id) : null) || null);
                 if (incomingColor && typeof cacheBossColor === 'function') cacheBossColor(id, incomingColor);
+                // Live events carry the stored boss; a rift is projected like /poll does.
+                const rifts = typeof window !== 'undefined' ? window.RiftSchedule : null;
+                const liveBoss = rifts ? rifts.projectRift(event.boss, Date.now() + state.serverOffset) : event.boss;
                 const incomingBoss = {
-                    ...event.boss,
+                    ...liveBoss,
                     color: incomingColor
                 };
                 state.bosses.set(id, incomingBoss);
