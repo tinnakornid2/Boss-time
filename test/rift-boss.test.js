@@ -227,3 +227,22 @@ test('the Settings menu has an Admin-only Rift tab whose body is the rift panel 
     assert.match(server, /rift-schedule\.js\?v=\$\{APP_VERSION\}/);
     assert.match(server, /rift-panel\.js\?v=\$\{APP_VERSION\}/);
 });
+
+test('Settings → Events form gets a font color picker, saved through the Admin event color route', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const src = fs.readFileSync(path.join(__dirname, '../public/js/realtime-alerts.js'), 'utf8');
+    assert.match(src, /function attachEventColorPickerToSettingsEvents\(\)/);
+    assert.match(src, /attachEventColorPickerToSettingsEvents\(\);/, 'called with the other dialog helpers');
+    assert.match(src, /'\/events\/' \+ currentEvent\.id \+ '\/color'/);
+    assert.match(src, /pending_new_event_color_/);
+});
+
+test('font color pickers in Settings never change the shared invasion color', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const src = fs.readFileSync(path.join(__dirname, '../public/js/realtime-alerts.js'), 'utf8');
+    const start = src.indexOf('function syncInvasionSettingsAdminLock()');
+    const body = src.slice(start, src.indexOf("fetch('/settings/invasion-color'", start));
+    assert.match(body, /closest\('\.settings-event-color-picker, #rift-panel, #custom-event-color-picker-container'\)\) continue;/);
+});

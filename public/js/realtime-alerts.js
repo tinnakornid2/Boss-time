@@ -1671,6 +1671,22 @@ function ensureDownloadAppButton() {
                 }
             }
         }
+        // A color picked in Settings → Events "Add New Event" is saved once the new event appears.
+        if (state.isAdmin) {
+            for (const event of data.allEvents || data.events || []) {
+                const pendingKey = 'pending_new_event_color_' + (event.name || '').toLowerCase();
+                const pendingColor = sessionStorage.getItem(pendingKey);
+                if (pendingColor === null) continue;
+                sessionStorage.removeItem(pendingKey);
+                if (pendingColor && event.color !== pendingColor) {
+                    fetch('/events/' + event.id + '/color', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ color: pendingColor })
+                    }).catch(() => {});
+                }
+            }
+        }
         for (const event of data.events || []) {
             const id = Number(event.id);
             const current = state.events.get(id);
@@ -2673,6 +2689,102 @@ function ensureDownloadAppButton() {
         form.addEventListener('submit', triggerSaveColor, { capture: true });
     }
 
+    // Settings → Events tab: the inline "Add New Event" / "Editing Event" form (inputs #event-name,
+    // no <form>, plain "Add/Update Event" button). Adds the same presets + custom picker. An edit
+    // saves through PUT /events/:id/color; a new event's color waits in sessionStorage until the
+    // next poll shows the event (same as new bosses). Admin only; only adds a node, never moves rows.
+    function attachEventColorPickerToSettingsEvents() {
+        if (!state.isAdmin) return;
+        const nameInput = document.getElementById('event-name');
+        if (!nameInput) return;
+        const nameRow = nameInput.closest('div')?.parentElement;
+        const block = nameRow?.parentElement;
+        if (!block) return;
+        const cancelBtn = Array.from(block.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === 'Cancel' || /^(Cancel|ยกเลิก)$/.test(b.textContent.trim()));
+        const saveBtn = cancelBtn?.parentElement?.querySelector('button:not([aria-label="Cancel"])');
+        const actionRow = Array.from(block.children).find(child => child.contains(saveBtn || cancelBtn));
+        if (!saveBtn || !actionRow) return;
+
+        const isTh = getLanguage() === 'th';
+        const placeholder = isTh ? 'ชื่อกิจกรรม' : 'Event Name';
+        const editing = /update|บันทึก|แก้ไข/i.test(saveBtn.textContent || '');
+        let picker = block.querySelector(':scope > .settings-event-color-picker');
+        const originalName = picker ? picker.dataset.originalName : nameInput.value.trim();
+        const currentEvent = editing
+            ? Array.from(state.events.values()).find(e => (e.name || '').toLowerCase() === originalName.toLowerCase()) || null
+            : null;
+        const key = editing ? 'edit:' + (currentEvent?.id ?? originalName) : 'new';
+        if (picker && picker.dataset.key === key) {
+            const preview = picker.querySelector('.sec-preview');
+            const text = nameInput.value.trim() || placeholder;
+            if (preview && preview.textContent !== text) preview.textContent = text;
+            return;
+        }
+        if (picker) picker.remove();
+
+        const startColor = (currentEvent?.color && /^#[0-9a-f]{6}$/i.test(currentEvent.color)) ? currentEvent.color.toLowerCase() : '';
+        let chosen = startColor;
+        picker = document.createElement('div');
+        picker.className = 'settings-event-color-picker';
+        picker.dataset.key = key;
+        picker.dataset.originalName = editing ? originalName : '';
+        picker.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding:6px 0';
+        const head = document.createElement('div');
+        head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.55)';
+        const title = document.createElement('span');
+        title.textContent = isTh ? '🎨 สีตัวอักษรกิจกรรม' : '🎨 Event font color';
+        const preview = document.createElement('span');
+        preview.className = 'sec-preview';
+        preview.textContent = nameInput.value.trim() || placeholder;
+        head.append(title, preview);
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;align-items:center';
+        const swatches = [];
+        const custom = document.createElement('input');
+        custom.type = 'color';
+        custom.setAttribute('aria-label', isTh ? 'เลือกสีเอง' : 'Custom color');
+        custom.style.cssText = 'width:26px;height:20px;padding:0;border:1px solid #3f3f46;border-radius:5px;background:none;cursor:pointer';
+        const paint = () => {
+            preview.style.cssText = 'font-weight:700;font-size:12px;color:' + (chosen || '#38bdf8') + ';' + (chosen ? 'text-shadow:0 0 10px ' + chosen + '99' : '');
+            for (const s of swatches) s.style.outline = (s.dataset.color || '') === chosen ? '2px solid #fff' : 'none';
+            custom.value = chosen || '#38bdf8';
+        };
+        for (const p of PRESET_BOSS_COLORS) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.dataset.color = p.color || '';
+            const label = isTh ? p.label_th : p.label_en;
+            b.setAttribute('aria-label', label);
+            b.setAttribute('data-unified-tooltip', label);
+            b.style.cssText = 'width:18px;height:18px;border-radius:50%;padding:0;cursor:pointer;outline-offset:1px;border:1px ' + (p.color ? 'solid' : 'dashed') + ' rgba(255,255,255,.4);background:' + (p.color || '#27272a');
+            b.addEventListener('click', () => { chosen = p.color || ''; paint(); });
+            swatches.push(b);
+            row.appendChild(b);
+        }
+        custom.addEventListener('input', () => { chosen = custom.value.toLowerCase(); paint(); });
+        row.appendChild(custom);
+        picker.append(head, row);
+        paint();
+        block.insertBefore(picker, actionRow);
+
+        saveBtn.addEventListener('click', () => {
+            if (!picker.isConnected) return;
+            if (editing && currentEvent?.id) {
+                if ((currentEvent.color || '') === chosen) return;
+                currentEvent.color = chosen || null;
+                reconcileEventRows();
+                fetch('/events/' + currentEvent.id + '/color', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ color: chosen || null })
+                }).catch(() => {});
+            } else if (!editing && chosen) {
+                const newName = nameInput.value.trim();
+                if (newName) sessionStorage.setItem('pending_new_event_color_' + newName.toLowerCase(), chosen);
+            }
+        }, { capture: true });
+    }
+
     let invasionColorSyncTimeout = null;
     function syncInvasionSettingsAdminLock() {
         const dialog = document.querySelector('[role="dialog"]');
@@ -2685,6 +2797,8 @@ function ensureDownloadAppButton() {
         const colorInputs = dialog.querySelectorAll('input[type="color"]');
         for (const input of colorInputs) {
             if (input.id === 'custom-boss-color-input-field') continue;
+            // Font color pickers (events, rift bosses) are not the shared invasion color.
+            if (input.id === 'custom-event-color-input-field' || input.closest('.settings-event-color-picker, #rift-panel, #custom-event-color-picker-container')) continue;
 
             const container = input.closest('div') || input.parentElement;
             if (!container) continue;
@@ -2856,6 +2970,7 @@ function ensureDownloadAppButton() {
         }
         attachBossColorPickerToDialog();
         attachEventColorPickerToDialog();
+        attachEventColorPickerToSettingsEvents();
         attachCustomTimeFormatToDialog();
         syncInvasionSettingsAdminLock();
         translateVisibleTooltips();
