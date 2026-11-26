@@ -19,7 +19,9 @@
             set_time: 'Save time', unset: 'Unset', none: 'No rift bosses yet.', loading: 'Loading…', failed: 'Could not load. Try again.',
             saved: 'Saved', error: 'Not saved', unset_confirm: 'Unset {name}? Its timer stops on every screen.',
             phase_LOBBY: 'Lobby', phase_OPEN: 'Open', phase_CLOSING: 'Closing', phase_CLOSED: 'Closed', phase_null: 'Unset',
-            next: 'Start {start} · close {close}', durations: 'Name, chance and timeline', color: 'Font color', custom: 'Custom'
+            next: 'Start {start} · close {close}', durations: 'Name, chance and timeline', color: 'Font color', custom: 'Custom',
+            spawned: '✅ Spawned', not_spawned: '❌ Not spawned', adjust: '🕒 Adjust time', mark_hint: 'For the run showing NOW (or the one that just closed). Not spawned: next start is 6 h after this start, without the hour of play.',
+            not_spawned_confirm: '{name} did not spawn? The next start moves to {time}.'
         },
         th: {
             title: 'ดันเจี้ยนริฟท์', add: 'เพิ่มบอสริฟท์', name: 'ชื่อบอส',
@@ -29,7 +31,9 @@
             set_time: 'บันทึกเวลา', unset: 'Unset', none: 'ยังไม่มีบอสริฟท์', loading: 'กำลังโหลด…', failed: 'โหลดไม่สำเร็จ ลองใหม่',
             saved: 'บันทึกแล้ว', error: 'บันทึกไม่สำเร็จ', unset_confirm: 'Unset {name}? ตัวจับเวลาจะหยุดทุกหน้าจอ',
             phase_LOBBY: 'ล็อบบี้', phase_OPEN: 'เปิดอยู่', phase_CLOSING: 'กำลังปิด', phase_CLOSED: 'ปิดอยู่', phase_null: 'Unset',
-            next: 'เริ่ม {start} · ปิด {close}', durations: 'ชื่อ โอกาส และช่วงเวลา', color: '🎨 สีตัวอักษรบอส', custom: 'เลือกเอง'
+            next: 'เริ่ม {start} · ปิด {close}', durations: 'ชื่อ โอกาส และช่วงเวลา', color: '🎨 สีตัวอักษรบอส', custom: 'เลือกเอง',
+            spawned: '✅ เกิด', not_spawned: '❌ ไม่เกิด', adjust: '🕒 ปรับเวลา', mark_hint: 'ใช้กับรอบที่ขึ้น NOW (หรือรอบที่เพิ่งปิด) ไม่เกิด: รอบถัดไปเริ่ม 6 ชม. หลังเวลาเริ่มรอบนี้ ไม่บวกเวลาเล่น 1 ชม.',
+            not_spawned_confirm: '{name} ไม่เกิดใช่ไหม? รอบถัดไปจะเริ่ม {time}'
         }
     };
     const lang = () => { try { return localStorage.getItem('tracker_lang') === 'th' ? 'th' : 'en'; } catch (_) { return 'en'; } };
@@ -58,11 +62,13 @@
     const toInput = (iso) => { if (!iso) return ''; const d = new Date(iso); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
     const fromInput = (value) => (value ? new Date(value).toISOString() : undefined); // datetime-local is this device's local time
     const HEX = /^#[0-9a-f]{6}$/i;
+    const serverNow = () => { try { if (typeof root.getTrackerServerNow === 'function') return root.getTrackerServerNow().getTime(); } catch (_) {} return Date.now(); };
 
     let mount = null;
     let bosses = [];
     let status = '';
     let openEdit = new Set();
+    const openTime = new Set();
 
     async function api(method, url, body) {
         const res = await fetch(url, {
@@ -183,6 +189,7 @@
             const close = fromInput(timeForm.elements.close_at.value);
             if (!open && !close) return;
             const times = close ? { close_at: close } : { open_at: open }; // close wins
+            openTime.delete(boss.id);
             run(() => api('PUT', `/bosses/${boss.id}`, { rift: times }));
         } },
         h('label', { class: 'rp-field' }, tr('open_time'), h('input', { type: 'datetime-local', name: 'open_at', value: toInput(boss.rift_start_at) })),
@@ -215,8 +222,18 @@
                 h('strong', { style: HEX.test(boss.color || '') ? `color:${boss.color}` : null }, boss.name, boss.location ? h('span', { class: 'rp-loc' }, ` · ${boss.location}`) : null),
                 h('span', { class: `rp-phase rp-phase-${boss.rift_phase || 'none'}` }, tr(`phase_${boss.rift_phase || null}`))),
             boss.rift_start_at ? h('p', { class: 'rp-note' }, tr('next', { start: clock(boss.rift_start_at), close: clock(boss.rift_close_at) })) : null,
-            timeForm,
-            h('p', { class: 'rp-note' }, tr('time_hint')),
+            boss.rift_phase ? h('div', { class: 'rp-grid' },
+                h('button', { type: 'button', class: 'rp-btn rp-yes', onclick: () => run(() => api('PUT', '/bosses/' + boss.id, { rift_spawned: true })) }, tr('spawned')),
+                h('button', { type: 'button', class: 'rp-btn rp-no', onclick: () => {
+                    const next = RS.skipRun(boss.rift || {}, serverNow());
+                    if (!next) { status = tr('error'); render(); return; }
+                    const nextStart = RS.riftState(next, serverNow());
+                    if (!root.confirm(tr('not_spawned_confirm', { name: boss.name, time: clock(nextStart && new Date(nextStart.startAt).toISOString()) }))) return;
+                    run(() => api('PUT', '/bosses/' + boss.id, { not_spawned: true }));
+                } }, tr('not_spawned')),
+                h('button', { type: 'button', class: 'rp-btn', 'aria-expanded': String(openTime.has(boss.id)), onclick: () => { if (openTime.has(boss.id)) openTime.delete(boss.id); else openTime.add(boss.id); render(); } }, tr('adjust'))) : null,
+            boss.rift_phase ? h('p', { class: 'rp-note' }, tr('mark_hint')) : null,
+            !boss.rift_phase || openTime.has(boss.id) ? h('div', { class: 'rp-time' }, timeForm, h('p', { class: 'rp-note' }, tr('time_hint'))) : null,
             details,
             h('button', { type: 'button', class: 'rp-btn rp-danger', onclick: () => {
                 if (!root.confirm(tr('unset_confirm', { name: boss.name }))) return;
@@ -249,6 +266,9 @@
             #rift-panel .rp-btn{padding:6px 10px;border-radius:8px;border:1px solid #3f3f46;background:#18181b;color:#f4f4f5;font:600 11px system-ui;cursor:pointer;align-self:flex-start}
             #rift-panel .rp-primary{background:#7c3aed;border-color:#7c3aed;color:#fff}
             #rift-panel .rp-danger{color:#fca5a5;border-color:#7f1d1d}
+            #rift-panel .rp-time{display:flex;flex-direction:column;gap:6px;padding:8px;border:1px dashed rgba(255,255,255,.12);border-radius:8px}
+            #rift-panel .rp-yes{background:#14532d;border-color:#16a34a;color:#dcfce7}
+            #rift-panel .rp-no{background:#450a0a;border-color:#dc2626;color:#fee2e2}
             #rift-panel .rp-note{margin:0;font-size:10px;color:#a1a1aa}
             #rift-panel .rp-status{margin:0;font-size:11px;color:#fbbf24}
             #rift-panel .rp-loc{font-weight:400;color:#71717a}

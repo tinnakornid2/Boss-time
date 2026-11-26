@@ -81,3 +81,75 @@ test('entering one time replaces the old anchor instead of mixing two runs', () 
     assert.equal(kept.open_at, iso(at('10:00')));
     assert.equal(kept.run_min, 56);
 });
+
+// ---------- Not spawned (the 50% rift did not appear) ----------
+const { skipRun } = require('../public/js/rift-schedule');
+
+test('Not spawned during the run: the next start is 6 h after the missed start, without the hour of play', () => {
+    const rift = normalizeRift({ open_at: iso(at('10:00')) });
+    const skipped = skipRun(rift, at('10:20'));
+    assert.equal(skipped.close_at, iso(at('10:00')));
+    assert.equal(skipped.open_at, null);
+    assert.equal(skipped.skip, true);
+    const next = riftState(skipped, at('10:21'));
+    assert.equal(next.phase, 'CLOSED');
+    assert.equal(next.startAt, at('16:00'));
+    assert.equal(next.lobbyAt, at('15:55'));
+});
+
+test('Not spawned during the lobby skips that run, never inventing an earlier one', () => {
+    const skipped = skipRun(normalizeRift({ open_at: iso(at('10:00')) }), at('09:57'));
+    const state = riftState(skipped, at('09:58'));
+    assert.equal(state.phase, 'CLOSED');
+    assert.equal(state.startAt, at('16:00'));
+});
+
+test('Not spawned after the run closed (pressed late) skips the run that just showed NOW', () => {
+    const skipped = skipRun(normalizeRift({ open_at: iso(at('10:00')) }), at('12:00'));
+    assert.equal(riftState(skipped, at('12:00')).startAt, at('16:00'));
+});
+
+test('pressed later than the would-be next start, that run is already in progress', () => {
+    const skipped = skipRun(normalizeRift({ open_at: iso(at('10:00')) }), at('16:10'));
+    // Before the normal next lobby (16:56), so the 10:00 run is the one marked; its skip start 16:00 has passed.
+    const state = riftState(skipped, at('16:10'));
+    assert.equal(state.phase, 'OPEN');
+    assert.equal(state.startAt, at('16:00'));
+});
+
+test('Not spawned twice in a row keeps adding 6 h per missed run', () => {
+    const once = skipRun(normalizeRift({ open_at: iso(at('10:00')) }), at('10:20'));
+    const twice = skipRun(once, at('16:10'));
+    assert.equal(riftState(twice, at('16:11')).startAt, at('22:00'));
+});
+
+test('a second press right after a skip has nothing to skip', () => {
+    const once = skipRun(normalizeRift({ open_at: iso(at('10:00')) }), at('10:20'));
+    assert.equal(skipRun(once, at('10:30')), null);
+    assert.equal(skipRun(normalizeRift({}), at('10:30')), null, 'Unset rift');
+});
+
+test('editing durations keeps the skip; entering a time clears it', () => {
+    const once = skipRun(normalizeRift({ open_at: iso(at('10:00')) }), at('10:20'));
+    assert.equal(normalizeRift({ run_min: 50 }, once).skip, true);
+    assert.equal(normalizeRift({ open_at: iso(at('18:00')) }, once).skip, undefined);
+});
+
+const { confirmRun } = require('../public/js/rift-schedule');
+
+test('Spawned anchors the open time to the run in progress (normal hour of play, 6 h after close)', () => {
+    const skipped = skipRun(normalizeRift({ open_at: iso(at('10:00')) }), at('10:20'));
+    const confirmed = confirmRun(skipped, at('16:10'));
+    assert.equal(confirmed.open_at, iso(at('16:00')));
+    assert.equal(confirmed.close_at, null);
+    assert.equal(confirmed.skip, undefined);
+    assert.equal(riftState(confirmed, at('17:02')).startAt, at('23:01'));
+    assert.equal(confirmRun(normalizeRift({}), at('10:00')), null);
+});
+
+test('Spawned right after a mistaken Not spawned restores the normal timeline', () => {
+    const skipped = skipRun(normalizeRift({ open_at: iso(at('10:00')) }), at('10:20'));
+    const undone = confirmRun(skipped, at('10:21'));
+    assert.equal(undone.open_at, iso(at('10:00')));
+    assert.equal(riftState(undone, at('10:21')).phase, 'OPEN');
+});

@@ -2530,11 +2530,18 @@ async function createRiftBoss(req, res) {
 
 async function updateRiftBoss(req, res, boss, body) {
     // No kill, no "not spawned", no Still alive, no spawn adjust: Admin enters the open or close time.
-    if ((body.last_kill_time !== undefined && body.last_kill_time) || body.not_spawned || body.still_alive || body.adjust_spawn_minutes !== undefined || body.toggle_maintenance) {
+    if ((body.last_kill_time !== undefined && body.last_kill_time) || body.still_alive || body.adjust_spawn_minutes !== undefined || body.toggle_maintenance) {
         return res.status(400).json({ success: false, message: 'A rift boss has no kill time: enter its open or close time instead' });
     }
     const updates = {};
-    if (body.toggle_pre_spawned) {
+    if (body.not_spawned || body.rift_spawned) {
+        // Not spawned: next start = missed start + cooldown (no play/closing time).
+        // Spawned: the normal timeline follows from that run's start.
+        const next = body.not_spawned ? RiftSchedule.skipRun(boss.rift, Date.now()) : RiftSchedule.confirmRun(boss.rift, Date.now());
+        if (!next) return res.status(409).json({ success: false, message: 'No rift run to mark right now' });
+        updates.rift = next;
+        clearPreSpawnAlert(updates);
+    } else if (body.toggle_pre_spawned) {
         Object.assign(updates, getPreSpawnAlertUpdates(boss, getSessionRole(req)));
         delete updates.pinned_alive;
     } else if (body.unset_kill_time || body.last_kill_time !== undefined) {

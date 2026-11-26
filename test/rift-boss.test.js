@@ -139,10 +139,10 @@ test('Admin creates a rift: stored with no next_spawn, projected on /poll and th
     });
 });
 
-test('kill, not spawned, still alive and spawn adjust are refused for a rift', async () => {
+test('kill, still alive and spawn adjust are refused for a rift', async () => {
     await withServer(async (base) => {
         const created = (await (await send(base, 'POST', '/bosses', 'admin', { name: 'Rift A', kind: 'rift', rift: { open_at: iso(Date.now()) } })).json()).boss;
-        for (const body of [{ last_kill_time: iso(Date.now()) }, { not_spawned: true }, { still_alive: true }, { adjust_spawn_minutes: 10 }]) {
+        for (const body of [{ last_kill_time: iso(Date.now()) }, { still_alive: true }, { adjust_spawn_minutes: 10 }]) {
             const res = await send(base, 'PUT', `/bosses/${created.id}`, 'admin', body);
             assert.equal(res.status, 400, JSON.stringify(body));
         }
@@ -245,4 +245,42 @@ test('font color pickers in Settings never change the shared invasion color', ()
     const start = src.indexOf('function syncInvasionSettingsAdminLock()');
     const body = src.slice(start, src.indexOf("fetch('/settings/invasion-color'", start));
     assert.match(body, /closest\('\.settings-event-color-picker, #rift-panel, #custom-event-color-picker-container'\)\) continue;/);
+});
+
+
+test('Not spawned on a rift: next start is the missed start + cooldown, alert cleared, a repeat press is refused', async () => {
+    await withServer(async (base) => {
+        const startAt = Date.now() - 20 * MIN;
+        const created = (await (await send(base, 'POST', '/bosses', 'admin', { name: 'Rift H', kind: 'rift', rift: { open_at: iso(startAt) } })).json()).boss;
+        await db.updateBoss(created.id, { pre_spawned: true, pre_spawn_expires_at: iso(Date.now() + 60000), alerted_by: 'admin' });
+        assert.equal((await send(base, 'PUT', '/bosses/' + created.id, 'member', { not_spawned: true })).status, 403);
+        const res = await send(base, 'PUT', '/bosses/' + created.id, 'admin', { not_spawned: true });
+        assert.equal(res.status, 200);
+        const stored = db.getBoss(created.id);
+        assert.equal(stored.rift.close_at, iso(startAt));
+        assert.equal(stored.pre_spawned, false);
+        assert.equal(stored.next_spawn, null);
+        const seen = db.getBosses().find(b => b.id === created.id);
+        assert.equal(Date.parse(seen.rift_start_at), Date.parse(stored.rift.close_at) + 360 * MIN);
+        assert.equal(seen.pinned_alive, false);
+        assert.equal((await send(base, 'PUT', '/bosses/' + created.id, 'admin', { not_spawned: true })).status, 409);
+    });
+});
+
+
+test('Spawned on a rift pins the normal timeline to that run and clears a skip', async () => {
+    await withServer(async (base) => {
+        const startAt = Date.now() - 20 * MIN;
+        const created = (await (await send(base, 'POST', '/bosses', 'admin', { name: 'Rift I', kind: 'rift', rift: { open_at: iso(startAt) } })).json()).boss;
+        assert.equal((await send(base, 'PUT', '/bosses/' + created.id, 'admin', { not_spawned: true })).status, 200);
+        assert.equal((await send(base, 'PUT', '/bosses/' + created.id, 'member', { rift_spawned: true })).status, 403);
+        const res = await send(base, 'PUT', '/bosses/' + created.id, 'admin', { rift_spawned: true });
+        assert.equal(res.status, 200);
+        const stored = db.getBoss(created.id);
+        assert.equal(stored.rift.open_at, iso(startAt));
+        assert.equal(stored.rift.skip, undefined);
+        const seen = db.getBosses().find(b => b.id === created.id);
+        assert.equal(seen.rift_phase, 'OPEN');
+        assert.equal(seen.pinned_alive, true);
+    });
 });

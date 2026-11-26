@@ -47,13 +47,15 @@
         const runMs = d.run_min * MINUTE;
         const closingMs = d.closing_min * MINUTE;
         const cycleMs = runMs + closingMs + d.cooldown_min * MINUTE;
-        const k = nowMs < closeMs ? 0 : Math.floor((nowMs - closeMs) / cycleMs) + 1;
+        let k = nowMs < closeMs ? 0 : Math.floor((nowMs - closeMs) / cycleMs) + 1;
+        // A skipped run (Not spawned) is stored as close_at = its start: no run exists before it.
+        if (rift.skip === true && k === 0) k = 1;
         const startAt = closeMs - runMs - closingMs + k * cycleMs;
         const lobbyAt = startAt - d.lobby_min * MINUTE;
         const endAt = startAt + runMs;
         const closeAt = endAt + closingMs;
         const phase = nowMs < lobbyAt ? 'CLOSED' : nowMs < startAt ? 'LOBBY' : nowMs < endAt ? 'OPEN' : 'CLOSING';
-        return { phase, lobbyAt, startAt, endAt, closeAt, cycleMs };
+        return { phase, lobbyAt, startAt, endAt, closeAt, cycleMs, k };
     }
 
     /**
@@ -82,7 +84,43 @@
             out[key] = new Date(ms).toISOString();
         }
         if (out.open_at && out.close_at && Date.parse(out.close_at) < Date.parse(out.open_at)) throw new Error('close_at must not be before open_at');
+        // Editing durations keeps a skip; entering a time replaces it.
+        if (!entersTime && base.skip === true && out.close_at) out.skip = true;
         return out;
+    }
+
+    /**
+     * Start of the run Admin is answering with Spawned / Not spawned: the run in progress (lobby,
+     * open, closing) or, once closed, the run that just showed NOW. Null when there is none
+     * (Unset, or right after a skip with nothing run since).
+     */
+    function markedRunStart(rift, nowMs, includeSkipped) {
+        const s = riftState(rift, nowMs);
+        if (!s) return null;
+        if (s.phase !== 'CLOSED') return s.startAt;
+        if (s.k === 1 && rift.skip === true) return includeSkipped ? timeMs(rift.close_at) : null; // the skipped run itself
+        return s.k >= 1 ? s.startAt - s.cycleMs : null;
+    }
+
+    function cleanDurations(rift) {
+        const out = normalizeRift({ open_at: null }, rift);
+        delete out.skip;
+        return out;
+    }
+
+    // Not spawned (the rift did not appear): the next start is cooldown_min after the missed
+    // start, without the play and closing time.
+    function skipRun(rift, nowMs) {
+        const startMs = markedRunStart(rift, nowMs);
+        if (startMs === null) return null;
+        return { ...cleanDurations(rift), open_at: null, close_at: new Date(startMs).toISOString(), skip: true };
+    }
+
+    // Spawned: the run happened, so the normal timeline follows from its start.
+    function confirmRun(rift, nowMs) {
+        const startMs = markedRunStart(rift, nowMs, true); // also undoes a Not spawned pressed by mistake
+        if (startMs === null) return null;
+        return { ...cleanDurations(rift), open_at: new Date(startMs).toISOString(), close_at: null };
     }
 
     const NOW_WINDOW_MS = 5 * MINUTE;
@@ -128,7 +166,7 @@
         return bosses.map(boss => projectRift(boss, nowMs));
     }
 
-    const api = { DEFAULTS, isRift, riftState, normalizeRift, projectRift, projectBosses };
+    const api = { DEFAULTS, isRift, riftState, normalizeRift, projectRift, projectBosses, skipRun, confirmRun };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     if (root) root.RiftSchedule = api;
 })(typeof window !== 'undefined' ? window : globalThis);
