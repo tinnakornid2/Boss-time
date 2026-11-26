@@ -4,6 +4,7 @@ const fs = require('fs');
 const https = require('https');
 const crypto = require('crypto');
 const { execSync, spawn } = require('child_process');
+const { createHudSync, SYNC_INTERVAL_MS } = require('./hud-sync');
 
 // Automatically elevate to Administrator on Windows if not already elevated
 if (process.platform === 'win32' && !process.argv.includes('--elevated')) {
@@ -133,6 +134,10 @@ function persistMainWindowBounds() {
     }
 }
 
+function getMainWindowTitle() {
+    return `Boss Tracker v${require('./package.json').version}`;
+}
+
 function createMainWindow() {
     const savedBounds = loadSavedMainWindowBounds();
     const primaryDisplay = screen.getPrimaryDisplay();
@@ -182,6 +187,10 @@ function createMainWindow() {
         if (/^https:\/\//i.test(url)) shell.openExternal(url).catch(() => {});
         return { action: 'deny' };
     });
+
+    // The title bar shows the desktop version, not the web page's title.
+    mainWindow.setTitle(getMainWindowTitle());
+    mainWindow.on('page-title-updated', event => event.preventDefault());
 
     mainWindow.loadURL(PRODUCTION_URL);
 
@@ -249,26 +258,24 @@ function handleMainWindowNavigation(url) {
     }
 }
 
+// The single path for tracker data: page -> main process -> HUD (see hud-sync.js).
+const hudSync = createHudSync({
+    fetchState: options => fetchTrackerDataFromMainWindow(options),
+    isHudWanted: () => isHudVisible,
+    setLoggedIn: loggedIn => {
+        if (loggedIn) updateHudAuthState(true);
+        else updateHudAuthState(false);
+    },
+    sendToHud: result => {
+        if (hudWindow && !hudWindow.isDestroyed()) {
+            hudWindow.webContents.send('tracker-data-updated', result);
+        }
+    }
+});
+
 async function checkAuthAndSyncNow() {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    try {
-        const currentUrl = mainWindow.webContents.getURL() || '';
-        if (currentUrl.includes('/login')) {
-            updateHudAuthState(false);
-            return;
-        }
-        const result = await fetchTrackerDataFromMainWindow();
-        if (result && result.ok && result.data) {
-            updateHudAuthState(true);
-            if (hudWindow && !hudWindow.isDestroyed()) {
-                hudWindow.webContents.send('tracker-data-updated', result);
-            }
-        } else {
-            updateHudAuthState(false);
-        }
-    } catch (_) {
-        updateHudAuthState(false);
-    }
+    await hudSync.sync({ force: true });
 }
 
 function createHudWindow() {
@@ -417,6 +424,7 @@ function toggleHudVisibility() {
         if (isHudVisible && isUserLoggedIn) {
             hudWindow.showInactive();
             hudWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+            checkAuthAndSyncNow();
         } else {
             hudWindow.hide();
         }
@@ -708,6 +716,7 @@ ipcMain.handle('kill-boss-now', async (_, { bossId, killTime }) => {
                 }
             })()
         `);
+        if (result && result.ok) checkAuthAndSyncNow();
         return result;
     } catch (err) {
         return { ok: false, error: err.message };
@@ -738,6 +747,7 @@ ipcMain.handle('set-boss-kill-time', async (_, { bossId, killTime }) => {
                 }
             })()
         `);
+        if (result && result.ok) checkAuthAndSyncNow();
         return result;
     } catch (err) {
         return { ok: false, error: err.message };
@@ -766,13 +776,14 @@ ipcMain.handle('toggle-boss-alert', async (_, bossId) => {
                 }
             })()
         `);
+        if (result && result.ok) checkAuthAndSyncNow();
         return result;
     } catch (err) {
         return { ok: false, error: err.message };
     }
 });
 
-async function fetchTrackerDataFromMainWindow() {
+async function fetchTrackerDataFromMainWindow({ full = true } = {}) {
     if (!mainWindow || mainWindow.isDestroyed()) return null;
     try {
         const currentUrl = mainWindow.webContents.getURL() || '';
@@ -813,6 +824,13 @@ async function fetchTrackerDataFromMainWindow() {
                         }
                     }
                     data.hideInvasionBosses = hideInvasion;
+                    // Unchanged state is not copied between processes again, only the server clock.
+                    const { serverTime, ...content } = data;
+                    const key = JSON.stringify([data.pollTag || content, isAdmin, lang, showLocation, timeZoneOffset, hideInvasion]);
+                    if (!${Boolean(full)} && window.__hudSyncKey === key) {
+                        return { ok: true, unchanged: true, serverTime };
+                    }
+                    window.__hudSyncKey = key;
                     return { ok: true, data, isAdmin, lang, showLocation, timeZoneOffset, hideInvasionBosses: hideInvasion };
                 } catch (err) {
                     return { ok: false, error: err.message };
@@ -825,14 +843,11 @@ async function fetchTrackerDataFromMainWindow() {
     }
 }
 
+// The HUD asks once, when its page loads; the answer arrives as 'tracker-data-updated'.
 ipcMain.handle('get-tracker-data', async () => {
-    const res = await fetchTrackerDataFromMainWindow();
-    if (!res || !res.ok) {
-        updateHudAuthState(false);
-    } else {
-        updateHudAuthState(true);
-    }
-    return res;
+    hudSync.requestFull();
+    await hudSync.sync({ force: true });
+    return { ok: true, pushed: true };
 });
 
 ipcMain.handle('sync-language', (_, lang) => {
@@ -846,17 +861,7 @@ ipcMain.handle('sync-language', (_, lang) => {
 let trackerPollInterval = null;
 function startTrackerSync() {
     if (trackerPollInterval) clearInterval(trackerPollInterval);
-    trackerPollInterval = setInterval(async () => {
-        const result = await fetchTrackerDataFromMainWindow();
-        if (result && result.ok && result.data) {
-            updateHudAuthState(true);
-            if (hudWindow && !hudWindow.isDestroyed()) {
-                hudWindow.webContents.send('tracker-data-updated', result);
-            }
-        } else {
-            updateHudAuthState(false);
-        }
-    }, 2000);
+    trackerPollInterval = setInterval(() => hudSync.sync(), SYNC_INTERVAL_MS);
 }
 
 ipcMain.handle('sync-font-settings', (_, settings) => {
@@ -1155,6 +1160,39 @@ function sha256File(filePath) {
     });
 }
 
+// Windows can briefly refuse to start a just-downloaded installer (antivirus still
+// scanning it -> "spawn UNKNOWN"). Retry the silent install a few times, then fall back
+// to opening it through the shell so Windows can show its own prompt to the user.
+function spawnInstallerOnce(installerPath) {
+    return new Promise((resolve) => {
+        let child;
+        try {
+            child = spawn(installerPath, ['/S'], { detached: true, stdio: 'ignore' });
+        } catch (err) {
+            console.error('Installer spawn failed:', err.code || err.message);
+            return resolve(false);
+        }
+        child.once('error', (err) => {
+            console.error('Installer spawn failed:', err.code || err.message);
+            resolve(false);
+        });
+        child.once('spawn', () => {
+            child.unref();
+            resolve(true);
+        });
+    });
+}
+
+async function launchInstaller(installerPath, attempts = 3, retryDelayMs = 2000) {
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        if (await spawnInstallerOnce(installerPath)) return true;
+        if (attempt < attempts) await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+    }
+    const shellError = await shell.openPath(installerPath);
+    if (shellError) console.error('Installer shell open failed:', shellError);
+    return !shellError;
+}
+
 let isUpdating = false;
 
 async function startDesktopUpdate() {
@@ -1200,23 +1238,17 @@ async function startDesktopUpdate() {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-download-complete', { path: tempPath });
 
         // Wait 1.2s so UI displays completion message, then launch installer and exit
-        setTimeout(() => {
-            try {
-                // Launch installer silently to update files and automatically restart
-                const child = spawn(tempPath, ['/S'], {
-                    detached: true,
-                    stdio: 'ignore'
-                });
-                child.unref();
-
+        setTimeout(async () => {
+            const launched = await launchInstaller(tempPath);
+            if (launched) {
                 app.isQuitting = true;
                 app.quit();
-            } catch (err) {
-                console.error('Failed to launch installer:', err);
-                if (hudWindow && !hudWindow.isDestroyed()) hudWindow.webContents.send('update-download-error', err.message);
-                if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-download-error', err.message);
-                isUpdating = false;
+                return;
             }
+            const message = `Could not start the installer (it may be blocked by Windows Defender). Run it manually: ${tempPath}`;
+            if (hudWindow && !hudWindow.isDestroyed()) hudWindow.webContents.send('update-download-error', message);
+            if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-download-error', message);
+            isUpdating = false;
         }, 1200);
 
         return { ok: true, status: 'installing' };

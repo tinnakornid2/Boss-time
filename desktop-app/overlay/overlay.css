@@ -68,8 +68,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 2px 8px;
-    min-height: 22px;
+    gap: 4px;
+    padding: 0 6px;
+    height: 14px; /* as thin as the buttons stay clickable and readable */
+    flex-shrink: 0;
+    white-space: nowrap; /* one line at any width */
     background: rgba(26, 27, 30, 0.70);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     cursor: move;
@@ -119,22 +122,32 @@ body {
     will-change: transform;
 }
 
+.announcement-text .ann-seg {
+    display: inline-block;
+}
+
+.announcement-text .ann-seg-copy {
+    margin-left: 48px; /* keep equal to MARQUEE_GAP_PX in overlay.js */
+}
+
 .announcement-text.marquee-active {
     overflow: visible;
     text-overflow: clip;
-    animation: hudMarqueeBounce var(--marquee-duration, 8s) ease-in-out infinite alternate;
+    animation: hudMarqueeLoop var(--marquee-duration, 10s) linear infinite;
 }
 
 .hud-announcement:hover .announcement-text.marquee-active {
     animation-play-state: paused;
 }
 
-@keyframes hudMarqueeBounce {
-    0%, 15% {
+/* Continuous loop: after moving one segment + gap, the copy sits exactly where the
+   original started, so the restart is invisible. */
+@keyframes hudMarqueeLoop {
+    from {
         transform: translateX(0);
     }
-    85%, 100% {
-        transform: translateX(calc(-1 * var(--marquee-overflow, 50px)));
+    to {
+        transform: translateX(calc(-1 * var(--marquee-distance, 200px)));
     }
 }
 
@@ -153,16 +166,28 @@ body {
 .hud-title {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 10px;
+    gap: 3px;
+    min-width: 9px;
+    flex-shrink: 1000; /* the title gives way before the buttons */
+    font-size: 8px;
+    line-height: 13px;
     font-weight: 700;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     color: #dbdee1;
 }
 
+.hud-title-text {
+    overflow: hidden;
+}
+
+.hud-title .icon-swords {
+    display: flex;
+    flex-shrink: 0;
+}
+
 .hud-title .icon-swords svg {
-    width: 11px;
-    height: 11px;
+    width: 9px;
+    height: 9px;
 }
 
 .hud-controls {
@@ -170,6 +195,38 @@ body {
     display: flex;
     align-items: center;
     gap: 3px;
+    min-width: 0;
+}
+
+.hud-controls .btn-icon {
+    flex-shrink: 0;
+    height: 13px;
+    padding: 0 4px;
+    border: 0;
+    font-size: 8.5px;
+    line-height: 13px;
+}
+
+.hud-controls .btn-icon svg {
+    display: block;
+    width: 9px;
+    height: 9px;
+}
+
+.hud-controls .btn-hud-update {
+    border: 0 !important;
+}
+
+/* A long hotkey name is cut instead of pushing the buttons out. */
+.hud-controls .btn-click-through {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+#clickThroughLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .btn-icon {
@@ -186,6 +243,18 @@ body {
     align-items: center;
     gap: 2.5px;
     line-height: 1.4;
+}
+
+/* Narrow HUD: keep every button on one line; the swords icon stays as the drag handle. */
+@media (max-width: 290px) {
+    .hud-title-text, #hudUpdateBadgeText { display: none; }
+}
+
+@media (max-width: 250px) {
+    .hud-header { padding: 0 4px; }
+    #fontSizeDisplay, #clickThroughLabel { display: none; }
+    .hud-controls { gap: 2px; }
+    .hud-controls .btn-icon { padding: 0 4px; }
 }
 
 .btn-icon svg {
@@ -207,6 +276,21 @@ body {
     color: #23a55a;
     border-color: rgba(35, 165, 90, 0.4);
     background: rgba(35, 165, 90, 0.15);
+}
+
+#btnHudFocus.active {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.45);
+    background: rgba(251, 191, 36, 0.14);
+}
+
+.hud-settings-section-label {
+    margin-top: 3px;
+    padding-top: 7px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+    font-size: 10px;
+    font-weight: 700;
 }
 
 .btn-hud-update {
@@ -480,6 +564,50 @@ body {
     background: rgba(255, 255, 255, 0.15);
     border-radius: 2px;
 }
+
+.hud-connection {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 18px;
+    padding: 2px 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    background: rgba(18, 19, 22, 0.55);
+    font-size: 9px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+    pointer-events: none;
+}
+
+.hud-connection-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #94a3b8;
+    flex-shrink: 0;
+}
+
+/* Shares the status bar, so it never covers the boss list. */
+.hud-connection-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hud-clickthrough-hint {
+    margin-left: auto;
+    padding-left: 6px;
+    color: #fde68a;
+    flex-shrink: 0;
+}
+
+.hud-connection[data-state="live"] .hud-connection-dot { background: #22c55e; }
+.hud-connection[data-state="stale"] { color: #fbbf24; }
+.hud-connection[data-state="stale"] .hud-connection-dot { background: #f59e0b; }
 
 /* Discord Style Category Headers */
 .hud-group-header {
