@@ -21,7 +21,9 @@
             phase_LOBBY: 'Lobby', phase_OPEN: 'Open', phase_CLOSING: 'Closing', phase_CLOSED: 'Closed', phase_null: 'Unset',
             next: 'Start {start} · close {close}', durations: 'Name, chance and timeline', color: 'Font color', custom: 'Custom',
             spawned: '✅ Spawned', not_spawned: '❌ Not spawned', adjust: '🕒 Adjust time', mark_hint: 'For the run showing NOW (or the one that just closed). Not spawned: next start is 6 h after this start, without the hour of play.',
-            not_spawned_confirm: '{name} did not spawn? The next start moves to {time}.'
+            not_spawned_confirm: '{name} did not spawn? The next start moves to {time}.',
+            row_not_spawned_confirm: 'Did this rift NOT spawn? The next start is 6 h after this run\'s start, without the hour of play.',
+            row_saved: 'Saved · next start {time}', row_nothing: 'No run to mark right now', cancel: 'Cancel', adjust_title: '🕒 Adjust time'
         },
         th: {
             title: 'ดันเจี้ยนริฟท์', add: 'เพิ่มบอสริฟท์', name: 'ชื่อบอส',
@@ -33,7 +35,9 @@
             phase_LOBBY: 'ล็อบบี้', phase_OPEN: 'เปิดอยู่', phase_CLOSING: 'กำลังปิด', phase_CLOSED: 'ปิดอยู่', phase_null: 'Unset',
             next: 'เริ่ม {start} · ปิด {close}', durations: 'ชื่อ โอกาส และช่วงเวลา', color: '🎨 สีตัวอักษรบอส', custom: 'เลือกเอง',
             spawned: '✅ เกิด', not_spawned: '❌ ไม่เกิด', adjust: '🕒 ปรับเวลา', mark_hint: 'ใช้กับรอบที่ขึ้น NOW (หรือรอบที่เพิ่งปิด) ไม่เกิด: รอบถัดไปเริ่ม 6 ชม. หลังเวลาเริ่มรอบนี้ ไม่บวกเวลาเล่น 1 ชม.',
-            not_spawned_confirm: '{name} ไม่เกิดใช่ไหม? รอบถัดไปจะเริ่ม {time}'
+            not_spawned_confirm: '{name} ไม่เกิดใช่ไหม? รอบถัดไปจะเริ่ม {time}',
+            row_not_spawned_confirm: 'รอบนี้ริฟท์ไม่เกิดใช่ไหม? รอบถัดไปจะเริ่ม 6 ชม. หลังเวลาเริ่มรอบนี้ ไม่บวกเวลาเล่น 1 ชม.',
+            row_saved: 'บันทึกแล้ว · รอบถัดไปเริ่ม {time}', row_nothing: 'ตอนนี้ยังไม่มีรอบให้กด', cancel: 'ยกเลิก', adjust_title: '🕒 ปรับเวลา'
         }
     };
     const lang = () => { try { return localStorage.getItem('tracker_lang') === 'th' ? 'th' : 'en'; } catch (_) { return 'en'; } };
@@ -285,11 +289,69 @@
             #rift-panel .rp-swatch{width:18px;height:18px;border-radius:50%;border:1px solid rgba(255,255,255,.35);padding:0;cursor:pointer}
             #rift-panel .rp-swatch[aria-pressed=true]{outline:2px solid #fff;outline-offset:1px}
             #rift-panel .rp-custom{width:26px;height:20px;padding:0;border:1px solid #3f3f46;border-radius:5px;background:none;cursor:pointer}
+            #rift-panel.rp-dialog{background:#101012;border:1px solid #3f3f46;border-radius:14px;width:min(440px,100%);box-sizing:border-box}
             tr[data-rift-phase]{box-shadow:inset 3px 0 0 #7c3aed}
             tr[data-rift-phase="OPEN"],tr[data-rift-phase="CLOSING"]{box-shadow:inset 3px 0 0 #22c55e}
         `;
         document.head.appendChild(style);
     }
+
+    // ---------- Dashboard row buttons (scripts/patch-dashboard-rift-row.js) ----------
+    // ✅ / ❌ / 🕒 on a rift row call mark(id, action). One request per click, nothing on a timer.
+    function toast(text, ok) {
+        const old = document.getElementById('rift-toast');
+        if (old) old.remove();
+        const el = h('div', { id: 'rift-toast', role: 'status', style: `position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:100003;padding:8px 14px;border-radius:10px;font:600 12px system-ui;color:#fff;background:${ok ? '#166534' : '#7f1d1d'};box-shadow:0 6px 20px rgba(0,0,0,.4);max-width:calc(100vw - 32px)` }, text);
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3500);
+    }
+
+    async function send(id, body) {
+        try {
+            const json = await api('PUT', `/bosses/${id}`, body);
+            const start = json.boss && json.boss.rift_start_at;
+            toast(start ? tr('row_saved', { time: clock(start) }) : tr('saved'), true);
+            if (mount && mount.isConnected) load();
+        } catch (e) {
+            toast(/No rift run/.test(e.message) ? tr('row_nothing') : `${tr('error')}: ${e.message}`, false);
+        }
+    }
+
+    function adjustDialog(id) {
+        const old = document.getElementById('rift-time-dialog');
+        if (old) old.remove();
+        const close = () => overlay.remove();
+        const form = h('form', { id: 'rift-panel', class: 'rp-dialog', onsubmit: (e) => {
+            e.preventDefault();
+            const open = fromInput(form.elements.open_at.value);
+            const closeAt = fromInput(form.elements.close_at.value);
+            if (!open && !closeAt) return;
+            close();
+            send(id, { rift: closeAt ? { close_at: closeAt } : { open_at: open } }); // close wins
+        } },
+        h('h2', null, tr('adjust_title')),
+        h('div', { class: 'rp-grid' },
+            h('label', { class: 'rp-field' }, tr('open_time'), h('input', { type: 'datetime-local', name: 'open_at' })),
+            h('label', { class: 'rp-field' }, tr('close_time'), h('input', { type: 'datetime-local', name: 'close_at' }))),
+        h('p', { class: 'rp-note' }, tr('time_hint')),
+        h('div', { class: 'rp-grid' },
+            h('button', { type: 'submit', class: 'rp-btn rp-primary' }, tr('set_time')),
+            h('button', { type: 'button', class: 'rp-btn', onclick: close }, tr('cancel'))));
+        const overlay = h('div', { id: 'rift-time-dialog', role: 'dialog', 'aria-modal': 'true', style: 'position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px', onclick: (e) => { if (e.target === overlay) close(); } }, form);
+        document.body.appendChild(overlay);
+    }
+
+    function mark(id, action) {
+        if (!isAdminPage()) return;
+        if (action === 'spawned') return send(id, { rift_spawned: true });
+        if (action === 'not_spawned') {
+            if (!root.confirm(tr('row_not_spawned_confirm'))) return;
+            return send(id, { not_spawned: true });
+        }
+        if (action === 'adjust') return adjustDialog(id);
+    }
+
+    root.BossTrackerRift = { mark };
 
     // The Rift tab mounts and unmounts its empty div as the Admin switches tabs.
     function checkMount() {

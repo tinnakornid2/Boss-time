@@ -284,3 +284,27 @@ test('Spawned on a rift pins the normal timeline to that run and clears a skip',
         assert.equal(seen.pinned_alive, true);
     });
 });
+
+// ---------- Dashboard row buttons ----------
+
+test('rift rows show Spawned / Not spawned / Adjust time instead of the kill and still-alive buttons', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const dir = path.join(__dirname, '../public/build/assets');
+    const bundle = fs.readFileSync(path.join(dir, fs.readdirSync(dir).find(n => /^dashboard-.*\.js$/.test(n))), 'utf8');
+    // All three row components (NOW rows, still-alive rows, main rows) branch on isRift.
+    assert.equal((bundle.match(/!e\.isRift&&c\.jsx\(Oc,\{bossId:i,/g) || []).length, 3, 'kill now hidden for rifts');
+    assert.equal((bundle.match(/"data-rift-action":"not_spawned"/g) || []).length, 3);
+    assert.equal((bundle.match(/"data-rift-action":"spawned"/g) || []).length, 3);
+    assert.equal((bundle.match(/"data-rift-action":"adjust"/g) || []).length, 3);
+    assert.equal((bundle.match(/,!e\.isRift&&\w&&c\.jsxs\(c\.Fragment,\{children:\[c\.jsx\("span",\{className:"mx-0\.5 h-3 w-px bg-white\/10"\}\),c\.jsx\(gn,\{bossId:i,action:"still_alive"/g) || []).length, 3, 'still alive / 5m / 1m hidden for rifts');
+    // Every place that renders a boss row passes the flag.
+    const rows = bundle.match(/c\.jsx\((?:sS|rS|Fc),\{bossId:(\w+)\.id,/g) || [];
+    const flagged = bundle.match(/c\.jsx\((?:sS|rS|Fc),\{bossId:(\w+)\.id,isRift:\1\.kind==="rift",/g) || [];
+    assert.equal(rows.length, 5);
+    assert.equal(flagged.length, rows.length);
+    const panel = fs.readFileSync(path.join(__dirname, '../public/js/rift-panel.js'), 'utf8');
+    assert.match(panel, /root\.BossTrackerRift = \{ mark \}/);
+    assert.match(panel, /rift_spawned: true/);
+    assert.match(panel, /not_spawned: true/);
+});
