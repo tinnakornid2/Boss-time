@@ -8,7 +8,7 @@
 ## 2. นำโค้ด Code.gs ไปใส่
 1. ที่หน้า Google Sheets ไปที่เมนูด้านบนเลือก **Extensions** (ส่วนขยาย) -> **Apps Script**
 2. ลบโค้ดเริ่มต้นออก แล้วคัดลอกเนื้อหาทั้งหมดจากไฟล์ [Code.gs](file:///d:/Anti%20bosstime/google_apps_script/Code.gs) ไปวาง
-3. ตรวจสอบค่า `SECRET_TOKEN` ที่บรรทัด 25 (ค่าเริ่มต้นคือ `boss-parallel-secret-777999`)
+3. รหัสลับไม่อยู่ในโค้ดแล้ว (repo เป็นสาธารณะ): ไปที่ **Project Settings** (ฟันเฟือง) → **Script Properties** ตั้ง `SHEETS_SECRET_TOKEN` ให้ตรงกับรหัสในหน้า Google Sheets ของ Boss Tracker (อย่างน้อย 16 ตัว กด 🎲 ในหน้านั้นเพื่อสร้าง) ถ้ายังไม่ตั้ง ทุกคำขอจะถูกปฏิเสธ
 4. กดไอคอน **💾 Save project** (Ctrl + S)
 
 ## 3. Deploy เป็น Web App
@@ -48,7 +48,7 @@ Admin กด **📋 Report** → **📊 Export to Google Sheets** แล้ว s
 
 1. เปิดไฟล์ Google Sheets ที่ใช้กับ Boss Tracker → **Extensions → Apps Script**
 2. ลบโค้ดเดิมใน `Code.gs` แล้ววางโค้ด `Code.gs` เวอร์ชันล่าสุดทั้งไฟล์ → กด **Save** (Ctrl+S)
-   - ถ้าเคยเปลี่ยน `SECRET_TOKEN` ไว้ ให้ใส่ค่าเดิมกลับเข้าไปก่อนกด Save
+   - รหัสลับอยู่ใน Script Properties (`SHEETS_SECRET_TOKEN`) จึงไม่หายเมื่อวางโค้ดใหม่
 3. กด **Deploy → Manage deployments** → กดไอคอนดินสอ (Edit) ที่ deployment เดิม
 4. ช่อง **Version** เลือก **New version** → กด **Deploy**
    - ใช้ deployment เดิม ลิงก์ Web app URL จะไม่เปลี่ยน ไม่ต้องแก้ค่าในเว็บ

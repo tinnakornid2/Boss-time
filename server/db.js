@@ -722,7 +722,7 @@ module.exports = {
     },
 
     async testGoogleSheets(url, token) {
-        return await googleSheets.testConnection(url, token);
+        return await googleSheets.testConnection(url, token, load().settings);
     },
 
     async syncGoogleSheetsFull() {

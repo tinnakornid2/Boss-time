@@ -43,7 +43,8 @@ function getConfig(settings = {}) {
     const envToken = process.env.GOOGLE_SCRIPT_SECRET_TOKEN || '';
 
     const webAppUrl = fromSettings.webAppUrl || local.webAppUrl || envUrl || '';
-    const secretToken = fromSettings.secretToken || local.secretToken || envToken || 'boss-parallel-secret-777999';
+    // No built-in token: the repository is public. It must match SHEETS_SECRET_TOKEN in Apps Script.
+    const secretToken = fromSettings.secretToken || local.secretToken || envToken || '';
     const enabled = fromSettings.enabled !== undefined ? Boolean(fromSettings.enabled) : (local.enabled !== undefined ? Boolean(local.enabled) : Boolean(webAppUrl));
     const autoFailover = fromSettings.autoFailover !== undefined ? Boolean(fromSettings.autoFailover) : Boolean(local.autoFailover);
 
@@ -88,9 +89,9 @@ async function requestGas(url, method = 'GET', body = null, timeoutMs = 25000) {
     }
 }
 
-async function testConnection(urlParam, tokenParam) {
-    const url = urlParam || getConfig().webAppUrl;
-    const token = tokenParam || getConfig().secretToken;
+async function testConnection(urlParam, tokenParam, settings = {}) {
+    const url = urlParam || getConfig(settings).webAppUrl;
+    const token = tokenParam || getConfig(settings).secretToken;
 
     if (!url) {
         return { success: false, message: 'กรุณากรอก Web App URL ก่อนทดสอบ' };
@@ -99,6 +100,16 @@ async function testConnection(urlParam, tokenParam) {
     try {
         const pingUrl = `${url}${url.includes('?') ? '&' : '?'}action=ping&token=${encodeURIComponent(token)}`;
         const res = await requestGas(pingUrl, 'GET', null, 15000);
+        // ping answers without a token, so success alone proves nothing: the token must be verified.
+        if (res && res.success && res.tokenVerified !== true) {
+            return {
+                success: false,
+                message: res.tokenConfigured === false
+                    ? 'ยังไม่ได้ตั้ง SHEETS_SECRET_TOKEN ใน Apps Script (Project Settings → Script Properties)'
+                    : 'รหัสลับ (Secret Token) ไม่ตรงกับ SHEETS_SECRET_TOKEN ใน Apps Script',
+                details: { tokenVerified: false, tokenConfigured: res.tokenConfigured }
+            };
+        }
         if (res && res.success) {
             status.lastError = null;
             status.consecutiveFailures = 0;
@@ -276,6 +287,7 @@ function getStatus(settings = {}) {
         webAppUrl: cfg.webAppUrl ? `${cfg.webAppUrl.substring(0, 35)}...` : '',
         fullUrl: cfg.webAppUrl,
         secretToken: cfg.secretToken ? '••••••••' : '',
+        tokenSet: Boolean(cfg.secretToken),
         state: !cfg.enabled ? 'disabled' : status.state,
         lastSyncAt: status.lastSyncAt,
         lastError: status.lastError,

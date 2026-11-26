@@ -137,10 +137,16 @@ router.post('/google-sheets', requireAdmin, async (req, res) => {
         return res.status(401).json({ success: false, message: 'รหัสผ่านไม่ถูกต้อง กรุณายืนยันรหัสผ่านเพื่อแก้ไขการตั้งค่า' });
     }
 
+    // A blank token field keeps the saved token (the form never shows it). A new token must be
+    // long enough to be a real secret; it has to match SHEETS_SECRET_TOKEN in Apps Script.
+    const newToken = secretToken === undefined || secretToken === null ? '' : String(secretToken).trim();
+    if (newToken && newToken.length < 16) {
+        return res.status(400).json({ success: false, message: 'รหัสลับต้องยาวอย่างน้อย 16 ตัวอักษร (กด 🎲 สร้างรหัสใหม่ได้)' });
+    }
     const current = db.getSettings().googleSheets || {};
     const updates = {
         webAppUrl: webAppUrl !== undefined ? String(webAppUrl).trim() : current.webAppUrl,
-        secretToken: secretToken !== undefined ? String(secretToken).trim() : current.secretToken,
+        secretToken: newToken || current.secretToken || '',
         enabled: enabled !== undefined ? Boolean(enabled) : current.enabled,
         autoFailover: autoFailover !== undefined ? Boolean(autoFailover) : current.autoFailover
     };
