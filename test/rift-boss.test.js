@@ -213,3 +213,17 @@ test('maintenance reset never gives a rift a spawn time', async () => {
         assert.equal(Boolean(stored.post_maintenance), false);
     });
 });
+
+// ---------- Settings menu tab ----------
+
+test('the Settings menu has an Admin-only Rift tab whose body is the rift panel mount', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const dir = path.join(__dirname, '../public/build/assets');
+    const bundle = fs.readFileSync(path.join(dir, fs.readdirSync(dir).find(n => /^dashboard-.*\.js$/.test(n))), 'utf8');
+    assert.match(bundle, /ze=\["display","audio","invasion","events",\.\.\.T\?\["rift","admin"\]:\[\]\]/, 'members never see the tab');
+    assert.match(bundle, /rt==="rift"&&T&&c\.jsx\("div",\{id:"rift-settings-mount"/);
+    const server = fs.readFileSync(path.join(__dirname, '../server/server.js'), 'utf8');
+    assert.match(server, /rift-schedule\.js\?v=\$\{APP_VERSION\}/);
+    assert.match(server, /rift-panel\.js\?v=\$\{APP_VERSION\}/);
+});

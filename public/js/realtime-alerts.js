@@ -1024,8 +1024,7 @@ function ensureDownloadAppButton() {
         const downloadBtn = document.getElementById('header-download-app-control');
         const pushBtn = document.getElementById('header-push-control');
         const reportBtn = document.getElementById('header-report-control');
-        const riftBtn = document.getElementById('header-rift-control');
-        for (const element of [firebase, version, timezone, langBtn, reportBtn, riftBtn, pushBtn, downloadBtn, audio]) {
+        for (const element of [firebase, version, timezone, langBtn, reportBtn, pushBtn, downloadBtn, audio]) {
             if (!element) continue;
             element.classList.add('compact-system-control', 'no-drag');
             if (element.parentElement !== controls) controls.appendChild(element);
@@ -2266,6 +2265,7 @@ function ensureDownloadAppButton() {
         { key: 'emerald', color: '#10b981', label_en: 'Emerald Green', label_th: 'เขียวมรกต', bg: '#064e3b', border: '#10b981', dot: '#10b981' },
         { key: 'lime', color: '#84cc16', label_en: 'Neon Lime', label_th: 'เขียวมะนาว', bg: '#365314', border: '#84cc16', dot: '#84cc16' }
     ];
+    window.BossTrackerColorPresets = PRESET_BOSS_COLORS; // shared with rift-panel.js
 
     function attachBossColorPickerToDialog() {
         const dialog = document.querySelector('[role="dialog"]');

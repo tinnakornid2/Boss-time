@@ -157,7 +157,7 @@ Before production deployment:
 - Stored as `kind: 'rift'` + `rift: {lobby_min, run_min, closing_min, cooldown_min, open_at, close_at}` with `next_spawn`/`last_kill_time` null and `is_invasion` false. Logic lives in `public/js/rift-schedule.js` (browser + server).
 - `db.getBosses()` projects rifts for every outbound list (/poll, dashboard props, push, report, HUD, API): `next_spawn` = lobby of the current/next run, `pinned_alive` from the end of the lobby's five-minute NOW until the real close, plus `rift_phase` and `rift_*_at`. Nothing is written on a timer; use `db.getBoss()` (raw) for writes. Auto-advance and maintenance resets skip rifts.
 - `PUT /bosses/:id` refuses kill, not spawned, still alive, spawn adjust and maintenance toggle for a rift (400). It accepts `rift` times/durations, name/location/chance/color, Unset and the double-click alert. Alerts: 5 min before the lobby and at the lobby (sound, Web Push, HUD); none at start or close.
-- Admin manages rifts in the 🌀 panel (`public/js/rift-panel.js`). Dashboard rows only get a `data-rift-phase` attribute. Google Sheets keeps the rift in a "Rift (JSON)" column (redeploy `Code.gs` to use it).
+- Admin manages rifts (times, timeline, chance, font color) in the Settings menu **Rift** tab: `scripts/patch-dashboard-rift-tab.js` adds the Admin-only tab with an empty `#rift-settings-mount`, which `public/js/rift-panel.js` fills. Dashboard rows only get a `data-rift-phase` attribute. Google Sheets keeps the rift in a "Rift (JSON)" column (redeploy `Code.gs` to use it).
 
 ## Files that define the system
 
