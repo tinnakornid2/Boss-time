@@ -68,6 +68,7 @@ test('without a connected Apps Script the export says so and sends nothing', asy
 });
 
 test('Admin export has Apps Script write the report built from server data and returns the sheet link', async () => {
+    process.env.GOOGLE_SCRIPT_SECRET_TOKEN = 'report-test-token-0123456789'; // no built-in token any more
     process.env.GOOGLE_SCRIPT_WEBAPP_URL = GAS_URL;
     const calls = stubAppsScript({ success: true, url: 'https://docs.google.com/spreadsheets/d/abc/edit#gid=7' });
     try {

@@ -815,8 +815,11 @@ function renderHtml(pageData, title = '#Kain7') {
 
                     <div class="pwd-group">
                         <label class="pwd-label" style="color:#fbbf24;" data-i18n="sheets_token_label">🔑 Secret Token</label>
-                        <input type="text" id="sheets-input-token" class="pwd-input" placeholder="boss-parallel-secret-777999" value="boss-parallel-secret-777999" style="font-size:12px;">
-                        <p class="pwd-subhint" data-i18n="sheets_token_hint">Must match SECRET_TOKEN in Code.gs</p>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <input type="text" id="sheets-input-token" class="pwd-input" placeholder="Leave blank to keep the saved token" autocomplete="off" spellcheck="false" style="font-size:12px; flex:1; min-width:0;">
+                            <button type="button" id="btn-generate-sheets-token" class="pwd-btn-secondary" style="padding: 4px 8px; font-size: 10.5px; white-space:nowrap;" onclick="generateSheetsToken()">🎲 New</button>
+                        </div>
+                        <p class="pwd-subhint" data-i18n="sheets_token_hint">Must match SHEETS_SECRET_TOKEN in Apps Script → Project Settings → Script Properties. Blank = keep the saved token.</p>
                     </div>
 
                     <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;">
@@ -1348,16 +1351,13 @@ function renderHtml(pageData, title = '#Kain7') {
             saveBtn.disabled = true;
             saveBtn.textContent = isTh() ? '⏳ กำลังบันทึก...' : '⏳ Saving...';
 
+            // A blank token field keeps the saved token (it is never shown again).
+            const body = { pin: currentSheetsPin, webAppUrl, enabled, autoFailover };
+            if (secretToken) body.secretToken = secretToken;
             fetch('/api/settings/google-sheets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    pin: currentSheetsPin,
-                    webAppUrl,
-                    secretToken,
-                    enabled,
-                    autoFailover
-                })
+                body: JSON.stringify(body)
             })
             .then(r => r.json())
             .then(data => {
@@ -1378,6 +1378,23 @@ function renderHtml(pageData, title = '#Kain7') {
                 saveBtn.disabled = false;
                 saveBtn.textContent = isTh() ? '💾 บันทึกการตั้งค่า' : '💾 Save Settings';
             });
+        }
+
+        // New random token, made in this browser. Copy it into Apps Script → Project Settings →
+        // Script Properties as SHEETS_SECRET_TOKEN, then press Save here.
+        function generateSheetsToken() {
+            const bytes = new Uint8Array(24);
+            crypto.getRandomValues(bytes);
+            const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+            const input = document.getElementById('sheets-input-token');
+            input.value = token;
+            input.focus();
+            input.select();
+            const alertBox = document.getElementById('pwd-alert-box');
+            alertBox.className = 'pwd-alert success';
+            alertBox.textContent = isTh()
+                ? '🎲 สร้างรหัสใหม่แล้ว: คัดลอกไปใส่ SHEETS_SECRET_TOKEN ใน Apps Script แล้วกดบันทึกที่นี่'
+                : '🎲 New token created: copy it to SHEETS_SECRET_TOKEN in Apps Script, then press Save here';
         }
 
         function testSheetsConnection() {

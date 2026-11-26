@@ -9,7 +9,9 @@
  * 1. สร้าง Google Spreadsheet ใหม่ใน Google Drive ของคุณ
  * 2. ไปที่เมนู "Extensions" (ส่วนขยาย) -> "Apps Script"
  * 3. ลบโค้ดเดิมออกทั้งหมด แล้ววางโค้ดไฟล์นี้ลงไป
- * 4. แก้ไขค่า SECRET_TOKEN ด้านล่างให้ตรงกับที่จะใช้ในระบบ Boss Tracker
+ * 4. ตั้งค่ารหัสลับ: ⚙️ การตั้งค่าโปรเจ็กต์ (Project Settings) -> พร็อพเพอร์ตี้ของสคริปต์ (Script Properties)
+ *    เพิ่ม SHEETS_SECRET_TOKEN = รหัสเดียวกับที่ใส่ในหน้า Google Sheets ของ Boss Tracker (อย่างน้อย 16 ตัว)
+ *    ห้ามใส่รหัสในไฟล์นี้ เพราะไฟล์นี้อยู่บน GitHub แบบสาธารณะ
  * 5. กดบันทึก (Ctrl + S)
  * 6. กดปุ่ม "Deploy" (ทำให้ใช้งานได้) -> "New deployment" (การทำให้ใช้งานได้ใหม่)
  * 7. เลือกประเภทเป็น "Web app" (เว็บแอปพลิเคชัน)
@@ -20,8 +22,16 @@
  * =========================================================================
  */
 
-// กำหนด Secret Token สำหรับความปลอดภัย (ต้องตรงกับใน Node.js Server)
-var SECRET_TOKEN = 'boss-parallel-secret-777999';
+// The Sheets token lives only in Script Properties (SHEETS_SECRET_TOKEN), never in this file:
+// the repository is public. Until it is set (16+ characters) every request is refused.
+function getSecretToken_() {
+  return String(PropertiesService.getScriptProperties().getProperty('SHEETS_SECRET_TOKEN') || '').trim();
+}
+
+function isValidToken_(token) {
+  var secret = getSecretToken_();
+  return secret.length >= 16 && String(token || '') === secret;
+}
 
 // ชื่อแท็บต่างๆ ใน Spreadsheet
 var SHEET_BOSSES = 'Bosses';
@@ -40,22 +50,25 @@ function doGet(e) {
     var token = params.token || '';
 
     // ตรวจสอบ Token
-    if (token !== SECRET_TOKEN && action !== 'ping') {
+    var tokenOk = isValidToken_(token);
+    if (!tokenOk && action !== 'ping') {
       return jsonResponse({ success: false, message: 'Unauthorized: Invalid token' }, 401);
     }
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-
     if (action === 'ping') {
+      // Tells the server whether its token matches; the sheet name only to a verified caller.
       return jsonResponse({
         success: true,
         status: 'online',
         message: 'Google Apps Script Parallel DB is active and ready',
         timestamp: new Date().toISOString(),
-        spreadsheetName: ss.getName(),
-        tokenVerified: (token === SECRET_TOKEN)
+        spreadsheetName: tokenOk ? SpreadsheetApp.getActiveSpreadsheet().getName() : undefined,
+        tokenConfigured: getSecretToken_().length >= 16,
+        tokenVerified: tokenOk
       });
     }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
 
     if (action === 'get_store') {
       return jsonResponse(readFullStore(ss));
@@ -88,7 +101,7 @@ function doPost(e) {
     var payload = JSON.parse(e.postData.contents);
     var token = payload.token || (e.parameter ? e.parameter.token : '');
 
-    if (token !== SECRET_TOKEN) {
+    if (!isValidToken_(token)) {
       return jsonResponse({ success: false, message: 'Unauthorized: Invalid token' }, 401);
     }
 

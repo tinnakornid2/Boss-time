@@ -106,6 +106,7 @@ Before production deployment:
 - Auto-Failover: If Firebase suffers quota exhaustion or service outage, `db.getActiveSource()` resolves to `'google-sheets'`, and the backend dynamically serves/fetches store snapshots from Google Sheets.
 - Active Source Indicator: `/poll` returns dynamic `source`. Top-bar badge visually renders `☁️ Firebase Live`, `📊 Google Sheets`, or `💾 Local Mode`.
 - PIN Security: Google Sheets configuration in settings requires PIN verification on every Sheets route (verify, save, test, sync). The PIN is stored only as a scrypt hash; set `GOOGLE_SHEETS_PIN_HASH` in Vercel to rotate it. Never document or commit the plaintext PIN.
+- Sheets token: never in the repository (it is public). Apps Script reads `SHEETS_SECRET_TOKEN` from Script Properties and refuses every request while it is missing or shorter than 16 characters; the server uses the saved Sheets setting or `GOOGLE_SCRIPT_SECRET_TOKEN`, with no built-in fallback. The settings form never shows the token (blank = keep) and can generate one (🎲). Test connection passes only when `ping` returns `tokenVerified: true`.
 
 ## Phone Alerts (Web Push)
 
