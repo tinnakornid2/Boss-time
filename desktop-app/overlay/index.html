@@ -18,12 +18,15 @@
                     <!-- Lucide Swords -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-swords"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline><line x1="13" x2="19" y1="19" y2="13"></line><line x1="16" x2="20" y1="16" y2="20"></line><line x1="19" x2="21" y1="21" y2="19"></line><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"></polyline><line x1="5" x2="9" y1="14" y2="18"></line><line x1="7" x2="4" y1="17" y2="20"></line><line x1="3" x2="5" y1="19" y2="21"></line></svg>
                 </span>
-                <span>BOSS HUD</span>
+                <span class="hud-title-text">BOSS HUD</span>
             </div>
             <div class="hud-controls">
-                <button type="button" class="btn-icon btn-hud-update interactive-element" id="btnHudUpdate" style="display: none;" title="🚀 มีการอัปเดตเวอร์ชันใหม่! คลิกเพื่อดาวน์โหลดและอัปเดตอัตโนมัติ">
+                <button type="button" class="btn-icon interactive-element" id="btnHudFocus" aria-pressed="false" title="แสดงเฉพาะ NOW และ 5 รายการใกล้เกิด">
+                    <span class="icon-wrap">🎯</span><span id="hudFocusLabel">5</span>
+                </button>
+                <button type="button" class="btn-icon btn-hud-update interactive-element" id="btnHudUpdate" style="display: none;" title="🚀 New version available! Click to download and update automatically">
                     <span class="icon-wrap" style="color: #f59e0b;">🚀</span>
-                    <span id="hudUpdateBadgeText" style="font-weight: 700; color: #facc15; font-size: 10px; margin-left: 2px;">อัปเดต</span>
+                    <span id="hudUpdateBadgeText" style="font-weight: 700; color: #facc15; font-size: 8.5px; margin-left: 2px;">Update</span>
                 </button>
                 <button type="button" class="btn-icon interactive-element" id="btnFontSettings" title="ตั้งค่าตัวอักษร, ความโปร่งแสง และปุ่มคีย์ลัด (HUD Settings)">
                     <span class="icon-wrap">
@@ -94,15 +97,6 @@
                     <span class="stepper-value" id="invasionStatusText" style="min-width: 32px; font-size: 10px;">แสดง</span>
                 </div>
             </div>
-            <!-- Main Window Panel Width -->
-            <div class="font-panel-row">
-                <span class="font-panel-label" id="labelPanelWidth">ความกว้างโปรแกรมหลัก:</span>
-                <div class="font-stepper">
-                    <button type="button" class="btn-stepper interactive-element" id="btnPanelWidthMinus" title="ลดความกว้างหน้าต่างหลัก">−</button>
-                    <span class="stepper-value" id="panelWidthDisplay" title="คลิกเพื่อสลับ 36rem / 100%" style="min-width: 44px; cursor: pointer;">36rem</span>
-                    <button type="button" class="btn-stepper interactive-element" id="btnPanelWidthPlus" title="เพิ่มความกว้างหน้าต่างหลัก">+</button>
-                </div>
-            </div>
             <!-- Transparency / Opacity Slider -->
             <div class="font-panel-row">
                 <span class="font-panel-label" id="labelOpacity">ความโปร่งแสง:</span>
@@ -135,21 +129,38 @@
                     <button type="button" class="btn-stepper interactive-element" id="btnSaveCustomHotkey" title="บันทึกปุ่มนี้">✓</button>
                 </div>
             </div>
+            <!-- Main Window Panel Width -->
+            <div class="hud-settings-section-label" id="labelMainWindowSection">หน้าต่างหลัก (ไม่ใช่ HUD)</div>
+            <div class="font-panel-row">
+                <span class="font-panel-label" id="labelPanelWidth">ความกว้าง:</span>
+                <div class="font-stepper">
+                    <button type="button" class="btn-stepper interactive-element" id="btnPanelWidthMinus" title="ลดความกว้างหน้าต่างหลัก">−</button>
+                    <span class="stepper-value" id="panelWidthDisplay" title="คลิกเพื่อสลับ 36rem / 100%" style="min-width: 44px; cursor: pointer;">36rem</span>
+                    <button type="button" class="btn-stepper interactive-element" id="btnPanelWidthPlus" title="เพิ่มความกว้างหน้าต่างหลัก">+</button>
+                </div>
+            </div>
             <!-- App Version and Auto Update Status -->
             <div class="font-panel-row" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px; margin-top: 2px;">
                 <span class="font-panel-label" id="labelAppVersion">เวอร์ชันแอพ:</span>
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <span class="stepper-value" id="hudAppVersionDisplay" style="min-width: 44px; color: #38bdf8; font-weight: 700; font-size: 10px;">v1.3.47</span>
-                    <button type="button" class="btn-stepper interactive-element" id="btnCheckAppUpdate" title="ตรวจสอบเวอร์ชันใหม่" style="width: auto; padding: 2px 7px; font-size: 10px; cursor: pointer;">🔄 เช็คอัปเดต</button>
+                    <button type="button" class="btn-stepper interactive-element" id="btnCheckAppUpdate" title="Check for a new version" style="width: auto; padding: 2px 7px; font-size: 10px; cursor: pointer;">🔄 Check for updates</button>
                 </div>
             </div>
         </div>
 
         <main class="hud-body" id="bossListContainer"></main>
 
+        <div class="hud-connection" id="hudConnection" role="status" aria-live="polite" data-state="connecting">
+            <span class="hud-connection-dot" aria-hidden="true"></span>
+            <span class="hud-connection-text" id="hudConnectionText">กำลังเชื่อมต่อ...</span>
+            <span class="hud-clickthrough-hint" id="hudClickThroughHint" style="display: none;"></span>
+        </div>
+
         <div class="toast-container" id="toastContainer"></div>
     </div>
 
+    <script src="hud-connection.js"></script>
     <script src="overlay.js"></script>
 </body>
 </html>

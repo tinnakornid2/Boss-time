@@ -42,7 +42,10 @@ const state = {
     isFontPanelOpen: false,
     showLocation: false,
     announcement: null,
-    lang: 'th'
+    lang: 'th',
+    focusMode: false,
+    lastFreshSnapshotAt: 0,
+    serverSnapshotStale: false
 };
 
 // Boss Color Cache to ensure custom font colors never revert to white
@@ -78,8 +81,18 @@ const I18N_HUD = {
         group_spawned: '🔥 เกิดแล้ว (Spawned)',
         group_upcoming: '⏳ กำลังจะเกิด (Upcoming)',
         group_unset: '💤 ยังไม่ตั้งเวลา (Unset)',
+        focus_empty: 'ไม่มีบอสที่กำลังเกิดหรือใกล้เกิด',
+        focus_on: 'แสดง NOW และ 5 รายการใกล้เกิด · คลิกเพื่อแสดงทั้งหมด',
+        focus_off: 'แสดงทั้งหมด · คลิกเพื่อดู NOW และ 5 รายการใกล้เกิด',
+        clickthrough_hint: 'กด {key} เพื่อกลับ',
+        main_window_section: 'หน้าต่างหลัก (ไม่ใช่ HUD)',
+        main_window_width: 'ความกว้าง:',
         empty: 'ไม่มีข้อมูลบอสและกิจกรรม',
         connecting: 'กำลังเชื่อมต่อข้อมูลบอส...',
+        connection_live: 'เชื่อมต่อแล้ว',
+        connection_connecting: 'กำลังเชื่อมต่อ...',
+        connection_stale: 'กำลังเชื่อมต่อใหม่ · ข้อมูลล่าสุด {time}',
+        connection_stale_no_time: 'กำลังเชื่อมต่อใหม่ · ข้อมูลอาจไม่สด',
         label_font_size: 'ขนาดตัวอักษร:',
         label_font_family: 'แบบอักษร:',
         label_show_location: 'แสดงสถานที่:',
@@ -126,8 +139,8 @@ const I18N_HUD = {
         hotkey_custom: 'กดปุ่มกำหนดเอง...',
         ph_press_key: 'กดปุ่มที่ต้องการ...',
         tooltip_save_hotkey: 'บันทึกปุ่มนี้',
-        toast_update_available: '🚀 พบอัปเดตใหม่ (v{version}) [คลิกเพื่ออัปเดต]',
-        toast_reloading: '🔄 พบการอัปเดตระบบ ({version}) กำลังรีโหลดอัตโนมัติ...',
+        toast_update_available: '🚀 New update available: v{version} [Click to update]',
+        toast_reloading: '🔄 System update found ({version}) reloading automatically...',
         toast_server_reload: '🔄 รีโหลดข้อมูลล่าสุดจากเซิร์ฟเวอร์...',
         status_connecting_hint: 'กำลังเชื่อมต่อข้อมูลบอส...<br><span style="font-size: 10px; color: #64748b;">(หากยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบที่หน้าต่างหลัก)</span>',
         btn_open_main: '🪟 เปิดหน้าต่างหลัก',
@@ -139,8 +152,18 @@ const I18N_HUD = {
         group_spawned: '🔥 SPAWNED',
         group_upcoming: '⏳ UPCOMING',
         group_unset: '💤 UNSET',
+        focus_empty: 'No spawned or upcoming bosses',
+        focus_on: 'Showing NOW and next 5 · Click to show all',
+        focus_off: 'Showing all · Click for NOW and next 5',
+        clickthrough_hint: '{key} to return',
+        main_window_section: 'Main window (not HUD)',
+        main_window_width: 'Width:',
         empty: 'No boss data available',
         connecting: 'Connecting boss data...',
+        connection_live: 'Connected',
+        connection_connecting: 'Connecting...',
+        connection_stale: 'Reconnecting · Last fresh data {time}',
+        connection_stale_no_time: 'Reconnecting · Data may be stale',
         label_font_size: 'Font Size:',
         label_font_family: 'Font Family:',
         label_show_location: 'Show Location:',
@@ -215,6 +238,10 @@ function formatHotkeyForDisplay(accelerator) {
 
 const dom = {
     hudPanel: document.getElementById('hudPanel'),
+    btnHudFocus: document.getElementById('btnHudFocus'),
+    hudClickThroughHint: document.getElementById('hudClickThroughHint'),
+    hudConnection: document.getElementById('hudConnection'),
+    hudConnectionText: document.getElementById('hudConnectionText'),
     bossListContainer: document.getElementById('bossListContainer'),
     toastContainer: document.getElementById('toastContainer'),
     hudAnnouncement: document.getElementById('hudAnnouncement'),
@@ -250,6 +277,7 @@ const dom = {
     labelShowLocation: document.getElementById('labelShowLocation'),
     labelShowInvasion: document.getElementById('labelShowInvasion'),
     labelPanelWidth: document.getElementById('labelPanelWidth'),
+    labelMainWindowSection: document.getElementById('labelMainWindowSection'),
     labelOpacity: document.getElementById('labelOpacity'),
     labelHotkey: document.getElementById('labelHotkey'),
     labelCustomKey: document.getElementById('labelCustomKey')
@@ -284,6 +312,13 @@ if (window.electronAPI) {
 
     if (typeof window.electronAPI.onTrackerDataUpdated === 'function') {
         window.electronAPI.onTrackerDataUpdated((res) => {
+            if (res && res.ok && res.unchanged) {
+                if (Number.isFinite(res.serverTime)) state.serverOffset = res.serverTime - Date.now();
+                // "Unchanged" is a fresh answer too; without this the HUD would look disconnected.
+                if (!state.serverSnapshotStale) state.lastFreshSnapshotAt = Date.now();
+                renderConnectionStatus();
+                return;
+            }
             if (res && res.ok && res.data) {
                 if (typeof res.isAdmin === 'boolean') {
                     state.isAdmin = res.isAdmin;
@@ -304,13 +339,17 @@ if (window.electronAPI) {
                     if (dom.invasionStatusText) dom.invasionStatusText.textContent = !res.hideInvasionBosses ? t('loc_show') : t('loc_hide');
                 }
                 applyTrackerSnapshot(res.data);
-            } else {
+            } else if (res?.notAuthenticated || res?.status === 401 || res?.status === 403) {
                 state.bosses = [];
                 state.events = [];
+                state.lastFreshSnapshotAt = 0;
+                state.serverSnapshotStale = false;
                 if (dom.bossListContainer) {
                     dom.bossListContainer.innerHTML = '';
                 }
+                renderConnectionStatus();
             }
+            // Temporary network/server failure: keep the last snapshot and local countdown.
         });
     }
 
@@ -347,6 +386,24 @@ function updateClickThroughUI(active) {
         dom.clickThroughIcon.innerHTML = ICONS.unlock;
         dom.clickThroughLabel.textContent = formatHotkeyForDisplay(state.clickThroughHotkey);
     }
+    updateClickThroughHint();
+}
+
+function updateClickThroughHint() {
+    if (!dom.hudClickThroughHint) return;
+    dom.hudClickThroughHint.style.display = state.isClickThrough ? 'inline' : 'none';
+    if (state.isClickThrough) {
+        dom.hudClickThroughHint.textContent = t('clickthrough_hint', {
+            key: formatHotkeyForDisplay(state.clickThroughHotkey)
+        });
+    }
+}
+
+function updateFocusModeUI() {
+    if (!dom.btnHudFocus) return;
+    dom.btnHudFocus.classList.toggle('active', state.focusMode);
+    dom.btnHudFocus.setAttribute('aria-pressed', String(state.focusMode));
+    dom.btnHudFocus.title = t(state.focusMode ? 'focus_on' : 'focus_off');
 }
 
 // Smart Hit-Testing:
@@ -419,7 +476,8 @@ function updateHudLanguageUI() {
     if (dom.labelFontFamily) dom.labelFontFamily.textContent = t('label_font_family');
     if (dom.labelShowLocation) dom.labelShowLocation.textContent = t('label_show_location');
     if (dom.labelShowInvasion) dom.labelShowInvasion.textContent = t('label_show_invasion');
-    if (dom.labelPanelWidth) dom.labelPanelWidth.textContent = t('label_panel_width');
+    if (dom.labelMainWindowSection) dom.labelMainWindowSection.textContent = t('main_window_section');
+    if (dom.labelPanelWidth) dom.labelPanelWidth.textContent = t('main_window_width');
     if (dom.labelOpacity) dom.labelOpacity.textContent = t('label_opacity');
     if (dom.labelHotkey) dom.labelHotkey.textContent = t('label_hotkey');
     if (dom.labelCustomKey) dom.labelCustomKey.textContent = t('label_custom_key');
@@ -428,6 +486,9 @@ function updateHudLanguageUI() {
     if (dom.btnFontSettings) dom.btnFontSettings.title = t('tooltip_settings');
     if (dom.btnClickThrough) dom.btnClickThrough.title = t('tooltip_clickthrough');
     if (dom.btnOpenMain) dom.btnOpenMain.title = t('tooltip_openmain');
+    updateClickThroughHint();
+    updateFocusModeUI();
+    renderConnectionStatus();
 
     // Controls & Tooltips inside font panel
     if (dom.btnFontSizeMinus) dom.btnFontSizeMinus.title = t('tooltip_font_minus');
@@ -718,6 +779,7 @@ function applyHotkey(accelerator, save = true) {
     if (dom.clickThroughLabel && !state.isClickThrough) {
         dom.clickThroughLabel.textContent = displayLabel;
     }
+    updateClickThroughHint();
 
     if (dom.hotkeySelect) {
         const found = Array.from(dom.hotkeySelect.options).some(o => o.value === accelerator);
@@ -798,6 +860,24 @@ function applyFontSettings(fontSize, font, syncIPC = true) {
     updateAnnouncementMarquee();
 }
 
+const MARQUEE_GAP_PX = 48;
+const MARQUEE_SPEED_PX_PER_SEC = 40;
+
+// Shows the announcement as one segment, or as a seamless "train" loop when it is
+// wider than the banner: two copies scroll left continuously, and when the first copy
+// has fully passed, the loop restarts at a position that looks identical.
+function setAnnouncementText(annText) {
+    const text = dom.hudAnnouncementText;
+    text.dataset.annText = annText;
+    text.dataset.marqueeKey = '';
+    text.classList.remove('marquee-active');
+    text.textContent = '';
+    const seg = document.createElement('span');
+    seg.className = 'ann-seg';
+    seg.textContent = annText;
+    text.appendChild(seg);
+}
+
 function updateAnnouncementMarquee() {
     if (!dom.hudAnnouncement || !dom.hudAnnouncementText) return;
     const text = dom.hudAnnouncementText;
@@ -806,29 +886,35 @@ function updateAnnouncementMarquee() {
         text.dataset.marqueeKey = '';
         return;
     }
+    const firstSeg = text.querySelector('.ann-seg');
+    if (!firstSeg) return;
 
-    // Measure without toggling the class: the text is nowrap, so scrollWidth is its
-    // full width either way. Toggling here restarted the animation on every poll.
+    // Measuring does not toggle the animation, so repeated polls never restart it.
     const track = dom.hudAnnouncementTrack || dom.hudAnnouncement;
     const trackWidth = track.clientWidth;
-    const textWidth = text.scrollWidth;
+    const segWidth = Math.ceil(firstSeg.getBoundingClientRect().width);
 
     let key = 'static';
-    let overflow = 0;
+    let distance = 0;
     let duration = 0;
-    if (textWidth > trackWidth + 4 && trackWidth > 0) {
-        overflow = textWidth - trackWidth + 12;
-        duration = Math.max(5, Math.min(25, Math.round(overflow / 30) + 4));
-        key = `${overflow}:${duration}`;
+    if (segWidth > trackWidth + 4 && trackWidth > 0) {
+        distance = segWidth + MARQUEE_GAP_PX;
+        duration = Math.max(4, Math.round((distance / MARQUEE_SPEED_PX_PER_SEC) * 10) / 10);
+        key = `${distance}:${duration}`;
     }
     if (text.dataset.marqueeKey === key) return;
     text.dataset.marqueeKey = key;
 
     text.classList.remove('marquee-active');
-    text.style.removeProperty('--marquee-overflow');
+    text.querySelectorAll('.ann-seg-copy').forEach(el => el.remove());
+    text.style.removeProperty('--marquee-distance');
     text.style.removeProperty('--marquee-duration');
     if (key !== 'static') {
-        text.style.setProperty('--marquee-overflow', `${overflow}px`);
+        const copy = firstSeg.cloneNode(true);
+        copy.classList.add('ann-seg-copy');
+        copy.setAttribute('aria-hidden', 'true');
+        text.appendChild(copy);
+        text.style.setProperty('--marquee-distance', `${distance}px`);
         text.style.setProperty('--marquee-duration', `${duration}s`);
         void text.offsetWidth;
         text.classList.add('marquee-active');
@@ -838,8 +924,40 @@ function updateAnnouncementMarquee() {
 // -------------------------------------------------------------
 // Real-Time Polling & Zero-Interruption Auto-Update
 // -------------------------------------------------------------
+function renderConnectionStatus() {
+    if (!dom.hudConnection || !dom.hudConnectionText || !window.HudConnection) return;
+    const connection = window.HudConnection.getStatus(
+        state.lastFreshSnapshotAt,
+        state.serverSnapshotStale,
+        Date.now()
+    );
+    let text;
+    let title = '';
+    if (connection === 'stale') {
+        if (state.lastFreshSnapshotAt > 0) {
+            const lastFresh = new Date(state.lastFreshSnapshotAt);
+            const locale = state.lang === 'th' ? 'th-TH' : 'en-US';
+            const time = lastFresh.toLocaleTimeString(locale, { hour12: false });
+            text = t('connection_stale', { time });
+            title = lastFresh.toLocaleString(locale);
+        } else {
+            text = t('connection_stale_no_time');
+        }
+    } else {
+        text = t(connection === 'live' ? 'connection_live' : 'connection_connecting');
+    }
+    // Runs every second: write only real changes so screen readers are not triggered again.
+    if (dom.hudConnection.dataset.state !== connection) dom.hudConnection.dataset.state = connection;
+    if (dom.hudConnectionText.textContent !== text) dom.hudConnectionText.textContent = text;
+    if (dom.hudConnection.title !== title) dom.hudConnection.title = title;
+}
+
 function applyTrackerSnapshot(data) {
     if (!data) return;
+
+    state.serverSnapshotStale = Boolean(data.stale || data.notReady);
+    if (!state.serverSnapshotStale) state.lastFreshSnapshotAt = Date.now();
+    renderConnectionStatus();
 
     if (Number.isFinite(data.serverTime)) {
         state.serverOffset = Number(data.serverTime) - Date.now();
@@ -917,8 +1035,8 @@ function applyTrackerSnapshot(data) {
             // Polls repeat the same announcement every few seconds; only touch the
             // text and marquee when it actually changes so scrolling is not restarted.
             const wasHidden = dom.hudAnnouncement.style.display === 'none';
-            if (wasHidden || dom.hudAnnouncementText.textContent !== annText) {
-                dom.hudAnnouncementText.textContent = annText;
+            if (wasHidden || dom.hudAnnouncementText.dataset.annText !== annText) {
+                setAnnouncementText(annText);
                 dom.hudAnnouncement.style.display = 'flex';
                 requestAnimationFrame(() => updateAnnouncementMarquee());
             }
@@ -962,40 +1080,13 @@ function applyTrackerSnapshot(data) {
     checkAlerts();
 }
 
+// One request when the HUD page loads. After that the main process pushes every update,
+// so the HUD must never poll on a timer (that tripled the app's traffic).
 async function fetchPollData() {
     try {
         if (window.electronAPI && typeof window.electronAPI.getTrackerData === 'function') {
-            const res = await window.electronAPI.getTrackerData();
-            if (res && res.ok && res.data) {
-                if (typeof res.isAdmin === 'boolean') {
-                    state.isAdmin = res.isAdmin;
-                    updateAdminVisibility();
-                }
-                if (res.lang && (res.lang === 'en' || res.lang === 'th') && res.lang !== state.lang) {
-                    setHudLanguage(res.lang);
-                }
-                if (typeof res.showLocation === 'boolean' && res.showLocation !== state.showLocation) {
-                    applyShowLocation(res.showLocation, false);
-                }
-                if (typeof res.timeZoneOffset === 'number') {
-                    state.timeZoneOffset = res.timeZoneOffset;
-                }
-                if (typeof res.hideInvasionBosses === 'boolean') {
-                    state.settings.hideInvasionBosses = res.hideInvasionBosses;
-                    if (dom.chkShowInvasion) dom.chkShowInvasion.checked = !res.hideInvasionBosses;
-                    if (dom.invasionStatusText) dom.invasionStatusText.textContent = !res.hideInvasionBosses ? t('loc_show') : t('loc_hide');
-                }
-                applyTrackerSnapshot(res.data);
-                return;
-            } else {
-                // Not authenticated or error from main window: Clear data so nothing displays
-                state.bosses = [];
-                state.events = [];
-                if (dom.bossListContainer) {
-                    dom.bossListContainer.innerHTML = '';
-                }
-                return;
-            }
+            await window.electronAPI.getTrackerData();
+            return;
         }
 
         // Fallback for standalone preview (running in browser directly without Electron)
@@ -1174,22 +1265,28 @@ function renderBossList() {
         `;
     }
 
+    // Items overdue by more than 5 minutes also show as NOW; they must not use up the five places.
+    const visibleUpcoming = state.focusMode
+        ? [...upcomingBosses.filter(b => b.diff <= 0), ...upcomingBosses.filter(b => b.diff > 0).slice(0, 5)]
+        : upcomingBosses;
+    const visibleUnset = state.focusMode ? [] : unsetBosses;
+
     if (nowBosses.length > 0) {
         html += `<div class="hud-group-header" style="color: #f87171;">${t('group_spawned')} (${nowBosses.length})</div>`;
         for (const b of nowBosses) html += renderItemCard(b);
     }
 
-    if (upcomingBosses.length > 0) {
-        for (const b of upcomingBosses) html += renderItemCard(b);
+    if (visibleUpcoming.length > 0) {
+        for (const b of visibleUpcoming) html += renderItemCard(b);
     }
 
-    if (unsetBosses.length > 0) {
-        html += `<div class="hud-group-header" style="color: #64748b;">${t('group_unset')} (${unsetBosses.length})</div>`;
-        for (const b of unsetBosses) html += renderItemCard(b);
+    if (visibleUnset.length > 0) {
+        html += `<div class="hud-group-header" style="color: #64748b;">${t('group_unset')} (${visibleUnset.length})</div>`;
+        for (const b of visibleUnset) html += renderItemCard(b);
     }
 
-    if (nowBosses.length === 0 && upcomingBosses.length === 0 && unsetBosses.length === 0) {
-        html = `<div class="hud-empty">${t('empty')}</div>`;
+    if (nowBosses.length === 0 && visibleUpcoming.length === 0 && visibleUnset.length === 0) {
+        html = `<div class="hud-empty">${t(state.focusMode ? 'focus_empty' : 'empty')}</div>`;
     }
 
     dom.bossListContainer.innerHTML = html;
@@ -1267,6 +1364,16 @@ function playAlertSound(path) {
 }
 
 // Initialize font system
+try { state.focusMode = localStorage.getItem('bossTracker.hudFocusMode') === 'true'; } catch (_) {}
+updateFocusModeUI();
+if (dom.btnHudFocus) {
+    dom.btnHudFocus.addEventListener('click', () => {
+        state.focusMode = !state.focusMode;
+        try { localStorage.setItem('bossTracker.hudFocusMode', String(state.focusMode)); } catch (_) {}
+        updateFocusModeUI();
+        renderBossList();
+    });
+}
 initFontSettings();
 
 // Tick the local countdown on every server-clock second boundary, the same moment the
@@ -1277,14 +1384,13 @@ function scheduleHudTick() {
     const wait = 1000 - (((serverNow % 1000) + 1000) % 1000) + 5;
     setTimeout(() => {
         renderBossList();
+        renderConnectionStatus();
         scheduleHudTick();
     }, wait);
 }
 scheduleHudTick();
 
-// Poll server every 2.5 seconds
 fetchPollData();
-setInterval(fetchPollData, 2500);
 
 // Auto-Update integration for Mini HUD
 function initHudAutoUpdate() {
@@ -1302,18 +1408,18 @@ function initHudAutoUpdate() {
     if (btnCheckUpdate) {
         btnCheckUpdate.addEventListener('click', async () => {
             btnCheckUpdate.disabled = true;
-            btnCheckUpdate.textContent = '⏳ กำลังเช็ค...';
+            btnCheckUpdate.textContent = '⏳ Checking...';
             try {
                 if (window.electronAPI && typeof window.electronAPI.checkForUpdates === 'function') {
                     const res = await window.electronAPI.checkForUpdates();
                     if (!res || !res.hasUpdate) {
-                        showHudToast('✅ เวอร์ชันปัจจุบันเป็นเวอร์ชันล่าสุดแล้ว', '#22c55e');
+                        showHudToast('✅ You are on the latest version', '#22c55e');
                     }
                 }
             } catch (_) {}
             setTimeout(() => {
                 btnCheckUpdate.disabled = false;
-                btnCheckUpdate.textContent = '🔄 เช็คอัปเดต';
+                btnCheckUpdate.textContent = '🔄 Check for updates';
             }, 3000);
         });
     }
@@ -1323,8 +1429,8 @@ function initHudAutoUpdate() {
     btnUpdate.addEventListener('click', async () => {
         btnUpdate.disabled = true;
         btnUpdate.style.opacity = '0.7';
-        if (updateText) updateText.textContent = 'กำลังโหลด...';
-        showHudToast('⏳ กำลังดาวน์โหลดตัวติดตั้งอัตโนมัติ...', '#38bdf8');
+        if (updateText) updateText.textContent = 'Loading...';
+        showHudToast('⏳ Downloading update...', '#38bdf8');
         try {
             if (window.electronAPI && typeof window.electronAPI.startDesktopUpdate === 'function') {
                 await window.electronAPI.startDesktopUpdate();
@@ -1332,7 +1438,7 @@ function initHudAutoUpdate() {
         } catch (err) {
             btnUpdate.disabled = false;
             btnUpdate.style.opacity = '1';
-            showHudToast('⚠️ ไม่สามารถดาวน์โหลดได้', '#ef4444');
+            showHudToast('⚠️ Download failed', '#ef4444');
         }
     });
 
@@ -1340,7 +1446,7 @@ function initHudAutoUpdate() {
         window.electronAPI.onUpdateAvailable((info) => {
             btnUpdate.style.display = 'inline-flex';
             if (updateText) updateText.textContent = `v${info.version}`;
-            showHudToast(`🚀 มีอัปเดตใหม่ v${info.version}! (คลิกปุ่ม 🚀 เพื่ออัปเดต)`, '#f59e0b');
+            showHudToast(`🚀 Update v${info.version} available! (click 🚀 to update)`, '#f59e0b');
         });
     }
 
@@ -1354,8 +1460,8 @@ function initHudAutoUpdate() {
 
     if (window.electronAPI && typeof window.electronAPI.onUpdateComplete === 'function') {
         window.electronAPI.onUpdateComplete(() => {
-            if (updateText) updateText.textContent = 'ติดตั้ง...';
-            showHudToast('✅ ดาวน์โหลดสำเร็จ กำลังติดตั้งและเริ่มใหม่...', '#22c55e');
+            if (updateText) updateText.textContent = 'Installing...';
+            showHudToast('✅ Download complete. Installing and restarting...', '#22c55e');
         });
     }
 
@@ -1363,8 +1469,8 @@ function initHudAutoUpdate() {
         window.electronAPI.onUpdateError((err) => {
             btnUpdate.disabled = false;
             btnUpdate.style.opacity = '1';
-            if (updateText) updateText.textContent = 'ลองใหม่';
-            showHudToast(`⚠️ อัปเดตไม่สำเร็จ: ${err || 'ข้อผิดพลาด'}`, '#ef4444');
+            if (updateText) updateText.textContent = 'Retry';
+            showHudToast(`⚠️ Update failed: ${err || 'Unknown error'}`, '#ef4444');
         });
     }
 }
