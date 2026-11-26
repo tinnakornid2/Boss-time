@@ -290,6 +290,9 @@
             #rift-panel .rp-swatch[aria-pressed=true]{outline:2px solid #fff;outline-offset:1px}
             #rift-panel .rp-custom{width:26px;height:20px;padding:0;border:1px solid #3f3f46;border-radius:5px;background:none;cursor:pointer}
             #rift-panel.rp-dialog{background:#101012;border:1px solid #3f3f46;border-radius:14px;width:min(440px,100%);box-sizing:border-box}
+            [data-rift-action]{padding:3px!important;font-size:12px!important;line-height:1!important}
+            /* Rift rows have ✅ ❌ 🕒 ⋮ (4 buttons): widen the 76px action column, only in tables that hold a rift row. */
+            table:has([data-rift-action]) col[style*="76px"]{width:104px!important}
             tr[data-rift-phase]{box-shadow:inset 3px 0 0 #7c3aed}
             tr[data-rift-phase="OPEN"],tr[data-rift-phase="CLOSING"]{box-shadow:inset 3px 0 0 #22c55e}
         `;

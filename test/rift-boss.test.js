@@ -307,4 +307,6 @@ test('rift rows show Spawned / Not spawned / Adjust time instead of the kill and
     assert.match(panel, /root\.BossTrackerRift = \{ mark \}/);
     assert.match(panel, /rift_spawned: true/);
     assert.match(panel, /not_spawned: true/);
+    // 4 buttons do not fit the 76px column: widen it only in tables that hold a rift row.
+    assert.match(panel, /table:has([data-rift-action]) col[style*="76px"]{width:104px!important}/);
 });
