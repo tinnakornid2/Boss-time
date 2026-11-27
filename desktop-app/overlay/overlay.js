@@ -1122,7 +1122,7 @@ function applyTrackerSnapshot(data) {
     state.settings = {
         hideInvasionBosses: hideInv,
         invasionLabel: data.invasionLabel || 'INV',
-        invasionColor: data.invasionColor || '#c084fc'
+        invasionColor: data.invasionColor || '#facc15'
     };
     if (dom.chkShowInvasion) dom.chkShowInvasion.checked = !hideInv;
     if (dom.invasionStatusText) dom.invasionStatusText.textContent = !hideInv ? t('loc_show') : t('loc_hide');
@@ -1164,6 +1164,14 @@ async function fetchPollData() {
 }
 
 function getEffectiveColor(item, isInv) {
+    // Same rule as the dashboard (getEffectiveBossColor): the shared Invasion colour wins for
+    // every Invasion boss, so the HUD and the dashboard never show one boss in two colours.
+    if (isInv) {
+        const shared = state.settings && state.settings.invasionColor ? String(state.settings.invasionColor).trim() : '';
+        if (shared) return shared;
+        const own = item.color ? String(item.color).trim() : '';
+        return own || '#facc15';
+    }
     if (item.color) {
         const clean = String(item.color).trim();
         if (clean && clean !== '#ffffff') {
@@ -1173,7 +1181,6 @@ function getEffectiveColor(item, isInv) {
     }
     const cached = getCachedBossColor(item.id);
     if (cached) return cached;
-    if (isInv) return state.settings.invasionColor || '#c084fc';
     return '#ffffff';
 }
 
@@ -1292,9 +1299,12 @@ function renderBossList() {
 
         let timerClass = 'timer-normal';
         let timerText = 'Unset';
+        // A Spawned rift (pinned) counts down to its real close, like the dashboard: NOW · 36m 50s.
+        const riftCloseTs = item.kind === 'rift' && item.pinned_alive && item.rift_close_at ? Date.parse(item.rift_close_at) : NaN;
+        const riftLeft = Number.isFinite(riftCloseTs) ? riftCloseTs - now : 0;
         if (isNow) {
             timerClass = 'timer-now';
-            timerText = 'NOW';
+            timerText = riftLeft > 0 ? `NOW · ${formatCountdown(riftLeft)}` : 'NOW';
         } else if (Number.isFinite(diff) && diff !== Infinity) {
             if (diff <= 120000) timerClass = 'timer-soon';
             timerText = formatCountdown(diff);
@@ -1302,7 +1312,7 @@ function renderBossList() {
             timerClass = 'timer-unset';
         }
 
-        const spawnClockText = Number.isFinite(targetTs) ? formatSpawnClockTime(targetTs) : '';
+        const spawnClockText = riftLeft > 0 ? formatSpawnClockTime(riftCloseTs) : (Number.isFinite(targetTs) ? formatSpawnClockTime(targetTs) : '');
         const spawnClockHtml = spawnClockText ? `<div class="boss-spawn-clock">${spawnClockText}</div>` : '';
 
         const isPreSpawned = hudAlertActive(item, now);

@@ -754,34 +754,8 @@ ipcMain.handle('set-boss-kill-time', async (_, { bossId, killTime }) => {
     }
 });
 
-ipcMain.handle('toggle-boss-alert', async (_, bossId) => {
-    if (!mainWindow || mainWindow.isDestroyed()) {
-        return { ok: false, error: 'Main dashboard window is not available' };
-    }
-    try {
-        const result = await mainWindow.webContents.executeJavaScript(`
-            (async () => {
-                try {
-                    const res = await fetch('/bosses/${bossId}/alert', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    if (!res.ok) {
-                        return { ok: false, status: res.status, error: await res.text() };
-                    }
-                    const data = await res.json();
-                    return { ok: true, data };
-                } catch (err) {
-                    return { ok: false, error: err.message };
-                }
-            })()
-        `);
-        if (result && result.ok) checkAuthAndSyncNow();
-        return result;
-    } catch (err) {
-        return { ok: false, error: err.message };
-    }
-});
+// The HUD is view-only. The old toggle-boss-alert handler called POST /bosses/:id/alert, a route the
+// server never had; the admin double-click alert lives in the dashboard (PUT /bosses/:id).
 
 async function fetchTrackerDataFromMainWindow({ full = true } = {}) {
     if (!mainWindow || mainWindow.isDestroyed()) return null;

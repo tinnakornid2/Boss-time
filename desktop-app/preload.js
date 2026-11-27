@@ -8,7 +8,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setIgnoreMouseEvents: (ignore, options) => ipcRenderer.invoke('set-ignore-mouse-events', ignore, options),
     killBossNow: (payload) => ipcRenderer.invoke('kill-boss-now', payload),
     setBossKillTime: (payload) => ipcRenderer.invoke('set-boss-kill-time', payload),
-    toggleBossAlert: (bossId) => ipcRenderer.invoke('toggle-boss-alert', bossId),
     syncInvasionVisibility: (hide) => ipcRenderer.invoke('sync-invasion-visibility', hide),
     getTrackerData: () => ipcRenderer.invoke('get-tracker-data'),
     onTrackerDataUpdated: (callback) => {
