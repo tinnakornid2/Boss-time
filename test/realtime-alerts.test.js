@@ -380,7 +380,7 @@ test('Realtime auto-update: detects version update in poll data and reloads clie
     assert.match(alertsSource, /window\.location\.reload\(true\)/);
 });
 
-test('Mini HUD Overlay: font and text size adjustment matching web dashboard (7 Google fonts + stepper 10-18px)', () => {
+test('Mini HUD Overlay: font and text size adjustment matching web dashboard (7 Google fonts + stepper 7-18px)', () => {
     const overlayHtml = fs.readFileSync(
         path.join(__dirname, '..', 'desktop-app', 'overlay', 'index.html'),
         'utf8'
@@ -424,7 +424,8 @@ test('Mini HUD Overlay: font and text size adjustment matching web dashboard (7 
     assert.ok(overlayJs.includes("'PT Serif'"));
     assert.ok(overlayJs.includes("'Sancreek'"));
     assert.ok(overlayJs.includes("'Arbutus'"));
-    assert.match(overlayJs, /Math\.max\(10,\s*Math\.min\(18,/);
+    // HUD goes down to 7px (owner, compact HUD); sizes under 10px are not sent to the dashboard.
+    assert.match(overlayJs, /Math\.max\(7,\s*Math\.min\(18,/);
     assert.ok(overlayJs.includes("localStorage.setItem('dashboard.fontSize'"));
     assert.ok(overlayJs.includes("localStorage.setItem('dashboard.appFont'"));
 

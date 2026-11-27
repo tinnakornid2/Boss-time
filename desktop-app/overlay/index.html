@@ -22,19 +22,15 @@
                 <span class="hud-status-dot" id="hudStatusDot" data-state="connecting" role="img" aria-label="Connecting"></span>
             </div>
             <div class="hud-controls">
-                <button type="button" class="btn-icon interactive-element" id="btnHudFocus" aria-pressed="false" title="แสดงเฉพาะ NOW และ 5 รายการใกล้เกิด">
-                    <span class="icon-wrap">🎯</span><span id="hudFocusLabel">5</span>
-                </button>
                 <button type="button" class="btn-icon btn-hud-update interactive-element" id="btnHudUpdate" style="display: none;" title="🚀 New version available! Click to download and update automatically">
                     <span class="icon-wrap" style="color: #f59e0b;">🚀</span>
                     <span id="hudUpdateBadgeText" style="font-weight: 700; color: #facc15; font-size: 8.5px; margin-left: 2px;">Update</span>
                 </button>
                 <button type="button" class="btn-icon interactive-element" id="btnFontSettings" title="ตั้งค่าตัวอักษร, ความโปร่งแสง และปุ่มคีย์ลัด (HUD Settings)">
                     <span class="icon-wrap">
-                        <!-- Lucide Settings / Sliders -->
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sliders-horizontal"><line x1="21" x2="14" y1="4" y2="4"></line><line x1="10" x2="3" y1="4" y2="4"></line><line x1="21" x2="12" y1="12" y2="12"></line><line x1="8" x2="3" y1="12" y2="12"></line><line x1="21" x2="16" y1="20" y2="20"></line><line x1="12" x2="3" y1="20" y2="20"></line><line x1="14" x2="14" y1="2" y2="6"></line><line x1="8" x2="8" y1="10" y2="14"></line><line x1="16" x2="16" y1="18" y2="22"></line></svg>
+                        <!-- Lucide Settings (gear) -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     </span>
-                    <span id="fontSizeDisplay">11px</span>
                 </button>
                 <button type="button" class="btn-icon btn-click-through interactive-element" id="btnClickThrough" title="สลับโหมดคลิกทะลุโปร่งแสง">
                     <span id="clickThroughIcon" class="icon-wrap">
@@ -42,12 +38,6 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                     </span>
                     <span id="clickThroughLabel">Alt+F12</span>
-                </button>
-                <button type="button" class="btn-icon interactive-element" id="btnOpenMain" title="เปิดหน้าต่างหลัก (Full Dashboard)">
-                    <span class="icon-wrap">
-                        <!-- Lucide AppWindow -->
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-app-window"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="M10 4v4"></path><path d="M2 8h20"></path></svg>
-                    </span>
                 </button>
             </div>
         </header>
@@ -62,10 +52,19 @@
 
         <!-- Dropdown drawer for adjusting font, size, opacity, location and hotkey -->
         <div class="hud-font-panel interactive-element" id="hudFontPanel">
+            <!-- Header actions live here; only click-through stays in the header (owner's choice) -->
+            <div class="hud-menu-actions">
+                <button type="button" class="btn-menu-action interactive-element" id="btnHudFocus" aria-pressed="false" title="แสดงเฉพาะ NOW และ 5 รายการใกล้เกิด">
+                    <span class="icon-wrap">🎯</span><span id="menuFocusText">โหมดโฟกัส</span><span id="hudFocusLabel">5</span>
+                </button>
+                <button type="button" class="btn-menu-action interactive-element" id="btnOpenMain" title="เปิดหน้าต่างหลัก (Full Dashboard)">
+                    <span class="icon-wrap">🗔</span><span id="menuOpenMainText">หน้าต่างหลัก</span>
+                </button>
+            </div>
             <div class="font-panel-row">
                 <span class="font-panel-label" id="labelFontSize">ขนาดตัวอักษร:</span>
                 <div class="size-stepper">
-                    <button type="button" class="btn-stepper interactive-element" id="btnFontSizeMinus" title="ลดขนาด (ต่ำสุด 10px)">−</button>
+                    <button type="button" class="btn-stepper interactive-element" id="btnFontSizeMinus" title="ลดขนาด (ต่ำสุด 7px)">−</button>
                     <span class="stepper-value" id="stepperValue">11px</span>
                     <button type="button" class="btn-stepper interactive-element" id="btnFontSizePlus" title="เพิ่มขนาด (สูงสุด 18px)">+</button>
                 </div>
@@ -104,6 +103,14 @@
                 <div class="opacity-control">
                     <input type="range" class="opacity-slider interactive-element" id="opacitySlider" min="20" max="100" value="65">
                     <span class="stepper-value" id="opacityDisplay">65%</span>
+                </div>
+            </div>
+            <!-- Text opacity (NOW and ALERT rows stay solid) -->
+            <div class="font-panel-row">
+                <span class="font-panel-label" id="labelTextOpacity">ความใสตัวอักษร:</span>
+                <div class="opacity-control">
+                    <input type="range" class="opacity-slider interactive-element" id="textOpacitySlider" min="25" max="100" step="5" value="100">
+                    <span class="stepper-value" id="textOpacityDisplay">100%</span>
                 </div>
             </div>
             <!-- Custom Hotkey Selector -->

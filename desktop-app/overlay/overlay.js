@@ -100,11 +100,14 @@ const I18N_HUD = {
         label_show_invasion: 'บอสอินเวชั่น:',
         label_panel_width: 'ความกว้างโปรแกรมหลัก:',
         label_opacity: 'ความโปร่งแสง:',
+        label_text_opacity: 'ความใสตัวอักษร:',
         label_hotkey: 'ปุ่มลัดโปร่งแสง:',
         label_custom_key: 'กดคีย์บนคีย์บอร์ด:',
         loc_show: 'แสดง',
         loc_hide: 'ซ่อน',
-        tooltip_settings: 'ตั้งค่า HUD (ตัวอักษร, ขนาด, โปร่งแสง, สถานที่)',
+        tooltip_settings: 'เมนู HUD: โฟกัส, หน้าต่างหลัก, ตัวอักษร, ความโปร่งแสง',
+        menu_focus: 'โหมดโฟกัส',
+        menu_open_main: 'หน้าต่างหลัก',
         tooltip_clickthrough: 'สลับโหมดคลิกทะลุโปร่งแสง',
         tooltip_openmain: 'เปิดหน้าต่างหลัก (Full Dashboard)',
         tooltip_killnow: 'Kill now (คลิก 2 ครั้ง)',
@@ -124,7 +127,7 @@ const I18N_HUD = {
         toast_time_fail: '⚠️ บันทึกเวลาไม่สำเร็จ: {error}',
         toast_hotkey_success: '✨ ตั้งปุ่มลัดโปร่งแสงเป็น [{key}] สำเร็จ!',
         toast_hotkey_fail: '⚠️ ไม่สามารถตั้งปุ่ม {key} ได้ ({error})',
-        tooltip_font_minus: 'ลดขนาด (ต่ำสุด 10px)',
+        tooltip_font_minus: 'ลดขนาด (ต่ำสุด 7px)',
         tooltip_font_plus: 'เพิ่มขนาด (สูงสุด 18px)',
         tooltip_width_minus: 'ลดความกว้างหน้าต่างหลัก',
         tooltip_width_toggle: 'คลิกเพื่อสลับ 36rem / 100%',
@@ -172,11 +175,14 @@ const I18N_HUD = {
         label_show_invasion: 'Invasion Bosses:',
         label_panel_width: 'Main Window Width:',
         label_opacity: 'HUD Opacity:',
+        label_text_opacity: 'Text Opacity:',
         label_hotkey: 'Click-Thru Hotkey:',
         label_custom_key: 'Press Keyboard Keys:',
         loc_show: 'Show',
         loc_hide: 'Hide',
-        tooltip_settings: 'HUD Settings (Font, Size, Opacity, Location)',
+        tooltip_settings: 'HUD menu: focus, main window, font, opacity',
+        menu_focus: 'Focus mode',
+        menu_open_main: 'Main window',
         tooltip_clickthrough: 'Toggle Click-Through Mode',
         tooltip_openmain: 'Open Main Dashboard',
         tooltip_killnow: 'Kill Now (Click 2x)',
@@ -196,7 +202,7 @@ const I18N_HUD = {
         toast_time_fail: '⚠️ Failed to save time: {error}',
         toast_hotkey_success: '✨ Click-through hotkey set to [{key}]!',
         toast_hotkey_fail: '⚠️ Failed to set hotkey {key} ({error})',
-        tooltip_font_minus: 'Decrease font size (min 10px)',
+        tooltip_font_minus: 'Decrease font size (min 7px)',
         tooltip_font_plus: 'Increase font size (max 18px)',
         tooltip_width_minus: 'Decrease main window width',
         tooltip_width_toggle: 'Click to toggle 36rem / 100%',
@@ -266,6 +272,9 @@ const dom = {
     panelWidthDisplay: document.getElementById('panelWidthDisplay'),
     opacitySlider: document.getElementById('opacitySlider'),
     opacityDisplay: document.getElementById('opacityDisplay'),
+    textOpacitySlider: document.getElementById('textOpacitySlider'),
+    textOpacityDisplay: document.getElementById('textOpacityDisplay'),
+    labelTextOpacity: document.getElementById('labelTextOpacity'),
     hotkeySelect: document.getElementById('hotkeySelect'),
     customHotkeyRow: document.getElementById('customHotkeyRow'),
     customHotkeyInput: document.getElementById('customHotkeyInput'),
@@ -497,6 +506,7 @@ function updateHudLanguageUI() {
     if (dom.labelMainWindowSection) dom.labelMainWindowSection.textContent = t('main_window_section');
     if (dom.labelPanelWidth) dom.labelPanelWidth.textContent = t('main_window_width');
     if (dom.labelOpacity) dom.labelOpacity.textContent = t('label_opacity');
+    if (dom.labelTextOpacity) dom.labelTextOpacity.textContent = t('label_text_opacity');
     if (dom.labelHotkey) dom.labelHotkey.textContent = t('label_hotkey');
     if (dom.labelCustomKey) dom.labelCustomKey.textContent = t('label_custom_key');
     if (dom.locationStatusText) dom.locationStatusText.textContent = state.showLocation ? t('loc_show') : t('loc_hide');
@@ -504,6 +514,10 @@ function updateHudLanguageUI() {
     if (dom.btnFontSettings) dom.btnFontSettings.title = t('tooltip_settings');
     if (dom.btnClickThrough) dom.btnClickThrough.title = t('tooltip_clickthrough');
     if (dom.btnOpenMain) dom.btnOpenMain.title = t('tooltip_openmain');
+    const menuFocusText = document.getElementById('menuFocusText');
+    if (menuFocusText) menuFocusText.textContent = t('menu_focus');
+    const menuOpenMainText = document.getElementById('menuOpenMainText');
+    if (menuOpenMainText) menuOpenMainText.textContent = t('menu_open_main');
     updateClickThroughHint();
     updateFocusModeUI();
     renderConnectionStatus();
@@ -656,6 +670,11 @@ function initFontSettings() {
             applyOpacity(e.target.value, true);
         });
     }
+    if (dom.textOpacitySlider) {
+        dom.textOpacitySlider.addEventListener('input', (e) => {
+            applyTextOpacity(e.target.value, true);
+        });
+    }
 
     // Hotkey selector listeners
     if (dom.hotkeySelect) {
@@ -749,6 +768,12 @@ function initFontSettings() {
     } catch (_) {
         applyOpacity(65, false);
     }
+
+    let savedTextOpacity = 100;
+    try {
+        savedTextOpacity = Number(localStorage.getItem('hud.textOpacity')) || 100;
+    } catch (_) {}
+    applyTextOpacity(savedTextOpacity, false);
 }
 
 function applyPanelWidth(val, syncIPC = true) {
@@ -787,6 +812,19 @@ function applyOpacity(val, save = true) {
         if (window.electronAPI && typeof window.electronAPI.saveHudSettings === 'function') {
             window.electronAPI.saveHudSettings({ opacity: state.opacity / 100 });
         }
+    }
+}
+
+// Text opacity is a per-device HUD preference (localStorage only, never Firebase).
+function applyTextOpacity(val, save = true) {
+    state.textOpacity = Math.max(25, Math.min(100, Math.round(Number(val) || 100)));
+    dom.hudPanel.style.setProperty('--hud-text-opacity', (state.textOpacity / 100).toFixed(2));
+    if (dom.textOpacitySlider) dom.textOpacitySlider.value = state.textOpacity;
+    if (dom.textOpacityDisplay) dom.textOpacityDisplay.textContent = `${state.textOpacity}%`;
+    if (save) {
+        try {
+            localStorage.setItem('hud.textOpacity', String(state.textOpacity));
+        } catch (_) {}
     }
 }
 
@@ -847,7 +885,7 @@ function renderFontPills() {
 }
 
 function applyFontSettings(fontSize, font, syncIPC = true) {
-    state.fontSize = Math.max(10, Math.min(18, Math.round(fontSize)));
+    state.fontSize = Math.max(7, Math.min(18, Math.round(fontSize)));
     if (font && AVAILABLE_FONTS.some(x => x.value === font)) {
         state.font = font;
     }
@@ -873,7 +911,8 @@ function applyFontSettings(fontSize, font, syncIPC = true) {
     });
 
     if (syncIPC && window.electronAPI && typeof window.electronAPI.syncFontSettings === 'function') {
-        window.electronAPI.syncFontSettings({ fontSize: state.fontSize, font: state.font });
+        // The dashboard accepts 10-18px only, so a smaller HUD size is kept in the HUD.
+        window.electronAPI.syncFontSettings({ fontSize: state.fontSize >= 10 ? state.fontSize : undefined, font: state.font });
     }
     updateAnnouncementMarquee();
 }
