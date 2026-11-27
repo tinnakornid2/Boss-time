@@ -11,6 +11,12 @@ const asarFile = path.join(resourcesDir, 'app.asar');
 
 console.log('--- Packaging Desktop App ---');
 
+// This script only swaps app.asar into an existing Electron runtime (dist/win-unpacked).
+// Without BossTracker.exe there it would ship a 0.6 MB app that cannot start (v1.3.68 first build).
+if (!fs.existsSync(path.join(desktopDir, 'dist', 'win-unpacked', 'BossTracker.exe'))) {
+    throw new Error('desktop-app/dist/win-unpacked/BossTracker.exe is missing: copy the Electron runtime (win-unpacked) from a previous build first.');
+}
+
 // Clean staging dir
 if (fs.existsSync(stagingDir)) {
     fs.rmSync(stagingDir, { recursive: true, force: true });

@@ -50,6 +50,11 @@ async function main() {
 
     const setupStat = fs.statSync(setupPath);
     const zipStat = fs.statSync(zipPath);
+    // A real build carries the Electron runtime (about 110 MB). Never publish an app that cannot start.
+    const MIN_ASSET_BYTES = 50 * 1024 * 1024;
+    if (setupStat.size < MIN_ASSET_BYTES || zipStat.size < MIN_ASSET_BYTES) {
+        throw new Error(`Assets are too small (${setupStat.size} / ${zipStat.size} bytes): the Electron runtime is missing. Nothing was published.`);
+    }
     console.log(`\nAssets verified:`);
     console.log(`- BossTracker-Setup.exe: ${(setupStat.size / 1024 / 1024).toFixed(2)} MB`);
     console.log(`- BossTracker-Windows-Portable.zip: ${(zipStat.size / 1024 / 1024).toFixed(2)} MB`);

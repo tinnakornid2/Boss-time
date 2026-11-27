@@ -75,3 +75,11 @@ test('Rendered HUD: an Unset invasion boss that was double-clicked is at the top
     assert.ok(!html.includes('Old alert'));
     assert.ok(!html.includes('Plain unset'));
 });
+
+test('Desktop release refuses a build without the Electron runtime', () => {
+    const pack = fs.readFileSync('scripts/pack-desktop.js', 'utf8');
+    const release = fs.readFileSync('scripts/release-desktop-app.js', 'utf8');
+    assert.ok(pack.indexOf("'win-unpacked', 'BossTracker.exe'") < pack.indexOf('@electron/asar pack'));
+    assert.match(release, /MIN_ASSET_BYTES = 50 \* 1024 \* 1024/);
+    assert.ok(release.indexOf('MIN_ASSET_BYTES ||') < release.indexOf('git credential fill'), 'checked before publishing');
+});
