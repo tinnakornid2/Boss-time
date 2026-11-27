@@ -609,6 +609,29 @@ body {
 .hud-connection[data-state="stale"] { color: #fbbf24; }
 .hud-connection[data-state="stale"] .hud-connection-dot { background: #f59e0b; }
 
+/* Keep the game view clear: while connected, the status is only the dot in the header.
+   The bottom bar returns for a problem, or for 3 s to show the click-through hotkey. */
+.hud-connection[data-state="live"]:not(.show-hint) { display: none; }
+.hud-connection.show-hint[data-state="live"] .hud-connection-dot,
+.hud-connection.show-hint[data-state="live"] .hud-connection-text { display: none; }
+.hud-connection.show-hint[data-state="live"] { border-top: none; background: transparent; }
+.hud-connection.show-hint .hud-clickthrough-hint { animation: hudHintFade 3s ease-in forwards; }
+@keyframes hudHintFade {
+    0%, 70% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+.hud-status-dot {
+    width: 5px;
+    height: 5px;
+    margin-left: 5px;
+    border-radius: 50%;
+    background: #94a3b8;
+    flex-shrink: 0;
+}
+.hud-status-dot[data-state="live"] { background: #22c55e; }
+.hud-status-dot[data-state="stale"] { background: #f59e0b; }
+
 /* Discord Style Category Headers */
 .hud-group-header {
     font-size: 9px;

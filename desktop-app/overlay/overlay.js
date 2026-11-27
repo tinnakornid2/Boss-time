@@ -244,6 +244,7 @@ const dom = {
     hudClickThroughHint: document.getElementById('hudClickThroughHint'),
     hudConnection: document.getElementById('hudConnection'),
     hudConnectionText: document.getElementById('hudConnectionText'),
+    hudStatusDot: document.getElementById('hudStatusDot'),
     bossListContainer: document.getElementById('bossListContainer'),
     toastContainer: document.getElementById('toastContainer'),
     hudAnnouncement: document.getElementById('hudAnnouncement'),
@@ -391,14 +392,29 @@ function updateClickThroughUI(active) {
     updateClickThroughHint();
 }
 
+// The hotkey hint shows for a few seconds when click-through starts, then fades; the header
+// button keeps showing the hotkey, so nothing stays over the game.
+const CLICK_THROUGH_HINT_MS = 3000;
+let clickThroughHintTimer = null;
+
+function hideClickThroughHint() {
+    if (dom.hudConnection) dom.hudConnection.classList.remove('show-hint');
+    if (dom.hudClickThroughHint) dom.hudClickThroughHint.style.display = 'none';
+}
+
 function updateClickThroughHint() {
     if (!dom.hudClickThroughHint) return;
-    dom.hudClickThroughHint.style.display = state.isClickThrough ? 'inline' : 'none';
-    if (state.isClickThrough) {
-        dom.hudClickThroughHint.textContent = t('clickthrough_hint', {
-            key: formatHotkeyForDisplay(state.clickThroughHotkey)
-        });
+    clearTimeout(clickThroughHintTimer);
+    if (!state.isClickThrough) {
+        hideClickThroughHint();
+        return;
     }
+    dom.hudClickThroughHint.textContent = t('clickthrough_hint', {
+        key: formatHotkeyForDisplay(state.clickThroughHotkey)
+    });
+    dom.hudClickThroughHint.style.display = 'inline';
+    if (dom.hudConnection) dom.hudConnection.classList.add('show-hint');
+    clickThroughHintTimer = setTimeout(hideClickThroughHint, CLICK_THROUGH_HINT_MS);
 }
 
 function updateFocusModeUI() {
@@ -952,6 +968,14 @@ function renderConnectionStatus() {
     if (dom.hudConnection.dataset.state !== connection) dom.hudConnection.dataset.state = connection;
     if (dom.hudConnectionText.textContent !== text) dom.hudConnectionText.textContent = text;
     if (dom.hudConnection.title !== title) dom.hudConnection.title = title;
+    if (dom.hudStatusDot) {
+        if (dom.hudStatusDot.dataset.state !== connection) dom.hudStatusDot.dataset.state = connection;
+        const label = title ? `${text} (${title})` : text;
+        if (dom.hudStatusDot.getAttribute('aria-label') !== label) {
+            dom.hudStatusDot.setAttribute('aria-label', label);
+            dom.hudStatusDot.title = label;
+        }
+    }
 }
 
 function applyTrackerSnapshot(data) {
