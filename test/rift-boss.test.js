@@ -19,12 +19,12 @@ test('a projected rift shows the lobby as next_spawn and is not pinned before th
     assert.equal(b.next_spawn, iso(at('09:55')));
     assert.equal(b.pinned_alive, false);
     assert.equal(b.rift_phase, 'CLOSED');
-    assert.equal(b.interval, 421, 'cycle start to start');
+    assert.equal(b.interval, 360, 'start to start when nobody marks the run');
     assert.equal(b.last_kill_time, null, 'a rift has no kill');
 });
 
-test('a projected rift is NOW from the lobby until the real close, then counts down to the next lobby', () => {
-    const r = rift({ open_at: iso(at('10:00')) });
+test('a Spawned rift is NOW from the lobby until the real close, then counts down to the next lobby', () => {
+    const r = rift({ open_at: iso(at('10:00')), confirmed: true });
     const lobby = projectRift(r, at('09:57'));
     assert.equal(lobby.rift_phase, 'LOBBY');
     assert.equal(lobby.pinned_alive, false, 'the lobby uses the normal five-minute NOW window');
@@ -39,8 +39,19 @@ test('a projected rift is NOW from the lobby until the real close, then counts d
     assert.equal(after.next_spawn, iso(at('16:56')));
 });
 
+test('an entered time (not Spawned) shows NOW for the lobby five minutes only, then the next run', () => {
+    // Owner: only Spawned keeps NOW until the close; an entered time still counts as spawned.
+    const r = rift({ open_at: iso(at('10:00')) });
+    assert.equal(projectRift(r, at('09:57')).next_spawn, iso(at('09:55')));
+    const open = projectRift(r, at('10:30'));
+    assert.equal(open.pinned_alive, false);
+    assert.equal(open.rift_phase, 'OPEN', 'the real phase stays visible');
+    assert.equal(open.next_spawn, iso(at('16:56')), 'next run: 6 h after this close');
+    assert.equal(open.rift_confirmed, false);
+});
+
 test('a longer lobby stays NOW after its first five minutes', () => {
-    const b = projectRift(rift({ open_at: iso(at('10:00')), lobby_min: 15 }), at('09:52'));
+    const b = projectRift(rift({ open_at: iso(at('10:00')), lobby_min: 15, confirmed: true }), at('09:52'));
     assert.equal(b.rift_phase, 'LOBBY');
     assert.equal(b.pinned_alive, true);
 });
@@ -72,7 +83,7 @@ test('the report never auto-advances a rift by its interval', () => {
 // ---------- push timing ----------
 
 test('push alerts a rift 5 minutes before the lobby and at the lobby, not at start or close', () => {
-    const r = rift({ open_at: iso(at('10:00')) });
+    const r = rift({ open_at: iso(at('10:00')), confirmed: true });
     const items = (nowMs) => push.collectItems({ bosses: [projectRift(r, nowMs)], nowMs, calculateBossAutoAdvance: db.calculateBossAutoAdvance });
     assert.equal(items(at('09:50'))[0].spawnMs, at('09:55'));
     assert.equal(items(at('09:55'))[0].spawnMs, at('09:55'));
@@ -309,4 +320,23 @@ test('rift rows show Spawned / Not spawned / Adjust time instead of the kill and
     assert.match(panel, /not_spawned: true/);
     // 4 buttons do not fit the 76px column: widen it only in tables that hold a rift row.
     assert.ok(panel.includes('table:has([data-rift-action]) col[style*="76px"]{width:104px!important}'));
+});
+
+test('a Spawned rift row counts down to its real close next to NOW; other NOW rows are unchanged', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const vm = require('node:vm');
+    const dir = path.join(__dirname, '../public/build/assets');
+    const bundle = fs.readFileSync(path.join(dir, fs.readdirSync(dir).find(n => /^dashboard-.*\.js$/.test(n))), 'utf8');
+    const start = bundle.indexOf('function uc(');
+    const uc = vm.runInNewContext(`(${bundle.slice(start, bundle.indexOf('const hc=', start))})`, {});
+    const now = at('22:54') + 40 * 1000;
+    assert.equal(uc(at('23:31') + 32 * 1000, true, false, now, true).label, 'NOW · 36m 52s');
+    assert.equal(uc(at('23:31') + 32 * 1000, true, false, now, true).overdue, true);
+    assert.equal(uc(at('22:26'), true, false, now).label, 'NOW', 'a normal NOW row');
+    assert.equal(uc(now - 1000, true, false, now, true).label, 'NOW', 'close passed: plain NOW until the next poll');
+    // Only a pinned rift passes its close; both countdown rows re-target to it.
+    assert.equal((bundle.match(/riftCloseMs:(\w+)\.kind==="rift"&&\1\.pinned_alive&&\1\.rift_close_at\?Date\.parse\(\1\.rift_close_at\):0,/g) || []).length, 5);
+    assert.equal((bundle.match(/\}=e,u=e\.riftCloseMs\|\|riftBaseTargetMs,/g) || []).length, 2);
+    assert.equal((bundle.match(/c\.jsx\(ms,\{targetMs:u,untilClose:!!e\.riftCloseMs,/g) || []).length, 4);
 });

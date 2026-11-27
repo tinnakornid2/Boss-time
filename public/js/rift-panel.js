@@ -20,7 +20,7 @@
             saved: 'Saved', error: 'Not saved', unset_confirm: 'Unset {name}? Its timer stops on every screen.',
             phase_LOBBY: 'Lobby', phase_OPEN: 'Open', phase_CLOSING: 'Closing', phase_CLOSED: 'Closed', phase_null: 'Unset',
             next: 'Start {start} · close {close}', durations: 'Name, chance and timeline', color: 'Font color', custom: 'Custom',
-            spawned: '✅ Spawned', not_spawned: '❌ Not spawned', adjust: '🕒 Adjust time', mark_hint: 'For the run showing NOW (or the one that just closed). Not spawned: next start is 6 h after this start, without the hour of play.',
+            spawned: '✅ Spawned', not_spawned: '❌ Not spawned', adjust: '🕒 Adjust time', mark_hint: 'For the run showing NOW (or the one that just closed). Spawned: NOW stays with a countdown to the close, next start 6 h after the close. No press counts as Not spawned: next start 6 h after this start.',
             not_spawned_confirm: '{name} did not spawn? The next start moves to {time}.',
             row_not_spawned_confirm: 'Did this rift NOT spawn? The next start is 6 h after this run\'s start, without the hour of play.',
             row_saved: 'Saved · next start {time}', row_nothing: 'No run to mark right now', cancel: 'Cancel', adjust_title: '🕒 Adjust time'
@@ -34,7 +34,7 @@
             saved: 'บันทึกแล้ว', error: 'บันทึกไม่สำเร็จ', unset_confirm: 'Unset {name}? ตัวจับเวลาจะหยุดทุกหน้าจอ',
             phase_LOBBY: 'ล็อบบี้', phase_OPEN: 'เปิดอยู่', phase_CLOSING: 'กำลังปิด', phase_CLOSED: 'ปิดอยู่', phase_null: 'Unset',
             next: 'เริ่ม {start} · ปิด {close}', durations: 'ชื่อ โอกาส และช่วงเวลา', color: '🎨 สีตัวอักษรบอส', custom: 'เลือกเอง',
-            spawned: '✅ เกิด', not_spawned: '❌ ไม่เกิด', adjust: '🕒 ปรับเวลา', mark_hint: 'ใช้กับรอบที่ขึ้น NOW (หรือรอบที่เพิ่งปิด) ไม่เกิด: รอบถัดไปเริ่ม 6 ชม. หลังเวลาเริ่มรอบนี้ ไม่บวกเวลาเล่น 1 ชม.',
+            spawned: '✅ เกิด', not_spawned: '❌ ไม่เกิด', adjust: '🕒 ปรับเวลา', mark_hint: 'ใช้กับรอบที่ขึ้น NOW (หรือรอบที่เพิ่งปิด) เกิด: ค้าง NOW พร้อมนับถอยหลังถึงเวลาปิด รอบถัดไป 6 ชม. หลังปิด ถ้าไม่กดถือว่าไม่เกิด: รอบถัดไป 6 ชม. หลังเวลาเริ่มรอบนี้',
             not_spawned_confirm: '{name} ไม่เกิดใช่ไหม? รอบถัดไปจะเริ่ม {time}',
             row_not_spawned_confirm: 'รอบนี้ริฟท์ไม่เกิดใช่ไหม? รอบถัดไปจะเริ่ม 6 ชม. หลังเวลาเริ่มรอบนี้ ไม่บวกเวลาเล่น 1 ชม.',
             row_saved: 'บันทึกแล้ว · รอบถัดไปเริ่ม {time}', row_nothing: 'ตอนนี้ยังไม่มีรอบให้กด', cancel: 'ยกเลิก', adjust_title: '🕒 ปรับเวลา'

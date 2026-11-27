@@ -20,7 +20,7 @@ test('dashboard local countdown follows the shared server clock when device time
 
 test('countdown rendering and boss grouping share that clock without extra requests', () => {
     assert.match(bundle, /const t=F1\(\);aa\.forEach/);
-    assert.match(bundle, /uc\(i,s,u,F1\(\)\)/);
+    assert.match(bundle, /uc\(i,s,u,F1\(\),riftUntilClose\)/); // the rift close countdown uses the same clock
     assert.match(bundle, /aS\(Yi,F1\(\),Tn\)/);
     assert.match(bundle, /function G1\(\)\{return Math\.floor\(F1\(\)\/1e3\)\}/);
 });

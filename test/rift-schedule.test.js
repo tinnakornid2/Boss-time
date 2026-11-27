@@ -44,11 +44,12 @@ test('the actual close wins over the open time when both are stored', () => {
 });
 
 test('runs keep cycling by themselves across days and after the app was closed', () => {
+    // Owner: a run nobody marks counts as Not spawned, so later runs are 6 h start to start.
     const rift = maluk({ open_at: iso(at('10:00')) });
-    const cycle = 421 * 60 * 1000;
-    const later = riftState(rift, at('10:00') + 10 * cycle + 30 * 60 * 1000);
+    const first = at('17:01');
+    const later = riftState(rift, first + 10 * 360 * 60 * 1000 + 30 * 60 * 1000);
     assert.equal(later.phase, 'OPEN');
-    assert.equal(later.startAt, at('10:00') + 10 * cycle);
+    assert.equal(later.startAt, first + 10 * 360 * 60 * 1000);
     assert.equal(riftState(rift, at('10:00', '30')).startAt % 60000, 0);
 });
 
@@ -137,6 +138,13 @@ test('editing durations keeps the skip; entering a time clears it', () => {
 
 const { confirmRun } = require('../public/js/rift-schedule');
 
+test('entering a time clears Spawned; editing durations keeps it', () => {
+    const confirmed = confirmRun(normalizeRift({ open_at: iso(at('10:00')) }), at('10:20'));
+    assert.equal(normalizeRift({ run_min: 50 }, confirmed).confirmed, true);
+    assert.equal(normalizeRift({ open_at: iso(at('18:00')) }, confirmed).confirmed, undefined);
+    assert.equal(skipRun(confirmed, at('10:30')).confirmed, undefined);
+});
+
 test('Spawned anchors the open time to the run in progress (normal hour of play, 6 h after close)', () => {
     const skipped = skipRun(normalizeRift({ open_at: iso(at('10:00')) }), at('10:20'));
     const confirmed = confirmRun(skipped, at('16:10'));
@@ -152,4 +160,58 @@ test('Spawned right after a mistaken Not spawned restores the normal timeline', 
     const undone = confirmRun(skipped, at('10:21'));
     assert.equal(undone.open_at, iso(at('10:00')));
     assert.equal(riftState(undone, at('10:21')).phase, 'OPEN');
+});
+
+// ---------- No press = Not spawned (owner's rule) ----------
+const { projectRift } = require('../public/js/rift-schedule');
+
+test('a run nobody marked counts as Not spawned: the next start is 6 h after its start', () => {
+    const rift = normalizeRift({ open_at: iso(at('22:31')) });
+    assert.equal(riftState(rift, at('23:40')).startAt, at('05:32', '28'), 'the entered run spawned: 6 h after its close');
+    assert.equal(riftState(rift, at('07:00', '28')).startAt, at('11:32', '28'));
+    assert.equal(riftState(rift, at('12:40', '28')).startAt, at('17:32', '28'));
+});
+
+test('a run nobody marked keeps its phases but is never pinned: NOW only in the lobby five minutes', () => {
+    const rift = normalizeRift({ open_at: iso(at('10:00')) });
+    assert.equal(riftState(rift, at('16:58')).phase, 'LOBBY');
+    assert.equal(riftState(rift, at('17:30')).phase, 'OPEN');
+    assert.equal(riftState(rift, at('18:01') + 30 * 1000).phase, 'CLOSING');
+    const boss = { id: 1, kind: 'rift', name: 'Maluk', rift };
+    assert.equal(projectRift(boss, at('16:58')).next_spawn, iso(at('16:56')));
+    const open = projectRift(boss, at('17:30'));
+    assert.equal(open.pinned_alive, false);
+    assert.equal(open.next_spawn, iso(at('22:56')), 'shows the next run once the lobby NOW is over');
+    const after = riftState(rift, at('18:03'));
+    assert.equal(after.phase, 'CLOSED');
+    assert.equal(after.startAt, at('23:01'));
+});
+
+test('Spawned on a run nobody marked: pinned until its close, next start 6 h after the close', () => {
+    const rift = normalizeRift({ open_at: iso(at('10:00')) });
+    const confirmed = confirmRun(rift, at('17:30'));
+    assert.equal(confirmed.open_at, iso(at('17:01')));
+    assert.equal(confirmed.confirmed, true);
+    const pinned = projectRift({ id: 1, kind: 'rift', name: 'Maluk', rift: confirmed }, at('17:30'));
+    assert.equal(pinned.pinned_alive, true);
+    assert.equal(pinned.rift_close_at, iso(at('18:02')), 'the dashboard counts down to this close');
+    assert.equal(riftState(confirmed, at('18:10')).startAt, at('00:02', '28'));
+    // Pressed after that run closed, before the next lobby: still that run.
+    assert.equal(confirmRun(rift, at('20:00')).open_at, iso(at('17:01')));
+});
+
+test('Not spawned on a run nobody marked ends its NOW at once; the next start is unchanged', () => {
+    const rift = normalizeRift({ open_at: iso(at('10:00')) });
+    const skipped = skipRun(rift, at('17:30'));
+    assert.equal(skipped.close_at, iso(at('17:01')));
+    const state = riftState(skipped, at('17:30'));
+    assert.equal(state.phase, 'CLOSED');
+    assert.equal(state.startAt, at('23:01'));
+});
+
+test('a cooldown shorter than one run never lets two runs overlap', () => {
+    const rift = { ...normalizeRift({ open_at: iso(at('10:00')) }), cooldown_min: 30 };
+    const first = riftState(rift, at('11:02'));
+    const second = riftState(rift, first.closeAt + 1000);
+    assert.ok(second.lobbyAt >= first.closeAt);
 });
