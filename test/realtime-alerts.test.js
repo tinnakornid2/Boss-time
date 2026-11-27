@@ -580,3 +580,12 @@ test('spawn and alert-before sounds have one owner and follow the Audio settings
     store.set('dashboard.alertSound', 'notification');
     assert.equal(ctx.alertBeforeSoundKey(), 'alert');
 });
+
+test('the admin double-click toast reads Get Ready, not Spawned, although it is urgent', () => {
+    const src = require('node:fs').readFileSync('public/js/realtime-alerts.js', 'utf8');
+    const body = src.slice(src.indexOf('    function showNotice('), src.indexOf('toastHtml = `', src.indexOf('    function showNotice(')));
+    const order = ['if (isPreSpawn)', "'เตรียมตัว!'", '} else if (urgent)', "'เกิดแล้ว!'"].map(s => body.indexOf(s));
+    assert.ok(order.every(i => i > 0), 'all branches present');
+    assert.deepEqual([...order].sort((a, b) => a - b), order, 'pre_spawn is checked before urgent');
+    assert.match(body, /let icon = isPreSpawn \? '⚡' : \(urgent \? '🔥' : '🔔'\)/);
+});

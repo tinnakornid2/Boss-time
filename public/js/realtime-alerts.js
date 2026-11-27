@@ -1263,14 +1263,16 @@ function ensureDownloadAppButton() {
             const rawName = options.rawName || '';
 
             const isThai = getLanguage() === 'th' || message.includes('เกิด') || message.includes('นาที');
-            let icon = urgent ? '🔥' : (alertType === 'pre_spawn' ? '⚡' : '🔔');
+            // The admin double-click alert is urgent (red) but is not a spawn: check it first.
+            const isPreSpawn = alertType === 'pre_spawn';
+            let icon = isPreSpawn ? '⚡' : (urgent ? '🔥' : '🔔');
             let actionText = '';
-            if (urgent) {
+            if (isPreSpawn) {
+                actionText = isThai ? 'เตรียมตัว!' : 'Get Ready!';
+            } else if (urgent) {
                 actionText = isThai ? 'เกิดแล้ว!' : 'Spawned!';
             } else if (options.minLeft) {
                 actionText = isThai ? `อีก ${options.minLeft} นาที` : `in ${options.minLeft} min`;
-            } else if (alertType === 'pre_spawn') {
-                actionText = isThai ? 'เตรียมตัว!' : 'Get Ready!';
             }
 
             toastHtml = `

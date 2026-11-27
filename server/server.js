@@ -2545,6 +2545,17 @@ async function createRiftBoss(req, res) {
     return riftReply(req, res, boss);
 }
 
+function sameRift(a, b) {
+    const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+    for (const key of keys) {
+        const x = a ? a[key] : undefined;
+        const y = b ? b[key] : undefined;
+        if ((x === undefined || x === null) && (y === undefined || y === null)) continue;
+        if (x !== y) return false;
+    }
+    return true;
+}
+
 async function updateRiftBoss(req, res, boss, body) {
     // No kill, no "not spawned", no Still alive, no spawn adjust: Admin enters the open or close time.
     if ((body.last_kill_time !== undefined && body.last_kill_time) || body.still_alive || body.adjust_spawn_minutes !== undefined || body.toggle_maintenance) {
@@ -2556,6 +2567,8 @@ async function updateRiftBoss(req, res, boss, body) {
         // Spawned: the normal timeline follows from that run's start.
         const next = body.not_spawned ? RiftSchedule.skipRun(boss.rift, Date.now()) : RiftSchedule.confirmRun(boss.rift, Date.now());
         if (!next) return res.status(409).json({ success: false, message: 'No rift run to mark right now' });
+        // A repeated Spawned (another Admin, or a double press) changes nothing: skip the Firebase write.
+        if (sameRift(next, boss.rift) && !boss.pre_spawned) return riftReply(req, res, boss);
         updates.rift = next;
         clearPreSpawnAlert(updates);
     } else if (body.toggle_pre_spawned) {

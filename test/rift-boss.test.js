@@ -340,3 +340,24 @@ test('a Spawned rift row counts down to its real close next to NOW; other NOW ro
     assert.equal((bundle.match(/\}=e,u=e\.riftCloseMs\|\|riftBaseTargetMs,/g) || []).length, 2);
     assert.equal((bundle.match(/c\.jsx\(ms,\{targetMs:u,untilClose:!!e\.riftCloseMs,/g) || []).length, 4);
 });
+
+test('a repeated Spawned does not write again (cost rule)', async () => {
+    await withServer(async (base) => {
+        const startAt = Date.now() - 20 * MIN;
+        const created = (await (await send(base, 'POST', '/bosses', 'admin', { name: 'Rift J', kind: 'rift', rift: { open_at: iso(startAt) } })).json()).boss;
+        assert.equal((await send(base, 'PUT', '/bosses/' + created.id, 'admin', { rift_spawned: true })).status, 200);
+        const original = db.updateBoss;
+        let writes = 0;
+        db.updateBoss = (...args) => { writes++; return original.apply(db, args); };
+        try {
+            const again = await send(base, 'PUT', '/bosses/' + created.id, 'admin', { rift_spawned: true });
+            assert.equal(again.status, 200);
+            assert.equal(writes, 0, 'nothing changed, so nothing is written');
+            assert.equal((await send(base, 'PUT', '/bosses/' + created.id, 'admin', { not_spawned: true })).status, 200);
+            assert.equal(writes, 1, 'Not spawned after Spawned still writes');
+        } finally {
+            db.updateBoss = original;
+        }
+        assert.equal(db.getBoss(created.id).rift.skip, true);
+    });
+});
