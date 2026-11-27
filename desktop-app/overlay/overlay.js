@@ -79,6 +79,7 @@ const I18N_HUD = {
     th: {
         boss_hud: 'BOSS HUD',
         group_spawned: '🔥 เกิดแล้ว (Spawned)',
+        group_alert: '🔔 แจ้งเตือน (Alert)',
         group_upcoming: '⏳ กำลังจะเกิด (Upcoming)',
         group_unset: '💤 ยังไม่ตั้งเวลา (Unset)',
         focus_empty: 'ไม่มีบอสที่กำลังเกิดหรือใกล้เกิด',
@@ -150,6 +151,7 @@ const I18N_HUD = {
     en: {
         boss_hud: 'BOSS HUD',
         group_spawned: '🔥 SPAWNED',
+        group_alert: '🔔 ALERT',
         group_upcoming: '⏳ UPCOMING',
         group_unset: '💤 UNSET',
         focus_empty: 'No spawned or upcoming bosses',
@@ -1135,6 +1137,13 @@ function formatSpawnClockTime(targetTs) {
     return `${hh}:${mm}:${ss}`;
 }
 
+// Admin double-click alert (pre_spawned), same rule as the dashboard flash: active until it expires.
+function hudAlertActive(item, now) {
+    if (!item || !item.pre_spawned) return false;
+    const expiry = new Date(item.pre_spawn_expires_at || 0).getTime();
+    return !Number.isFinite(expiry) || expiry <= 0 || expiry > now;
+}
+
 function renderBossList() {
     const totalCount = (state.bosses?.length || 0) + (state.events?.length || 0);
     if (totalCount === 0) {
@@ -1151,6 +1160,8 @@ function renderBossList() {
     const now = Date.now() + state.serverOffset;
 
     const nowBosses = [];
+    // Bosses an Admin double-clicked: always at the top, even while Unset or in focus mode.
+    const alertBosses = [];
     const upcomingBosses = [];
     const unsetBosses = [];
 
@@ -1159,22 +1170,20 @@ function renderBossList() {
         if (b.is_invasion && state.settings.hideInvasionBosses) continue;
 
         const isInv = Boolean(b.is_invasion);
+        const targetTs = b.next_spawn ? new Date(b.next_spawn).getTime() : null;
+        const diff = targetTs === null ? Infinity : targetTs - now;
+        const isNow = targetTs !== null && Boolean(b.pinned_alive || (diff <= 0 && diff > -300000));
+        const entry = { item: b, targetTs, diff, isNow, isInv, isEvent: false };
 
-        if (b.next_spawn) {
-            const targetTs = new Date(b.next_spawn).getTime();
-            const diff = targetTs - now;
-            const isNow = b.pinned_alive || (diff <= 0 && diff > -300000);
-
-            if (isNow) {
-                nowBosses.push({ item: b, targetTs, diff, isNow: true, isInv, isEvent: false });
-            } else if (diff > 0) {
-                upcomingBosses.push({ item: b, targetTs, diff, isNow: false, isInv, isEvent: false });
-            } else {
-                // Passed over 5 mins
-                upcomingBosses.push({ item: b, targetTs, diff, isNow: false, isInv, isEvent: false });
-            }
+        if (isNow) {
+            nowBosses.push(entry);
+        } else if (hudAlertActive(b, now)) {
+            alertBosses.push(entry);
+        } else if (targetTs !== null) {
+            // Upcoming, or passed over 5 mins
+            upcomingBosses.push(entry);
         } else {
-            unsetBosses.push({ item: b, targetTs: null, diff: Infinity, isNow: false, isInv, isEvent: false });
+            unsetBosses.push(entry);
         }
     }
 
@@ -1233,7 +1242,7 @@ function renderBossList() {
         const spawnClockText = Number.isFinite(targetTs) ? formatSpawnClockTime(targetTs) : '';
         const spawnClockHtml = spawnClockText ? `<div class="boss-spawn-clock">${spawnClockText}</div>` : '';
 
-        const isPreSpawned = Boolean(item.pre_spawned);
+        const isPreSpawned = hudAlertActive(item, now);
         const alertBadge = isPreSpawned ? `<span class="badge-alert">🔔 ALERT</span>` : '';
         const maintBadge = item.post_maintenance ? `<span class="badge-alert" style="background:#475569;color:#e2e8f0;">MAINT</span>` : '';
         const statusIcon = item.post_maintenance
@@ -1276,6 +1285,11 @@ function renderBossList() {
         for (const b of nowBosses) html += renderItemCard(b);
     }
 
+    if (alertBosses.length > 0) {
+        html += `<div class="hud-group-header" style="color: #f0b232;">${t('group_alert')} (${alertBosses.length})</div>`;
+        for (const b of alertBosses) html += renderItemCard(b);
+    }
+
     if (visibleUpcoming.length > 0) {
         for (const b of visibleUpcoming) html += renderItemCard(b);
     }
@@ -1285,7 +1299,7 @@ function renderBossList() {
         for (const b of visibleUnset) html += renderItemCard(b);
     }
 
-    if (nowBosses.length === 0 && visibleUpcoming.length === 0 && visibleUnset.length === 0) {
+    if (nowBosses.length === 0 && alertBosses.length === 0 && visibleUpcoming.length === 0 && visibleUnset.length === 0) {
         html = `<div class="hud-empty">${t(state.focusMode ? 'focus_empty' : 'empty')}</div>`;
     }
 
