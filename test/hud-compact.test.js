@@ -51,3 +51,12 @@ test('Text opacity is a local HUD setting; NOW and ALERT rows stay solid', () =>
     assert.match(script, /label_text_opacity: 'ความใสตัวอักษร:'/);
     assert.doesNotMatch(script, /saveHudSettings\(\{ textOpacity/);
 });
+
+test('The gear menu scrolls inside a small HUD instead of being cut off', () => {
+    const start = css.indexOf('\n.hud-font-panel {', css.indexOf('.hud-font-panel.active'));
+    assert.ok(start > 0, 'scroll rule after the active rule');
+    const rule = css.slice(start, css.indexOf('}', start));
+    assert.match(rule, /overflow-y: auto/);
+    assert.match(rule, /min-height: 0/);
+    assert.match(rule, /flex: 0 1 auto/);
+});

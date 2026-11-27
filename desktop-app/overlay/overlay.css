@@ -335,6 +335,23 @@ body {
     display: flex !important;
 }
 
+/* A small HUD cannot show every setting: the menu takes the space it needs and scrolls inside
+   the HUD (the boss list shrinks first), so no setting is ever cut off. */
+.hud-font-panel {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.hud-font-panel::-webkit-scrollbar {
+    width: 4px;
+}
+.hud-font-panel::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 2px;
+}
+
 /* Gear menu actions (moved out of the header) */
 .hud-menu-actions {
     display: flex;
